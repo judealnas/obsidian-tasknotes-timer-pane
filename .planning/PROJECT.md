@@ -22,9 +22,9 @@ With the pane open, I can always see what task is being timed and how long I've 
 - [ ] Stop the active timer from the pane
 - [ ] Pause/resume from the pane (pause = close current time entry; resume = open a new entry on the same task)
 - [ ] Start timing a different task from the pane (task picker) — switching in 1–2 clicks
-- [ ] Recent tasks list for one-click resume
-- [ ] Today's log of time entries/tasks tracked today (secondary)
-- [ ] Stays in sync: timers started/stopped elsewhere in TaskNotes (status bar, task cards, commands) reflect in the pane promptly
+- [ ] Complete the active task from the pane
+- [ ] Stays in sync: timers started/stopped elsewhere in TaskNotes (status bar, task cards, commands), via Sync, or by hand edits reflect in the pane promptly
+- [ ] Handles multiple concurrent timers (shows most recent; switch stops all by default) and Pomodoro-controlled timers (labelled, no pause)
 
 ### Out of Scope
 
@@ -33,7 +33,8 @@ With the pane open, I can always see what task is being timed and how long I've 
 - Using TaskNotes' HTTP API — in-process integration chosen instead (no API server/token needed)
 - Basing implementation on the zczs520/tasknotes 5.2.3 fork — unknown provenance; user prefers not to rely on it
 - Community plugin directory submission (for now) — personal use; manual/BRAT install is enough
-- Rich reporting/analytics beyond today's log — not part of the core need
+- Rich reporting/analytics — not part of the core need
+- Recent tasks, today's log, estimate progress, "also running" list, hotkeys — deferred to v2 during scoping
 
 ## Context
 
@@ -41,13 +42,14 @@ With the pane open, I can always see what task is being timed and how long I've 
 - **Inspiration:** https://github.com/jane-t/TaskNotesTimer — Tauri desktop overlay that polls TaskNotes' HTTP API (active-timer endpoint), offers a task dropdown of open/in-progress tasks, START/STOP buttons, large live count-up clock. Good reference for feature set and UX; architecture differs (external app vs. in-Obsidian view).
 - **Possible reference (low trust):** https://github.com/zczs520/tasknotes/releases/tag/5.2.3 — a fork that claims to implement this feature; user knows little about it and prefers not to use it.
 - **UI precedent:** TaskNotes' own Pomodoro timer pane — the target look/feel for a persistent sidebar pane.
-- **Integration approach:** in-process — read task data via Obsidian metadata cache / TaskNotes' plugin instance and invoke TaskNotes' own start/stop time-tracking methods so data stays in TaskNotes' format and TaskNotes' UI (status bar etc.) stays consistent.
+- **Integration approach:** in-process via TaskNotes' documented JavaScript Runtime API v1 (`app.plugins.getPlugin("tasknotes").api`, added in 4.10.0). Writes only through `api.time.start`/`stop` so data stays in TaskNotes' format and its status bar stays consistent. See `.planning/research/SUMMARY.md`.
 
 ## Constraints
 
 - **Dependency**: Requires TaskNotes plugin installed and enabled — the pane is a companion, not a replacement
 - **Data format**: Must write time entries exactly as TaskNotes does (ideally by calling TaskNotes' own APIs) — avoids corrupting tracked time or desyncing TaskNotes' UI
-- **Compatibility**: Relies on TaskNotes internals (plugin instance/services) which aren't a stable public API — must degrade gracefully if TaskNotes is missing or its internals change
+- **Compatibility**: Relies on TaskNotes Runtime API v1 (TaskNotes >= 4.10.0); never TaskNotes internals — must degrade gracefully if TaskNotes is missing, disabled, too old, or reloaded
+- **Platform**: `isDesktopOnly: false`, but verified on desktop only
 - **Tech stack**: Obsidian plugin (TypeScript, Obsidian API, esbuild per sample-plugin conventions)
 - **Distribution**: Personal use — manual install or BRAT
 
@@ -56,7 +58,9 @@ With the pane open, I can always see what task is being timed and how long I've 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | In-Obsidian pane instead of desktop overlay | User wants it integrated into the Obsidian window like the Pomodoro pane | — Pending |
-| In-process integration, not HTTP API | No API server/token setup; direct access to TaskNotes state and events | — Pending |
+| In-process integration via Runtime API v1, not HTTP API or internals | No API server/token setup; documented, versioned companion-plugin surface | — Pending |
+| Switch stops all running timers by default (setting to stop only displayed) | Single-focus model; TaskNotes allows concurrent timers | — Pending |
+| Pomodoro-controlled timers shown labelled, pause hidden | Pomodoro owns its entry; pane pause would orphan timers | — Pending |
 | Full control (start/stop/pause/switch), not just monitoring | Done = stop, pause, or switch in 1–2 clicks from the pane | — Pending |
 | Pause implemented as stop + new entry on resume | TaskNotes time tracking has no native pause; time entries are start/end pairs | — Pending |
 | Sidebar view + ribbon icon + command | Matches Pomodoro pane placement; easy to open | — Pending |
@@ -80,4 +84,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-13 after initialization*
+*Last updated: 2026-10-13 after requirements definition*
