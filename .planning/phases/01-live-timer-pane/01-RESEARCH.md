@@ -664,14 +664,18 @@ Archived seed: the same with `tags: [task, archived]`. Quote timestamps so YAML 
 | A6 | Electron fires `visibilitychange`/`focus` after OS wake | Pattern 5 | Low: tick-gap detection covers it regardless |
 | A7 | esbuild `onStart` asset copy + `.hotreload` creation behaves as described on Windows paths | esbuild config | Low: verified pieces; first `npm run dev` proves it |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Is `task_not_found` during Stop benign?**
+1. **Is `task_not_found` during Stop benign?** RESOLVED (plan 01-05, Task 1): no. Only the message "No active time tracking session for this task" is benign (no Notice, refresh). Every other error, including `task_not_found`, shows the Stop-failed Notice, then refreshes.
    - What we know: if the file was deleted between click and stop, `requireTask` throws `task_not_found` [VERIFIED: TaskNotesAPI.ts:2663-2673].
    - Unclear: the UI-SPEC names only "no active session" as benign.
    - Recommendation: show the Notice (truthful), then refresh. The ghost card disappears either way.
-2. **How long should the bridge stay in `loading` when TaskNotes ≥ 4.10 never assigns `api`?** Recommendation: stay in `loading` (the copy is honest), keep probing every 5 s, and log once after about 30 s. No new UI state in Phase 1.
-3. **Should the safety resync run while the bridge is not `ready`?** Recommendation: no; it only runs when ready. The probe handles the other states.
+2. **How long should the bridge stay in `loading` when TaskNotes ≥ 4.10 never assigns `api`?** RESOLVED (plan 01-03, Task 1): it stays in `loading` and keeps the 5 s probe. It logs one console message after `LOADING_WARN_MS` (30 s) and adds no new UI state.
+3. **Should the safety resync run while the bridge is not `ready`?** RESOLVED (plan 01-03, Task 2): no. `TimerStore.resync()` runs only when ready, and the probe handles the other states.
+
+Planner notes on the remaining research flags (2026-10-13):
+- Six [SUS] dev packages: RESOLVED by plan 01-01 Task 1, a `checkpoint:human-verify` with `gate="blocking-human"` before the single `npm install`.
+- Assumptions Log A1-A7: carried as flagged assumptions in the plans. A1, A4, A6 and A7 are confirmed by hand in `01-UAT-CHECKLIST.md` section 8 (plan 01-04).
 
 ## Environment Availability
 
