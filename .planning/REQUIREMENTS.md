@@ -80,12 +80,36 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
+| PANE-01 | Phase 1 | Pending |
+| PANE-02 | Phase 1 | Pending |
+| PANE-03 | Phase 1 | Pending |
+| DISP-01 | Phase 1 | Pending |
+| DISP-02 | Phase 1 | Pending |
+| DISP-03 | Phase 1 | Pending |
+| DISP-04 | Phase 2 | Pending |
+| DISP-05 | Phase 1 | Pending |
+| DISP-06 | Phase 1 | Pending |
+| DISP-07 | Phase 3 | Pending |
+| CTRL-01 | Phase 1 | Pending |
+| CTRL-02 | Phase 3 | Pending |
+| CTRL-03 | Phase 3 | Pending |
+| CTRL-04 | Phase 3 | Pending |
+| CTRL-05 | Phase 2 | Pending |
+| CTRL-06 | Phase 2 | Pending |
+| CTRL-07 | Phase 2 | Pending |
+| CTRL-08 | Phase 3 | Pending |
+| CTRL-09 | Phase 2 | Pending |
+| CTRL-10 | Phase 2 | Pending |
+| SYNC-01 | Phase 1 | Pending |
+| SYNC-02 | Phase 1 | Pending |
+| SYNC-03 | Phase 1 | Pending |
+| SYNC-04 | Phase 1 | Pending |
 
 **Coverage:**
 - v1 requirements: 24 total
-- Mapped to phases: 0
-- Unmapped: 24 ⚠️
+- Mapped to phases: 24
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-10-13*
-*Last updated: 2026-10-13 after initial definition*
+*Last updated: 2026-10-13 after roadmap creation*
