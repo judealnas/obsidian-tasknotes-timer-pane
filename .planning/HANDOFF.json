@@ -9,28 +9,80 @@
   "total_tasks": null,
   "status": "paused",
   "completed_tasks": [
-    {"id": 1, "name": "Research Phase 1 (01-RESEARCH.md)", "status": "done", "commit": "273b133"},
-    {"id": 2, "name": "Plan Phase 1 (5 plans, 4 waves), checker passed on iteration 2", "status": "done", "commit": "68fdc6e"},
-    {"id": 3, "name": "Revise plans to drop archive auto-stop (D-06..D-11 superseded)", "status": "in_progress", "progress": "01-CONTEXT.md updated (D-06..D-11 tagged [informational, superseded 2026-10-13]); 01-02..01-05 revised; 01-05 now Stop-only; 01-01 acceptance/artifacts trimmed of settings types. Decision-coverage gate passes (8/8). Revision subagent was interrupted by a session restart before finishing."}
+    {
+      "id": 1,
+      "name": "Research Phase 1 (01-RESEARCH.md)",
+      "status": "done",
+      "commit": "273b133"
+    },
+    {
+      "id": 2,
+      "name": "Plan Phase 1 (5 plans, 4 waves), checker passed on iteration 2",
+      "status": "done",
+      "commit": "68fdc6e"
+    },
+    {
+      "id": 3,
+      "name": "Revise plans to drop archive auto-stop (D-06..D-11 superseded)",
+      "status": "in_progress",
+      "progress": "Revision subagent was stopped by the user mid-RESEARCH.md. Done on disk (uncommitted, unverified): 01-CONTEXT.md (D-06..D-11 superseded), 01-01..01-05 plans (01-05 Stop-only; 01-01 settings types removed from action + acceptance), SKELETON.md, COVERAGE.md, ROADMAP.md Phase 1 plan list. Decision-coverage gate passes (8/8). Not done: 01-RESEARCH.md superseded markers."
+    }
   ],
   "remaining_tasks": [
-    {"id": 4, "name": "Finish archive revision leftovers", "status": "not_started"},
-    {"id": 5, "name": "Validate plans (frontmatter.validate --schema plan, verify.plan-structure), re-run verify probes + gsd-plan-checker", "status": "not_started"},
-    {"id": 6, "name": "Commit revised plans", "status": "not_started"},
-    {"id": 7, "name": "/gsd-execute-phase 1", "status": "not_started"}
+    {
+      "id": 4,
+      "name": "Optional: add superseded markers in 01-RESEARCH.md archive auto-stop references (e.g. line ~138 primary recommendation); research is historical, so this is cosmetic",
+      "status": "not_started"
+    },
+    {
+      "id": 5,
+      "name": "Validate plans (frontmatter.validate --schema plan, verify.plan-structure), re-run verify probes + gsd-plan-checker",
+      "status": "not_started"
+    },
+    {
+      "id": 6,
+      "name": "Commit revised plans",
+      "status": "not_started"
+    },
+    {
+      "id": 7,
+      "name": "/gsd-execute-phase 1",
+      "status": "not_started"
+    }
   ],
   "blockers": [],
   "async_jobs": [],
   "human_actions_pending": [
-    {"action": "Approve dev-package legitimacy checkpoint in plan 01-01 before npm install", "context": "obsidian, eslint, typescript-eslint, globals, vitest, @types/node flagged only for recent release dates", "blocking": true},
-    {"action": "Decide whether to commit or gitignore .planning/state.json", "context": "Untracked file created by GSD tooling during planning", "blocking": false}
+    {
+      "action": "Approve dev-package legitimacy checkpoint in plan 01-01 before npm install",
+      "context": "obsidian, eslint, typescript-eslint, globals, vitest, @types/node flagged only for recent release dates",
+      "blocking": true
+    },
+    {
+      "action": "Decide whether to commit or gitignore .planning/state.json",
+      "context": "Untracked file created by GSD tooling during planning",
+      "blocking": false
+    }
   ],
   "decisions": [
-    {"decision": "Phase 1 goal is the user story: As a TaskNotes user, I want to see and stop my running timer from a sidebar pane, so that I always know what I am timing and for how long.", "rationale": "MVP-mode verify-work requires a user-story goal; user approved the proposed story", "phase": "01"},
-    {"decision": "Accept split of old 01-01 into scaffold (01-01) + tracer (01-02)", "rationale": "Plan checker scope warning: 15 files_modified", "phase": "01"},
-    {"decision": "Drop archive auto-stop and Archived label (D-06..D-11 superseded); archived-flag timers display like any other timer", "rationale": "User archives via a status configured as completed in TaskNotes, so TaskNotes' own completion auto-stop (D-05) covers it; user does not use TaskNotes' Archive action", "phase": "01"}
+    {
+      "decision": "Phase 1 goal is the user story: As a TaskNotes user, I want to see and stop my running timer from a sidebar pane, so that I always know what I am timing and for how long.",
+      "rationale": "MVP-mode verify-work requires a user-story goal; user approved the proposed story",
+      "phase": "01"
+    },
+    {
+      "decision": "Accept split of old 01-01 into scaffold (01-01) + tracer (01-02)",
+      "rationale": "Plan checker scope warning: 15 files_modified",
+      "phase": "01"
+    },
+    {
+      "decision": "Drop archive auto-stop and Archived label (D-06..D-11 superseded); archived-flag timers display like any other timer",
+      "rationale": "User archives via a status configured as completed in TaskNotes, so TaskNotes' own completion auto-stop (D-05) covers it; user does not use TaskNotes' Archive action",
+      "phase": "01"
+    }
   ],
   "uncommitted_files": [
+    " M .planning/ROADMAP.md",
     " M .planning/config.json",
     " M .planning/phases/01-live-timer-pane/01-01-PLAN.md",
     " M .planning/phases/01-live-timer-pane/01-02-PLAN.md",
@@ -38,8 +90,10 @@
     " M .planning/phases/01-live-timer-pane/01-04-PLAN.md",
     " M .planning/phases/01-live-timer-pane/01-05-PLAN.md",
     " M .planning/phases/01-live-timer-pane/01-CONTEXT.md",
+    " M .planning/phases/01-live-timer-pane/COVERAGE.md",
+    " M .planning/phases/01-live-timer-pane/SKELETON.md",
     "?? .planning/state.json"
   ],
-  "next_action": "Fix archive-revision leftovers: 01-01-PLAN.md line ~214 action text still lists TaskNotesSettingsSubset/TaskNotesTimeTrackingConfig/settings.snapshot/model.config (acceptance criteria already dropped them); SKELETON.md line ~20 (ArchiveAutoStopper, D-06..D-10, D-07 rationale); COVERAGE.md line ~23 (task.archived reason cites D-06/D-07); ROADMAP.md Phase 1 plan list lines ~48 and ~54 (Archived UAT section, archived-timer auto-stop); check 01-RESEARCH.md planner notes for archive auto-stop references. Then validate, re-run checker, commit.",
+  "next_action": "Review the uncommitted archive-revision diff (git diff .planning/), optionally mark 01-RESEARCH.md archive auto-stop references as superseded, then validate plans (frontmatter.validate --schema plan, verify.plan-structure), re-run verify probes + gsd-plan-checker, and commit.",
   "context_notes": "Done via /gsd-plan-phase 1 revision loop; plans were already committed (68fdc6e) before the user's archive decision. TaskNotes' archived flag (toggleArchive) never stops tracking, but the user doesn't use it — see memory archive-via-completed-status. ROADMAP Phase 2 note (line ~74) about archived tasks in the picker is Phase 2 scope; leave for /gsd-discuss-phase 2. config.json diff is only workflow._auto_chain_active=false."
 }
