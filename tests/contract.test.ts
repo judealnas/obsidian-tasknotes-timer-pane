@@ -6,6 +6,11 @@ import { describe, expectTypeOf, test } from "vitest";
 import type { EventRef } from "obsidian";
 import type {
 	ActiveTimeEntry,
+ CompleteTaskOptions,
+ PomodoroState,
+ PomodoroSession,
+ TaskStatus,
+ TaskNotesRuntimeEventName,
 	TaskInfo,
 	TaskNotesApiErrorPayload,
 	TaskNotesMutationContext,
@@ -112,4 +117,35 @@ describe("TaskNotes Runtime API v1 contract", () => {
 	test("TaskNotesRuntimeTaskMenuShowOptions is exactly taskPath and event", () => {
 		expectTypeOf<TaskNotesRuntimeTaskMenuShowOptions>().toEqualTypeOf<{ taskPath: string; event: MouseEvent }>();
 	});
+});
+
+describe("Phase 2 public contract (TaskNotes 4.13.8)", () => {
+ test("list/status/start/complete signatures and mutation context", () => {
+  expectTypeOf<NonNullable<Api["tasks"]>["list"]>().parameters.toEqualTypeOf<[]>();
+  expectTypeOf<NonNullable<Api["tasks"]>["list"]>().returns.toEqualTypeOf<Promise<TaskInfo[]>>();
+  expectTypeOf<NonNullable<Api["catalog"]>["statuses"]>().returns.toEqualTypeOf<TaskStatus[]>();
+  expectTypeOf<NonNullable<Api["time"]["start"]>>().parameters.toEqualTypeOf<[path: string, options: Record<string, never>, context?: TaskNotesMutationContext]>();
+  expectTypeOf<NonNullable<Api["time"]["start"]>>().returns.toEqualTypeOf<Promise<TaskInfo>>();
+  expectTypeOf<NonNullable<NonNullable<Api["tasks"]>["complete"]>>().parameters.toEqualTypeOf<[path: string, options?: CompleteTaskOptions, context?: TaskNotesMutationContext]>();
+  expectTypeOf<NonNullable<NonNullable<Api["tasks"]>["complete"]>>().returns.toEqualTypeOf<Promise<TaskInfo>>();
+  expectTypeOf<CompleteTaskOptions>().toEqualTypeOf<{ status?: string }>();
+ });
+ test("picker fields and status catalog", () => {
+  expectTypeOf<Pick<TaskInfo, "due" | "priority" | "contexts" | "projects" | "tags">>().toEqualTypeOf<{due?: string; priority?: string; contexts?: string[]; projects?: string[]; tags?: string[]}>();
+  expectTypeOf<TaskStatus["value"]>().toEqualTypeOf<string>();
+  expectTypeOf<TaskStatus["isCompleted"]>().toEqualTypeOf<boolean>();
+ });
+ test("Pomodoro state and exact task entry ownership fields", () => {
+  expectTypeOf<NonNullable<Api["pomodoro"]>["status"]>().parameters.toEqualTypeOf<[]>();
+  expectTypeOf<NonNullable<Api["pomodoro"]>["status"]>().returns.toEqualTypeOf<Promise<PomodoroState>>();
+  expectTypeOf<PomodoroState["currentSession"]>().toEqualTypeOf<PomodoroSession | undefined>();
+  expectTypeOf<PomodoroSession["timeTrackingStartTime"]>().toEqualTypeOf<string | undefined>();
+  expectTypeOf<PomodoroSession["taskPath"]>().toEqualTypeOf<string | undefined>();
+  expectTypeOf<PomodoroSession["type"]>().toEqualTypeOf<"work" | "short-break" | "long-break">();
+  expectTypeOf<PomodoroSession["completed"]>().toEqualTypeOf<boolean>();
+  expectTypeOf<PomodoroSession["interrupted"]>().toEqualTypeOf<boolean | undefined>();
+ });
+ test("public time and Pomodoro event names", () => {
+  expectTypeOf<TaskNotesRuntimeEventName>().toEqualTypeOf<TaskNotesRuntimeTaskEventName | "time.started" | "time.stopped" | "pomodoro.started" | "pomodoro.completed" | "pomodoro.interrupted">();
+ });
 });

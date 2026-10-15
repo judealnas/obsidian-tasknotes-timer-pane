@@ -472,7 +472,7 @@ describe("Start feature gates", () => {
  });
  test.each(["tasks.read", "catalog.read"])("missing %s disables only Start", async capability => {
   const tn = createFakeTaskNotes();
-  const original = tn.api.hasCapability;
+  const original = tn.api.hasCapability.bind(tn.api);
   tn.api.hasCapability = value => value !== capability && original(value);
   const { bridge } = setup(tn.plugin); bridge.probe();
   expect(bridge.getState().kind).toBe("ready");

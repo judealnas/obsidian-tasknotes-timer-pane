@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import type { App } from "obsidian";
 import { createFakeGateway } from "./fakes/fakeGateway";
-const host = vi.hoisted(() => ({ loaded: 0, unloaded: 0, renders: [] as Array<() => void> }));
+const host = vi.hoisted(() => ({ loaded: 0, unloaded: 0, notices: 0, throwNotice: false, renders: [] as Array<() => void> }));
 class Element {
  textContent = "";
  children: Element[] = [];
@@ -23,7 +23,7 @@ class Element {
 vi.mock("obsidian", () => ({
  Component: class { load(): void { host.loaded++; } unload(): void { host.unloaded++; } },
  MarkdownRenderer: { render: (_app: unknown, _markdown: string, wrapper: Element) => new Promise<void>(resolve => { host.renders.push(() => { wrapper.createDiv(); resolve(); }); }) },
- Notice: class {},
+ Notice: class { constructor() { host.notices++; if (host.throwNotice) throw new Error("Notice failed"); } },
  SuggestModal: class {
   inputEl = new Element();
   app: App;
@@ -39,7 +39,7 @@ import { TaskPickerModal } from "../src/ui/TaskPickerModal";
 const task = { title: "Task", path: "Task.md", status: "open", archived: false, due: "2026-10-15" };
 const flush = async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); };
 describe("task picker lifecycle", () => {
- beforeEach(() => { host.loaded = 0; host.unloaded = 0; host.renders = []; vi.stubGlobal("createDiv", () => new Element()); });
+ beforeEach(() => { host.loaded = 0; host.unloaded = 0; host.notices = 0; host.throwNotice = false; host.renders = []; vi.stubGlobal("createDiv", () => new Element()); });
  function setup() {
   const gateway = createFakeGateway();
   gateway.listTasks = () => Promise.resolve([task]);
@@ -77,4 +77,15 @@ describe("task picker lifecycle", () => {
   gateway.setState({ kind: "missing" }); modal.selectSuggestion(task, {} as MouseEvent);
   expect(closed).toHaveBeenCalledTimes(1); expect(start).not.toHaveBeenCalled();
  });
+});
+
+test.each([false, true])("picker read failure closes and releases guards when Notice throws=%s", async throws => {
+ const gateway = createFakeGateway(); gateway.listTasks = () => Promise.reject(new Error("Read failed"));
+ const closed = vi.fn(); host.notices = 0; host.throwNotice = throws;
+ const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+ const modal = new TaskPickerModal({} as App, gateway, { start: () => Promise.resolve("started"), isBusy: () => false }, closed);
+ modal.onOpen(); await flush();
+ expect(closed).toHaveBeenCalledTimes(1); expect(host.notices).toBe(1);
+ expect(modal.getSuggestions("")).toEqual([]);
+ host.throwNotice = false; errorLog.mockRestore();
 });

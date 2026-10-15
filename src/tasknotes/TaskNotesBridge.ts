@@ -183,39 +183,53 @@ export class TaskNotesBridge implements TaskNotesGateway {
 	}
 
 	startAvailability(): { available: boolean; reason: string } {
-		const api = this.api;
-		if (!api || this.state.kind !== "ready" || this.lookupPlugin()?.api !== api) return { available: false, reason: "TaskNotes is not connected" };
-		for (const capability of ["tasks.read", "catalog.read", "time.write"]) {
-			if (!api.hasCapability(capability)) return { available: false, reason: "TaskNotes is missing " + capability };
-		}
-		if (typeof api.tasks?.list !== "function" || typeof api.catalog?.statuses !== "function" || typeof api.time.start !== "function") return { available: false, reason: "TaskNotes does not provide the Start task methods" };
-		return { available: true, reason: "Start a task alongside running timers" };
-	}
+  try {
+   const api = this.connectedApi();
+   for (const [capability, method, callable] of [
+    ["tasks.read", "tasks.list", typeof api.tasks?.list === "function"],
+    ["catalog.read", "catalog.statuses", typeof api.catalog?.statuses === "function"],
+    ["time.write", "time.start", typeof api.time.start === "function"],
+   ] as const) {
+    if (!api.hasCapability(capability)) return { available: false, reason: "TaskNotes is missing " + capability };
+    if (!callable) return { available: false, reason: "TaskNotes does not provide " + method };
+   }
+   return { available: true, reason: "Start a task alongside running timers" };
+  } catch { return { available: false, reason: "TaskNotes is not connected" }; }
+ }
 
-	private startApi(): TaskNotesRuntimeApiV1 {
-		const gate = this.startAvailability();
-		if (!gate.available || !this.api) throw new Error(gate.reason);
-		return this.api;
-	}
+ private connectedApi(): TaskNotesRuntimeApiV1 {
+  const api = this.api;
+  if (!api || this.state.kind !== "ready" || this.retired.has(api) || this.lookupPlugin()?.api !== api || !api.lifecycle.isReady()) throw new Error("TaskNotes is not connected");
+  return api;
+ }
 
-	async listTasks(): Promise<TaskInfo[]> {
-		const api = this.startApi();
-		const tasks = await api.tasks!.list();
-		if (this.startApi() !== api) throw new Error("TaskNotes changed while loading tasks");
-		return tasks;
-	}
+ private featureApi(capability: string, method: string, callable: (api: TaskNotesRuntimeApiV1) => boolean): TaskNotesRuntimeApiV1 {
+  const api = this.connectedApi();
+  if (!api.hasCapability(capability)) throw new Error("TaskNotes is missing " + capability);
+  if (!callable(api)) throw new Error("TaskNotes does not provide " + method);
+  return api;
+ }
 
-	async statuses(): Promise<TaskStatus[]> {
-		const api = this.startApi();
-		const statuses = await Promise.resolve(api.catalog!.statuses());
-		if (this.startApi() !== api) throw new Error("TaskNotes changed while loading statuses");
-		return statuses;
-	}
+ async listTasks(): Promise<TaskInfo[]> {
+  const readApi = () => this.featureApi("tasks.read", "tasks.list", api => typeof api.tasks?.list === "function");
+  const api = readApi();
+  const tasks = await api.tasks!.list();
+  if (readApi() !== api) throw new Error("TaskNotes changed while loading tasks");
+  return tasks;
+ }
 
-	async start(path: string, options: Record<string, never>, context: TaskNotesMutationContext): Promise<void> {
-		const api = this.startApi();
-		await api.time.start!(path, options, context);
-	}
+ async statuses(): Promise<TaskStatus[]> {
+  const readApi = () => this.featureApi("catalog.read", "catalog.statuses", api => typeof api.catalog?.statuses === "function");
+  const api = readApi();
+  const statuses = await Promise.resolve(api.catalog!.statuses());
+  if (readApi() !== api) throw new Error("TaskNotes changed while loading statuses");
+  return statuses;
+ }
+
+ async start(path: string, options: Record<string, never>, context: TaskNotesMutationContext): Promise<void> {
+  const api = this.featureApi("time.write", "time.start", api => typeof api.time.start === "function");
+  await api.time.start!(path, options, context);
+ }
 
 	normalizeError(error: unknown): { code: string | null; message: string } {
 		const api = this.api;

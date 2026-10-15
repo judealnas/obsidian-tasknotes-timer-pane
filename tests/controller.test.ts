@@ -234,3 +234,41 @@ describe("Start tracer", () => {
 		expect(ctx.controller.isBusy()).toBe(false);
 	});
 });
+
+describe("Start failure and serialization", () => {
+ test("existing duplicate makes no writes and reports a text-only Notice", async () => {
+  const ctx = await setup([report()]);
+  expect(await ctx.controller.start({taskPath: REPORT_PATH, title: "<b>Report</b>"})).toBe("already-running");
+  expect(ctx.tn.startCalls).toEqual([]); expect(ctx.tn.stopCalls).toEqual([]);
+  expect(ctx.notify).toHaveBeenCalledWith("<b>Report</b> is already being timed.");
+ });
+ test("failed start refreshes, releases busy and admits a later action", async () => {
+  const ctx = await setup([]); ctx.tn.failStartWith("Read-only disk");
+  const target = { taskPath: REPORT_PATH, title: "Report" };
+  expect(await ctx.controller.start(target)).toBe("failed");
+  expect(ctx.notify).toHaveBeenCalledTimes(1); expect(ctx.controller.isBusy()).toBe(false);
+  ctx.tn.failStartWith(null);
+  expect(await ctx.controller.start(target)).toBe("started");
+ });
+ test("rapid distinct starts never overlap and keep busy through both refreshes", async () => {
+  const ctx = await setup([]); const original = ctx.tn.api.time.start!.bind(ctx.tn.api.time);
+  let inFlight = 0; let maxInFlight = 0;
+  ctx.tn.api.time.start = async function(path, options, context) {
+   inFlight++; maxInFlight = Math.max(maxInFlight, inFlight);
+   await Promise.resolve();
+   try { return await original(path, options, context); } finally { inFlight--; }
+  };
+  const states: boolean[] = []; ctx.controller.subscribeBusy(() => states.push(ctx.controller.isBusy()));
+  expect(await Promise.all([ctx.controller.start({taskPath: REPORT_PATH, title: "Report"}),ctx.controller.start({taskPath: EMAIL_PATH, title: "Email"})])).toEqual(["started", "started"]);
+  expect(maxInFlight).toBe(1); expect(states[states.length - 1]).toBe(false);
+  expect(ctx.tn.stopCalls).toEqual([]); expect(ctx.store.getSnapshot()?.others).toHaveLength(1);
+ });
+});
+
+test("an external same-task start winning after recheck is already-running without compensation", async () => {
+ const ctx = await setup([]);
+ ctx.tn.failStartWith("Task is already being timed");
+ expect(await ctx.controller.start({taskPath: REPORT_PATH, title: "Report"})).toBe("already-running");
+ expect(ctx.tn.stopCalls).toEqual([]); expect(ctx.notify).toHaveBeenCalledWith("Report is already being timed.");
+ expect(ctx.controller.isBusy()).toBe(false);
+});

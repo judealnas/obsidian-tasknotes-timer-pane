@@ -70,6 +70,8 @@ export type TaskNotesRuntimeLifecycleEventName =
 	| "unloading";
 
 export type TaskNotesRuntimeTaskEventName = "task.updated" | "task.deleted";
+/** Only the public time/Pomodoro event names used by this companion. */
+export type TaskNotesRuntimeEventName = TaskNotesRuntimeTaskEventName | "time.started" | "time.stopped" | "pomodoro.started" | "pomodoro.completed" | "pomodoro.interrupted";
 
 /** Payload passed to `lifecycle.on` handlers (the settings field is omitted). */
 export interface TaskNotesRuntimeLifecyclePayload {
@@ -96,6 +98,22 @@ export interface TaskStatus {
 	isCompleted: boolean;
 }
 
+/** Trimmed from public PomodoroState/Session; ownership is the task entry timestamp. */
+export interface PomodoroSession {
+ timeTrackingStartTime?: string;
+ taskPath?: string;
+ startTime: string;
+ type: "work" | "short-break" | "long-break";
+ completed: boolean;
+ interrupted?: boolean;
+}
+export interface PomodoroState {
+ isRunning: boolean;
+ currentSession?: PomodoroSession;
+ timeRemaining: number;
+}
+export interface CompleteTaskOptions { status?: string; }
+
 export interface TaskNotesRuntimeApiV1 {
 	readonly apiVersion: 1;
 	readonly capabilities: readonly string[];
@@ -109,14 +127,17 @@ export interface TaskNotesRuntimeApiV1 {
 
 	readonly tasks?: {
 		list(): Promise<TaskInfo[]>;
+  complete?(path: string, options?: CompleteTaskOptions, context?: TaskNotesMutationContext): Promise<TaskInfo>;
 	};
 	readonly catalog?: {
 		statuses(): TaskStatus[];
 	};
 
+	readonly pomodoro?: { status(): Promise<PomodoroState>; };
+
 	readonly events: {
 		/** The payload is left as unknown: the pane only re-derives from `time.active()`. */
-		on(event: TaskNotesRuntimeTaskEventName, handler: (payload: unknown) => void): EventRef;
+		on(event: TaskNotesRuntimeEventName, handler: (payload: unknown) => void): EventRef;
 		off(ref: EventRef): void;
 	};
 

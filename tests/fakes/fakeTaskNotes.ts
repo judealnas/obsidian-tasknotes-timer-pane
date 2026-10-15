@@ -11,7 +11,9 @@ import type {
 	TaskNotesRuntimeApiV1,
 	TaskNotesRuntimeLifecycleEventName,
 	TaskNotesRuntimeLifecyclePayload,
-	TaskNotesRuntimeTaskEventName,
+ TaskNotesRuntimeEventName,
+ TaskStatus,
+ PomodoroState,
 	TimeEntry,
 } from "../../src/tasknotes/runtime-api.types";
 
@@ -21,6 +23,9 @@ export const NO_ACTIVE_SESSION_MESSAGE = "No active time tracking session for th
 export const DEFAULT_CAPABILITIES: readonly string[] = [
 	"tasks.read",
 	"catalog.read",
+ "tasks.write",
+ "pomodoro.read",
+ "pomodoro.events",
 	"time.read",
 	"time.write",
 	"tasks.events",
@@ -35,6 +40,10 @@ export interface FakeTaskNotesOptions {
 	capabilities?: readonly string[];
 	ready?: boolean;
 	active?: ActiveTimeEntry[];
+ tasks?: TaskInfo[];
+ statuses?: TaskStatus[];
+ pomodoro?: PomodoroState;
+ omitMethods?: Array<"tasks.list" | "tasks.complete" | "catalog.statuses" | "time.start" | "pomodoro.status">;
 	/** False builds an api with no `ui` namespace, like TaskNotes 4.10. Default true. */
 	ui?: boolean;
 }
@@ -58,10 +67,17 @@ export interface FakeTaskNotes {
 	readonly stopCalls: StopCall[];
 	readonly startCalls: Array<{ path: string; options: Record<string, never>; context?: TaskNotesMutationContext }>;
 	setReady(ready: boolean): void;
+ setTasks(tasks: TaskInfo[]): void;
+ setStatuses(statuses: TaskStatus[]): void;
+ setPomodoro(state: PomodoroState): void;
+ failReadWith(error: string | null): void;
+ failStartWith(error: string | null): void;
+ failCompleteWith(error: string | null): void;
+ readonly completeCalls: Array<{path: string; status: string | undefined; context?: TaskNotesMutationContext}>;
 	setActive(entries: ActiveTimeEntry[]): void;
 	emitLifecycle(name: TaskNotesRuntimeLifecycleEventName): void;
-	emitTaskEvent(name: TaskNotesRuntimeTaskEventName): void;
-	handlerCount(name: TaskNotesRuntimeLifecycleEventName | TaskNotesRuntimeTaskEventName): number;
+	emitTaskEvent(name: TaskNotesRuntimeEventName): void;
+	handlerCount(name: TaskNotesRuntimeLifecycleEventName | TaskNotesRuntimeEventName): number;
 	totalHandlers(): number;
 	/** Makes every later `time.stop` throw `new Error(message)`; null restores normal behavior. */
 	failStopWith(message: string | null): void;
@@ -77,7 +93,7 @@ interface LifecycleRef extends EventRef {
 }
 
 interface TaskRef extends EventRef {
-	name: TaskNotesRuntimeTaskEventName;
+	name: TaskNotesRuntimeEventName;
 	handler: (payload: unknown) => void;
 }
 
@@ -96,6 +112,13 @@ export function createFakeTaskNotes(options: FakeTaskNotesOptions = {}): FakeTas
 	let ready = options.ready ?? true;
 	let fixture: ActiveTimeEntry[] = options.active ?? [];
 	let activeCalls = 0;
+ let tasks = options.tasks ?? fixture.map(item => item.task);
+ let statuses: TaskStatus[] = options.statuses ?? [{ value: "done", isCompleted: true }];
+ let pomodoro: PomodoroState = options.pomodoro ?? { isRunning: false, timeRemaining: 0 };
+ let readFailure: string | null = null;
+ let startFailure: string | null = null;
+ let completeFailure: string | null = null;
+ const completeCalls: FakeTaskNotes["completeCalls"] = [];
 	let stopFailure: string | null = null;
 	const stopCalls: StopCall[] = [];
 	const startCalls: Array<{ path: string; options: Record<string, never>; context?: TaskNotesMutationContext }> = [];
@@ -107,8 +130,12 @@ export function createFakeTaskNotes(options: FakeTaskNotesOptions = {}): FakeTas
 	const time: TaskNotesRuntimeApiV1["time"] = {
 		start(path, options, context) {
 			startCalls.push({ path, options, ...(context ? { context } : {}) });
+   if (startFailure !== null) return Promise.reject(new Error(startFailure));
 			if (fixture.some(item => item.taskPath === path && !item.entry.endTime)) return Promise.reject(new Error("Task is already being timed"));
-			const item = makeActiveEntry({ taskPath: path, startTime: new Date().toISOString() });
+			const known = tasks.find(task => task.path === path);
+   const item = makeActiveEntry({ taskPath: path, startTime: new Date().toISOString(), ...(known ? {title: known.title, status: known.status} : {}) });
+   if (known) { item.task = { ...structuredClone(known), timeEntries: item.task.timeEntries ?? [] }; }
+   else tasks.push(item.task);
 			fixture.push(item);
 			return Promise.resolve(structuredClone(item.task));
 		},
@@ -178,8 +205,21 @@ export function createFakeTaskNotes(options: FakeTaskNotesOptions = {}): FakeTas
 		apiVersion: apiVersion as 1,
 		capabilities,
 		hasCapability: (capability: string) => capabilities.includes(capability),
-		tasks: { list: () => Promise.resolve(fixture.map(item => structuredClone(item.task))) },
-		catalog: { statuses: () => [{ value: "done", isCompleted: true }] },
+		tasks: {
+   list: () => readFailure !== null ? Promise.reject(new Error(readFailure)) : Promise.resolve(structuredClone(tasks)),
+   complete(path, options, context) {
+    const status = options?.status ?? statuses.find(status => status.isCompleted)?.value;
+    completeCalls.push({path, status, ...(context ? {context} : {})});
+    if (completeFailure !== null) return Promise.reject(new Error(completeFailure));
+    const task = tasks.find(task => task.path === path);
+    if (!task || !status || !statuses.some(item => item.value === status && item.isCompleted)) return Promise.reject(new Error("Invalid task or completed status"));
+    task.status = status;
+    for (const entry of fixture) if (entry.taskPath === path) entry.task.status = status;
+    return Promise.resolve(structuredClone(task));
+   },
+  },
+  catalog: { statuses: () => { if (readFailure !== null) throw new Error(readFailure); return structuredClone(statuses); } },
+  pomodoro: { status: () => readFailure !== null ? Promise.reject(new Error(readFailure)) : Promise.resolve(structuredClone(pomodoro)) },
 		time,
 		events,
 		lifecycle,
@@ -187,7 +227,20 @@ export function createFakeTaskNotes(options: FakeTaskNotesOptions = {}): FakeTas
 		...(options.ui === false ? {} : { ui }),
 	};
 
+ for (const method of options.omitMethods ?? []) {
+  const [namespace, key] = method.split(".");
+  const target = namespace === "tasks" ? api.tasks : namespace === "catalog" ? api.catalog : namespace === "time" ? api.time : api.pomodoro;
+  if (target && key) Reflect.deleteProperty(target, key);
+ }
+
 	return {
+  completeCalls,
+  setTasks(next) { tasks = next; },
+  setStatuses(next) { statuses = next; },
+  setPomodoro(next) { pomodoro = next; },
+  failReadWith(error) { readFailure = error; },
+  failStartWith(error) { startFailure = error; },
+  failCompleteWith(error) { completeFailure = error; },
 		plugin: { manifest: { version: options.version ?? "4.13.8" }, api },
 		api,
 		get activeCalls() {
