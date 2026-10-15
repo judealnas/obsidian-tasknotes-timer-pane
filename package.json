@@ -12,7 +12,8 @@
     "typecheck": "tsc -noEmit",
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run --dir tests",
-    "check": "npm run build && npm run lint && npm test"
+    "check": "npm run build && npm run lint && npm test",
+    "seed": "node scripts/seed-dev-vault.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
