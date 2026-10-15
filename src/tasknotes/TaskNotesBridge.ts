@@ -4,13 +4,25 @@
  * owns the TaskNotes event subscriptions, and exposes a small project-shaped
  * gateway. Runtime Obsidian-free (type-only imports) so Vitest can load it.
  */
-import type { ActiveTimeEntry, TaskNotesRuntimeApiV1 } from "./runtime-api.types";
+import type {
+	ActiveTimeEntry,
+	TaskNotesRuntimeApiV1,
+	TaskNotesRuntimeLifecycleEventName,
+	TaskNotesRuntimeTaskEventName,
+} from "./runtime-api.types";
 
 export const TASKNOTES_PLUGIN_ID = "tasknotes";
 export const MIN_TASKNOTES_VERSION = "4.10.0";
 export const REQUIRED_CAPABILITIES = ["time.read", "time.write", "tasks.events", "lifecycle.events"] as const;
 export const PROBE_INTERVAL_MS = 5000;
 export const MUTATION_SOURCE = "tasknotes-timer-pane";
+/** Delay of the one-off probe after TaskNotes unloads, so an update (unload, then load) reconnects fast. */
+export const EARLY_PROBE_DELAY_MS = 1000;
+/** How long the bridge may sit in loading before it logs one console message. */
+export const LOADING_WARN_MS = 30000;
+
+/** Runs `fn` after `ms` milliseconds and returns a function that cancels it. */
+export type Schedule = (fn: () => void, ms: number) => () => void;
 
 export type BridgeState =
 	| { kind: "missing" }
@@ -29,6 +41,13 @@ export interface TaskNotesGateway {
 	onData(listener: () => void): () => void;
 	probe(): void;
 	active(): Promise<ActiveTimeEntry[]>;
+}
+
+export interface TaskNotesBridgeDeps {
+	lookupPlugin: () => TaskNotesPluginLike | null;
+	log: (message: string) => void;
+	schedule: Schedule;
+	now?: () => number;
 }
 
 /** Numeric segments of a dotted version, without any "-prerelease" / "+build" suffix; null if any segment is non-numeric. */
@@ -79,15 +98,25 @@ function versionOf(state: BridgeState): string | null {
 export class TaskNotesBridge implements TaskNotesGateway {
 	private readonly lookupPlugin: () => TaskNotesPluginLike | null;
 	private readonly log: (message: string) => void;
+	private readonly schedule: Schedule;
+	private readonly now: () => number;
 	private state: BridgeState = { kind: "loading" };
 	private api: TaskNotesRuntimeApiV1 | null = null;
 	private offs: Array<() => void> = [];
+	/** Api objects TaskNotes has torn down ("unloading"). Never attached again (Pitfall 1). */
+	private readonly retired = new WeakSet<object>();
+	private cancelEarlyProbe: (() => void) | null = null;
+	private loadingSince: number | null = null;
+	private loadingWarned = false;
+	private disposed = false;
 	private readonly stateListeners = new Set<(state: BridgeState) => void>();
 	private readonly dataListeners = new Set<() => void>();
 
-	constructor(deps: { lookupPlugin: () => TaskNotesPluginLike | null; log: (message: string) => void }) {
+	constructor(deps: TaskNotesBridgeDeps) {
 		this.lookupPlugin = deps.lookupPlugin;
 		this.log = deps.log;
+		this.schedule = deps.schedule;
+		this.now = deps.now ?? Date.now;
 	}
 
 	getState(): BridgeState {
@@ -110,6 +139,27 @@ export class TaskNotesBridge implements TaskNotesGateway {
 
 	/** Re-evaluates TaskNotes availability. Safe to call at any time and as often as needed. */
 	probe(): void {
+		if (this.disposed) return;
+		this.evaluate();
+		this.watchLoading();
+	}
+
+	async active(): Promise<ActiveTimeEntry[]> {
+		const api = this.api;
+		if (!api || this.state.kind !== "ready") throw new Error("TaskNotes is not connected");
+		return await api.time.active();
+	}
+
+	/** Releases every TaskNotes subscription and cancels a pending early probe. */
+	dispose(): void {
+		this.disposed = true;
+		this.cancelPendingProbe();
+		this.detach();
+		this.stateListeners.clear();
+		this.dataListeners.clear();
+	}
+
+	private evaluate(): void {
 		try {
 			const plugin = this.lookupPlugin();
 			if (!plugin) {
@@ -129,11 +179,18 @@ export class TaskNotesBridge implements TaskNotesGateway {
 				);
 				return;
 			}
+			// A torn-down api stays torn down, even when Obsidian still returns the old plugin object.
+			if (this.retired.has(api)) {
+				this.detach();
+				this.setState({ kind: "missing" });
+				return;
+			}
 			if (api.apiVersion !== 1 || !REQUIRED_CAPABILITIES.every((capability) => api.hasCapability(capability))) {
 				this.detach();
 				this.setState({ kind: "incompatible", version });
 				return;
 			}
+			// Re-probing the same live api never adds handlers; only a different api object re-attaches.
 			if (api !== this.api) this.attach(api);
 			// isReady() is the read gate; the lifecycle ready() promise resolves too early (Pitfall 2).
 			this.setState(api.lifecycle.isReady() ? { kind: "ready" } : { kind: "loading" });
@@ -144,34 +201,78 @@ export class TaskNotesBridge implements TaskNotesGateway {
 		}
 	}
 
-	async active(): Promise<ActiveTimeEntry[]> {
-		const api = this.api;
-		if (!api || this.state.kind !== "ready") throw new Error("TaskNotes is not connected");
-		return await api.time.active();
-	}
-
-	dispose(): void {
-		this.detach();
-		this.stateListeners.clear();
-		this.dataListeners.clear();
+	/** Logs once when TaskNotes stays in loading for more than LOADING_WARN_MS. Adds no UI state. */
+	private watchLoading(): void {
+		if (this.state.kind !== "loading") return;
+		const now = this.now();
+		if (this.loadingSince === null) {
+			this.loadingSince = now;
+			return;
+		}
+		if (!this.loadingWarned && now - this.loadingSince > LOADING_WARN_MS) {
+			this.loadingWarned = true;
+			this.log("TaskNotes is still loading after 30 s; the pane keeps checking every 5 s");
+		}
 	}
 
 	/**
-	 * Subscribes lifecycle first, then task events. TaskNotes refs are never routed
-	 * through Obsidian's registerEvent: they must be released when TaskNotes reloads.
+	 * Subscribes lifecycle first, then task events, all before the caller reads
+	 * isReady(), so a layout.ready firing in between is never missed. TaskNotes refs
+	 * are never routed through Obsidian's event registry: they must be released when
+	 * TaskNotes reloads.
 	 */
 	private attach(api: TaskNotesRuntimeApiV1): void {
 		this.detach();
 		this.api = api;
-		const layoutRef = api.lifecycle.on("layout.ready", () => {
+		const onLifecycle = (event: TaskNotesRuntimeLifecycleEventName, handler: () => void) => {
+			const ref = api.lifecycle.on(event, handler);
+			this.offs.push(() => api.lifecycle.off(ref));
+		};
+		const onTask = (event: TaskNotesRuntimeTaskEventName, handler: () => void) => {
+			const ref = api.events.on(event, handler);
+			this.offs.push(() => api.events.off(ref));
+		};
+		onLifecycle("unloading", () => this.handleUnloading(api));
+		onLifecycle("layout.ready", () => {
+			// Refresh even when already ready: TaskNotes installs its metadata listeners late (Pitfall 5).
 			this.probe();
 			this.emitData();
 		});
-		this.offs.push(() => api.lifecycle.off(layoutRef));
-		const updatedRef = api.events.on("task.updated", () => this.emitData());
-		this.offs.push(() => api.events.off(updatedRef));
+		onLifecycle("cache.changed", () => this.emitData());
+		onLifecycle("cache.rebuilt", () => this.emitData());
+		// A settings change (a remapped time-entries field, say) can change what active()
+		// returns. The pane reads no settings values itself.
+		onLifecycle("settings.changed", () => this.emitData());
+		onTask("task.updated", () => this.emitData());
+		onTask("task.deleted", () => this.emitData());
 	}
 
+	/** TaskNotes is tearing this api down: retire it, release it, and look again shortly. */
+	private handleUnloading(api: TaskNotesRuntimeApiV1): void {
+		this.retired.add(api);
+		if (this.api !== api) return;
+		this.detach();
+		this.setState({ kind: "missing" });
+		this.scheduleEarlyProbe();
+	}
+
+	/** Exactly one pending early probe at a time. */
+	private scheduleEarlyProbe(): void {
+		if (this.disposed) return;
+		this.cancelPendingProbe();
+		this.cancelEarlyProbe = this.schedule(() => {
+			this.cancelEarlyProbe = null;
+			this.probe();
+		}, EARLY_PROBE_DELAY_MS);
+	}
+
+	private cancelPendingProbe(): void {
+		const cancel = this.cancelEarlyProbe;
+		this.cancelEarlyProbe = null;
+		if (cancel) cancel();
+	}
+
+	/** Releases every TaskNotes ref, each in its own try/catch so a dead emitter cannot throw out. */
 	private detach(): void {
 		const offs = this.offs;
 		this.offs = [];
@@ -186,6 +287,10 @@ export class TaskNotesBridge implements TaskNotesGateway {
 	}
 
 	private setState(next: BridgeState): void {
+		if (next.kind !== "loading") {
+			this.loadingSince = null;
+			this.loadingWarned = false;
+		}
 		if (next.kind === this.state.kind && versionOf(next) === versionOf(this.state)) return;
 		this.state = next;
 		for (const listener of [...this.stateListeners]) {

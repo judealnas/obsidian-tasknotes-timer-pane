@@ -1,6 +1,6 @@
 import { Plugin } from "obsidian";
 import { TimerStore } from "./state/TimerStore";
-import { PROBE_INTERVAL_MS, TASKNOTES_PLUGIN_ID, TaskNotesBridge } from "./tasknotes/TaskNotesBridge";
+import { PROBE_INTERVAL_MS, TASKNOTES_PLUGIN_ID, TaskNotesBridge, type Schedule } from "./tasknotes/TaskNotesBridge";
 import { TimerPaneView, VIEW_TYPE_TIMER_PANE } from "./ui/TimerPaneView";
 
 // `app.plugins` is not in obsidian.d.ts. This is the one property the pane needs.
@@ -13,9 +13,15 @@ declare module "obsidian" {
 export default class TaskNotesTimerPanePlugin extends Plugin {
 	onload(): void {
 		const log = (message: string) => console.error("[tasknotes-timer-pane] " + message);
+		// Cancellable one-off timers; bridge.dispose() cancels any that are still pending.
+		const schedule: Schedule = (fn, ms) => {
+			const id = window.setTimeout(fn, ms);
+			return () => window.clearTimeout(id);
+		};
 		const bridge = new TaskNotesBridge({
 			lookupPlugin: () => this.app.plugins?.getPlugin(TASKNOTES_PLUGIN_ID) ?? null,
 			log,
+			schedule,
 		});
 		const store = new TimerStore({ gateway: bridge, log });
 		this.register(() => {
