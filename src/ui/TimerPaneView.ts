@@ -76,9 +76,13 @@ function timerKey(timer: Pick<OpenTimer, "taskPath" | "startTime">): string {
 	return `${timer.taskPath}\u0000${timer.startTime}`;
 }
 
-/** The inputs a card title is rendered from; a new value triggers a re-render. */
+/**
+ * The inputs a card title is rendered from; a new value triggers a re-render. The
+ * display key matters because TaskNotes never refreshes a chip outside markdown
+ * leaves: a status or priority change must re-render it here.
+ */
 function titleRenderKey(timer: OpenTimer): string {
-	return [timer.taskPath, timer.title].join("\u0000");
+	return [timer.taskPath, timer.title, timer.displayKey].join("\u0000");
 }
 
 /** Writes text only when it changed, so the polite live region is not re-announced. */

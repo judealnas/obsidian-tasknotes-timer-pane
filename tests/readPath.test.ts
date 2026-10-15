@@ -13,6 +13,8 @@ import {
 	othersTooltip,
 	selectPrimary,
 	sessionMs,
+	snapshotSignature,
+	taskDisplayKey,
 	totalMs,
 	type OpenTimer,
 	type ParsedEntry,
@@ -167,8 +169,71 @@ const NOW = Date.parse("2026-10-14T12:00:00.000Z");
 const iso = (ms: number) => new Date(ms).toISOString();
 
 function openTimer(taskPath: string, startMs: number, title = taskPath): OpenTimer {
-	return { taskPath, title, startTime: iso(startMs), startMs, entries: [{ startMs, endMs: null }] };
+	return { taskPath, title, startTime: iso(startMs), startMs, entries: [{ startMs, endMs: null }], displayKey: "" };
 }
+
+describe("taskDisplayKey", () => {
+	const START = "2026-10-14T09:00:00.000Z";
+
+	test("equal for structurally equal tasks; status and priority changes change it", () => {
+		const a = activeEntry("Tasks/A.md", START, "A");
+		const b = activeEntry("Tasks/A.md", START, "A");
+		expect(taskDisplayKey(a.task)).toBe(taskDisplayKey(b.task));
+		expect(taskDisplayKey(a.task)).not.toBe("");
+
+		const inProgress = makeActiveEntry({ taskPath: "Tasks/A.md", startTime: START, title: "A", status: "in-progress" });
+		expect(taskDisplayKey(inProgress.task)).not.toBe(taskDisplayKey(a.task));
+
+		const prioritized = activeEntry("Tasks/A.md", START, "A");
+		Object.assign(prioritized.task, { priority: "high" });
+		expect(taskDisplayKey(prioritized.task)).not.toBe(taskDisplayKey(a.task));
+	});
+
+	test("a change to timeEntries alone (closing an older entry) does not change it", () => {
+		const older = { startTime: "2026-10-14T07:00:00.000Z" };
+		const open = makeActiveEntry({ taskPath: "Tasks/A.md", startTime: START, timeEntries: [older] });
+		const before = taskDisplayKey(open.task);
+		const closed = makeActiveEntry({
+			taskPath: "Tasks/A.md",
+			startTime: START,
+			timeEntries: [{ ...older, endTime: "2026-10-14T07:30:00.000Z" }],
+		});
+		expect(taskDisplayKey(closed.task)).toBe(before);
+	});
+
+	test.each([null, undefined, "x"])("%o gives an empty key", (value) => {
+		expect(taskDisplayKey(value)).toBe("");
+	});
+
+	test("a field JSON cannot serialize gives an empty key without throwing", () => {
+		const task = activeEntry("Tasks/A.md", START).task;
+		Object.assign(task, { big: 10n });
+		expect(() => taskDisplayKey(task)).not.toThrow();
+		expect(taskDisplayKey(task)).toBe("");
+	});
+
+	test("deriveSnapshot sets displayKey on every timer", () => {
+		const items = [activeEntry("Tasks/A.md", START, "A"), activeEntry("Tasks/B.md", "2026-10-14T10:00:00.000Z", "B")];
+		const snapshot = deriveSnapshot(items);
+		const timers = [snapshot.primary, ...snapshot.others];
+		expect(timers).toHaveLength(2);
+		for (const timer of timers) {
+			const item = items.find((candidate) => candidate.taskPath === timer?.taskPath);
+			expect(timer?.displayKey).toBe(taskDisplayKey(item?.task));
+		}
+	});
+
+	test("snapshotSignature changes when only one timer's status changes, and stays order-independent", () => {
+		const b = () => activeEntry("Tasks/B.md", "2026-10-14T10:00:00.000Z", "B");
+		const open = () => activeEntry("Tasks/A.md", START, "A");
+		const inProgress = () =>
+			makeActiveEntry({ taskPath: "Tasks/A.md", startTime: START, title: "A", status: "in-progress" });
+		expect(snapshotSignature(deriveSnapshot([open(), b()]))).toBe(snapshotSignature(deriveSnapshot([b(), open()])));
+		expect(snapshotSignature(deriveSnapshot([inProgress(), b()]))).not.toBe(
+			snapshotSignature(deriveSnapshot([open(), b()])),
+		);
+	});
+});
 
 const keyOf = (timer: OpenTimer) => `${timer.taskPath}|${timer.startTime}`;
 const pathsOf = (snapshot: ReturnType<typeof deriveSnapshot>) => ({

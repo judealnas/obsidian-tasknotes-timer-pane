@@ -20,6 +20,11 @@ export interface OpenTimer {
 	startMs: number;
 	/** The task's own time entries, used for the total. */
 	entries: ParsedEntry[];
+	/**
+	 * Changes whenever a task field TaskNotes' task-link chip can show changes (status,
+	 * priority, dates, any inline-visible property); see taskDisplayKey.
+	 */
+	displayKey: string;
 }
 
 /** Every open timer: the displayed one (`primary`) and the rest. */
@@ -86,9 +91,33 @@ const FIELD_SEPARATOR = "\u0000";
 const TIMER_SEPARATOR = "\u0001";
 
 /**
+ * A key over every own enumerable top-level task field except `timeEntries`, so it
+ * changes when anything TaskNotes' chip can show changes. Closed time is already in
+ * the signature, and open entries do not change while running. Keys are not sorted:
+ * TaskNotes builds TaskInfo with a stable field order, and a reordering would only
+ * cause one extra re-render. JSON.stringify escapes control characters, so the key
+ * can never contain the signature's \u0000 / \u0001 separators. "" for a non-object or
+ * a task JSON cannot serialize.
+ */
+export function taskDisplayKey(task: unknown): string {
+	if (typeof task !== "object" || task === null) return "";
+	const fields: Record<string, unknown> = {};
+	for (const [name, value] of Object.entries(task)) {
+		if (name !== "timeEntries") fields[name] = value;
+	}
+	try {
+		const key: unknown = JSON.stringify(fields);
+		return typeof key === "string" ? key : "";
+	} catch {
+		return "";
+	}
+}
+
+/**
  * A deterministic string for change detection: the primary, then the others in
- * order, each as taskPath, startTime, title and the closed-entry total. TaskNotes
- * returns fresh copies on every call, so object identity cannot be used.
+ * order, each as taskPath, startTime, title, the closed-entry total and the task
+ * display key. TaskNotes returns fresh copies on every call, so object identity
+ * cannot be used.
  */
 export function snapshotSignature(snapshot: TimerSnapshot): string {
 	const timers = snapshot.primary ? [snapshot.primary, ...snapshot.others] : snapshot.others;
@@ -98,7 +127,13 @@ export function snapshotSignature(snapshot: TimerSnapshot): string {
 		TIMER_SEPARATOR +
 		timers
 			.map((timer) =>
-				[timer.taskPath, timer.startTime, timer.title, String(closedMs(timer.entries))].join(FIELD_SEPARATOR),
+				[
+					timer.taskPath,
+					timer.startTime,
+					timer.title,
+					String(closedMs(timer.entries)),
+					timer.displayKey,
+				].join(FIELD_SEPARATOR),
 			)
 			.join(TIMER_SEPARATOR)
 	);
@@ -141,6 +176,7 @@ export function deriveSnapshot(active: readonly ActiveTimeEntry[]): TimerSnapsho
 			startTime,
 			startMs,
 			entries: parseEntries(item?.task?.timeEntries),
+			displayKey: taskDisplayKey(item?.task),
 		});
 	}
 	const primary = selectPrimary(timers);

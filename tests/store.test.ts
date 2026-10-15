@@ -141,6 +141,15 @@ describe("signature diff", () => {
 		expect(notified).toHaveBeenCalledTimes(1);
 	});
 
+	test("a change to the task's status alone notifies once, so the title chip re-renders", async () => {
+		const { gateway, store, notified } = await primed([entryA()]);
+		gateway.setActive([entryA({ status: "in-progress" })]);
+		await store.refreshNow();
+		expect(notified).toHaveBeenCalledTimes(1);
+		await store.refreshNow();
+		expect(notified).toHaveBeenCalledTimes(1);
+	});
+
 	test("the first successful refresh notifies even for an empty result", async () => {
 		const { store, notified } = setup();
 		await store.refreshNow();
@@ -148,10 +157,15 @@ describe("signature diff", () => {
 		expect(store.getSnapshot()).toEqual({ primary: null, others: [] });
 	});
 
-	test("snapshotSignature is deterministic and keyed on path, start, title and closed time", () => {
+	test("snapshotSignature is deterministic and keyed on path, start, title, closed time and display key", () => {
 		const one = deriveSnapshot([entryA(), makeActiveEntry({ taskPath: "b.md", startTime: B_START })]);
 		const two = deriveSnapshot([makeActiveEntry({ taskPath: "b.md", startTime: B_START }), entryA()]);
 		expect(snapshotSignature(one)).toBe(snapshotSignature(two));
+		const restatused = deriveSnapshot([
+			entryA({ status: "in-progress" }),
+			makeActiveEntry({ taskPath: "b.md", startTime: B_START }),
+		]);
+		expect(snapshotSignature(restatused)).not.toBe(snapshotSignature(one));
 		expect(snapshotSignature(one)).not.toBe(snapshotSignature(deriveSnapshot([entryA()])));
 		expect(snapshotSignature(deriveSnapshot([]))).not.toBe(snapshotSignature(deriveSnapshot([entryA()])));
 	});
