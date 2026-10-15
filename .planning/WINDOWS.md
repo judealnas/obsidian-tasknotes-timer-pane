@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 2
+open_count: 3
 waived_count: 0
 fixed_count: 0
-total_count: 2
-last_updated: 2026-10-15T02:18:29.745Z
+total_count: 3
+last_updated: 2026-10-15T02:46:01.709Z
 ---
 
 # Broken Windows Ledger
@@ -17,6 +17,7 @@ last_updated: 2026-10-15T02:18:29.745Z
 |----|-------|------|------|------|-------------|--------|--------|-------------|-------------|
 | 1 | 01 | unrun-verify | manifest.json |  | 01-01 Task 2 human-check (plugin listed as TaskNotes Timer Pane 0.1.0 and enables without console error in dev-vault) deferred to end-of-phase UAT section 0 (plan 01-04) | open |  | 2026-10-15T02:05:05.426Z |  |
 | 2 | 01 | unrun-verify | src/ui/TimerPaneView.ts |  | 01-02 Task 2 human-check (ribbon/command reveal, restart restore, title link and Ctrl/Cmd-click, +N more running tooltip, 100:00:00 clock at minimum sidebar width) deferred to end-of-phase UAT (plan 01-04, D-13) | open |  | 2026-10-15T02:18:29.745Z |  |
+| 3 | 01 | unrun-verify | src/state/TimerController.ts |  | 01-05 Task 1 human-check (Stop while a second timer runs, race and simulated-failure Notice, archive-flag timer stop, TaskNotes completion auto-stop vs YAML-edited done task) deferred to end-of-phase UAT sections 6-7 (D-13) | open |  | 2026-10-15T02:46:01.709Z |  |
 
 ````json
 [
@@ -43,6 +44,19 @@ last_updated: 2026-10-15T02:18:29.745Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-10-15T02:18:29.745Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 3,
+    "kind": "unrun-verify",
+    "phase": "01",
+    "file": "src/state/TimerController.ts",
+    "line": null,
+    "description": "01-05 Task 1 human-check (Stop while a second timer runs, race and simulated-failure Notice, archive-flag timer stop, TaskNotes completion auto-stop vs YAML-edited done task) deferred to end-of-phase UAT sections 6-7 (D-13)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-15T02:46:01.709Z",
     "resolved_at": null,
     "milestone": null
   }
