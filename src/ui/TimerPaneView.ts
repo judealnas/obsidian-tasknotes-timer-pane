@@ -9,8 +9,6 @@ import {
 	ItemView,
 	Keymap,
 	MarkdownRenderer,
-	Notice,
-	SuggestModal,
 	setIcon,
 	setTooltip,
 	type PaneType,
@@ -29,7 +27,7 @@ import {
 import type { TimerController } from "../state/TimerController";
 import type { TimerStore } from "../state/TimerStore";
 import type { TaskNotesGateway } from "../tasknotes/TaskNotesBridge";
-import type { TaskInfo } from "../tasknotes/runtime-api.types";
+import { TaskPickerModal } from "./TaskPickerModal";
 
 export const VIEW_TYPE_TIMER_PANE = "tasknotes-timer-pane";
 
@@ -109,7 +107,7 @@ export class TimerPaneView extends ItemView {
 	private wasShown = false;
 	/** Keys of timers from a Stop click until that stop settles; render() keeps their busy label. */
 	private readonly stopping = new Set<string>();
-	private picker: SuggestModal<TaskInfo> | null = null;
+	private picker: TaskPickerModal | null = null;
 
 	constructor(leaf: WorkspaceLeaf, services: TimerPaneServices) {
 		super(leaf);
@@ -181,32 +179,15 @@ export class TimerPaneView extends ItemView {
 		return Promise.resolve();
 	}
 
-	private async openPicker(): Promise<void> {
-		const { gateway, controller } = this.services;
-		if (this.picker || controller.isBusy() || !gateway.startAvailability().available) return;
-		const modal = new class extends SuggestModal<TaskInfo> {
-			tasks: TaskInfo[] = [];
-			chosen = false;
-			closed = false;
-			getSuggestions(query: string): TaskInfo[] { return this.tasks.filter(task => !task.archived && task.title.toLowerCase().includes(query.toLowerCase())); }
-			renderSuggestion(task: TaskInfo, el: HTMLElement): void { el.setText(task.title); }
-			onChooseSuggestion(task: TaskInfo): void { if (this.chosen || this.closed) return; this.chosen = true; void controller.start({ taskPath: task.path, title: task.title }); }
-			onClose(): void { this.closed = true; }
-		}(this.app);
-		this.picker = modal;
-		const close = modal.onClose.bind(modal);
-		modal.onClose = () => { close(); if (this.picker === modal) this.picker = null; };
-		modal.setPlaceholder("Choose a task to start");
-		modal.open();
-		try {
-			const [tasks] = await Promise.all([gateway.listTasks(), gateway.statuses()]);
-			if (modal.closed || this.picker !== modal || !gateway.startAvailability().available) return;
-			modal.tasks = tasks;
-			modal.inputEl.dispatchEvent(new Event("input"));
-		} catch (error) {
-			if (!modal.closed) { new Notice("Couldn't load tasks: " + (gateway.normalizeError(error).message || "TaskNotes reported an error")); modal.close(); }
-		}
-	}
+	private openPicker(): void {
+  const { gateway, controller } = this.services;
+  if (this.picker || controller.isBusy() || !gateway.startAvailability().available) return;
+  const modal = new TaskPickerModal(this.app, gateway, controller, () => {
+   if (this.picker === modal) this.picker = null;
+  });
+  this.picker = modal;
+  modal.open();
+ }
 
 	/** Every open timer in display order (most recently started first); none unless running. */
 	private currentTimers(): { state: PaneState; timers: OpenTimer[] } {

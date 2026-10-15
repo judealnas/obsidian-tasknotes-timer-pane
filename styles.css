@@ -176,3 +176,9 @@
 .tntp-message__retry {
 	margin-top: var(--size-4-6);
 }
+
+.tntp-header { display: flex; gap: var(--size-4-2); margin-bottom: var(--size-4-4); flex-wrap: wrap; }
+.tntp-picker-row { display: flex; align-items: center; gap: var(--size-4-2); }
+.tntp-picker-chip { min-width: 0; overflow-wrap: anywhere; }
+.tntp-picker-chip__md > p { margin: 0; }
+.tntp-picker-due { color: var(--text-muted); font-size: var(--font-ui-small); white-space: nowrap; }
