@@ -9,6 +9,8 @@ import {
 	ItemView,
 	Keymap,
 	MarkdownRenderer,
+	Notice,
+	SuggestModal,
 	setIcon,
 	setTooltip,
 	type PaneType,
@@ -27,13 +29,14 @@ import {
 import type { TimerController } from "../state/TimerController";
 import type { TimerStore } from "../state/TimerStore";
 import type { TaskNotesGateway } from "../tasknotes/TaskNotesBridge";
+import type { TaskInfo } from "../tasknotes/runtime-api.types";
 
 export const VIEW_TYPE_TIMER_PANE = "tasknotes-timer-pane";
 
 export interface TimerPaneServices {
 	gateway: TaskNotesGateway;
 	store: TimerStore;
-	controller: Pick<TimerController, "stop">;
+	controller: Pick<TimerController, "stop" | "start" | "isBusy" | "subscribeBusy">;
 }
 
 const STOP_LABEL = "Stop timer";
@@ -43,6 +46,8 @@ const PANE_STATES: readonly PaneState[] = ["running", "idle", "loading", "missin
 
 interface PaneElements {
 	root: HTMLElement;
+	start: HTMLButtonElement;
+	stopAll: HTMLButtonElement;
 	cards: HTMLElement;
 	heading: HTMLElement;
 	body: HTMLElement;
@@ -104,6 +109,7 @@ export class TimerPaneView extends ItemView {
 	private wasShown = false;
 	/** Keys of timers from a Stop click until that stop settles; render() keeps their busy label. */
 	private readonly stopping = new Set<string>();
+	private picker: SuggestModal<TaskInfo> | null = null;
 
 	constructor(leaf: WorkspaceLeaf, services: TimerPaneServices) {
 		super(leaf);
@@ -130,6 +136,10 @@ export class TimerPaneView extends ItemView {
 		this.stopping.clear();
 		this.cards = new Map();
 		const root = this.contentEl.createDiv({ cls: ["tntp-pane", "tntp-pane--loading"] });
+		const header = root.createDiv({ cls: "tntp-header" });
+		const start = header.createEl("button", { text: "Start task", cls: "tntp-start" });
+		const stopAll = header.createEl("button", { text: "Stop all", cls: "tntp-stop-all" });
+		this.registerDomEvent(start, "click", () => void this.openPicker());
 		const cards = root.createDiv({ cls: "tntp-cards" });
 
 		const message = root.createDiv({ cls: "tntp-message", attr: { "aria-live": "polite" } });
@@ -139,10 +149,11 @@ export class TimerPaneView extends ItemView {
 		const retry = message.createEl("button", { cls: "tntp-message__retry", text: "Check for TaskNotes" });
 		this.registerDomEvent(retry, "click", () => gateway.probe());
 
-		this.els = { root, cards, heading, body, meta };
+		this.els = { root, start, stopAll, cards, heading, body, meta };
 
 		this.register(store.subscribe(() => this.render()));
 		this.register(gateway.onState(() => this.render()));
+		this.register(this.services.controller.subscribeBusy(() => this.render()));
 		this.registerInterval(window.setInterval(() => this.tick(), 1000));
 		// The pane's own document and window, so this also works in a pop-out window.
 		// Electron may suspend timers in the background or during OS sleep: tick at once
@@ -162,10 +173,39 @@ export class TimerPaneView extends ItemView {
 	}
 
 	onClose(): Promise<void> {
+		this.picker?.close();
+		this.picker = null;
 		for (const card of this.cards.values()) this.discardCard(card);
 		this.els = null;
 		this.cards = new Map();
 		return Promise.resolve();
+	}
+
+	private async openPicker(): Promise<void> {
+		const { gateway, controller } = this.services;
+		if (this.picker || controller.isBusy() || !gateway.startAvailability().available) return;
+		const modal = new class extends SuggestModal<TaskInfo> {
+			tasks: TaskInfo[] = [];
+			chosen = false;
+			closed = false;
+			getSuggestions(query: string): TaskInfo[] { return this.tasks.filter(task => !task.archived && task.title.toLowerCase().includes(query.toLowerCase())); }
+			renderSuggestion(task: TaskInfo, el: HTMLElement): void { el.setText(task.title); }
+			onChooseSuggestion(task: TaskInfo): void { if (this.chosen || this.closed) return; this.chosen = true; void controller.start({ taskPath: task.path, title: task.title }); }
+			onClose(): void { this.closed = true; }
+		}(this.app);
+		this.picker = modal;
+		const close = modal.onClose.bind(modal);
+		modal.onClose = () => { close(); if (this.picker === modal) this.picker = null; };
+		modal.setPlaceholder("Choose a task to start");
+		modal.open();
+		try {
+			const [tasks] = await Promise.all([gateway.listTasks(), gateway.statuses()]);
+			if (modal.closed || this.picker !== modal || !gateway.startAvailability().available) return;
+			modal.tasks = tasks;
+			modal.inputEl.dispatchEvent(new Event("input"));
+		} catch (error) {
+			if (!modal.closed) { new Notice("Couldn't load tasks: " + (gateway.normalizeError(error).message || "TaskNotes reported an error")); modal.close(); }
+		}
 	}
 
 	/** Every open timer in display order (most recently started first); none unless running. */
@@ -396,7 +436,7 @@ export class TimerPaneView extends ItemView {
 	 */
 	private async stopTask(key: string): Promise<void> {
 		const card = this.cards.get(key);
-		if (this.stopping.has(key) || !card) return;
+		if (this.services.controller.isBusy() || this.stopping.has(key) || !card) return;
 		const { taskPath, startTime, title } = card.timer;
 		this.stopping.add(key);
 		card.stop.disabled = true;
@@ -419,6 +459,11 @@ export class TimerPaneView extends ItemView {
 		const els = this.els;
 		if (!els) return;
 		const { state, timers } = this.currentTimers();
+		const gate = this.services.gateway.startAvailability();
+		els.start.disabled = !gate.available || this.services.controller.isBusy();
+		setTooltip(els.start, gate.reason);
+		els.stopAll.disabled = true;
+		setTooltip(els.stopAll, "Stop all will be available in the next slice");
 		for (const candidate of PANE_STATES) els.root.toggleClass(`tntp-pane--${candidate}`, candidate === state);
 		this.reconcileCards(els, timers);
 		if (timers.length > 0) {
@@ -440,7 +485,7 @@ export class TimerPaneView extends ItemView {
 			setTextIfChanged(card.titleLabel, `Open ${timer.title}`);
 			// Never overwrite the busy state of a stop in flight.
 			if (!this.stopping.has(key)) {
-				card.stop.disabled = false;
+				card.stop.disabled = this.services.controller.isBusy();
 				setTextIfChanged(card.stopLabel, STOP_LABEL);
 			}
 		}
@@ -461,7 +506,7 @@ export class TimerPaneView extends ItemView {
 		switch (state) {
 			case "idle":
 				heading = "No task is being timed";
-				body = "Start time tracking on a task in TaskNotes and it will show up here.";
+				body = "Choose Start task above to start a timer.";
 				break;
 			case "loading":
 				body = "Connecting to TaskNotes…";

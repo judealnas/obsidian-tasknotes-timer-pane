@@ -11,6 +11,8 @@ import type { WriteQueue } from "./WriteQueue";
 
 /** The displayed timer, captured by the view at click time. */
 export type StopTarget = { taskPath: string; startTime: string; title: string };
+export type StartTarget = { taskPath: string; title: string };
+export type StartOutcome = "started" | "already-running" | "failed";
 
 /**
  * - "stopped": TaskNotes closed the entry.
@@ -20,7 +22,7 @@ export type StopTarget = { taskPath: string; startTime: string; title: string };
 export type StopOutcome = "stopped" | "already-stopped" | "failed";
 
 export interface TimerControllerDeps {
-	gateway: Pick<TaskNotesGateway, "stop" | "normalizeError">;
+	gateway: Pick<TaskNotesGateway, "stop" | "normalizeError" | "active" | "start">;
 	store: Pick<TimerStore, "refreshNow">;
 	queue: WriteQueue;
 	notify: (message: string) => void;
@@ -30,6 +32,45 @@ export interface TimerControllerDeps {
 
 export class TimerController {
 	private readonly deps: TimerControllerDeps;
+	private pending = 0;
+	private readonly busyListeners = new Set<() => void>();
+
+	isBusy(): boolean { return this.pending > 0; }
+	subscribeBusy(listener: () => void): () => void {
+		this.busyListeners.add(listener);
+		return () => { this.busyListeners.delete(listener); };
+	}
+	private busy(delta: number): void {
+		this.pending += delta;
+		for (const listener of this.busyListeners) { try { listener(); } catch { /* Keep controls recoverable. */ } }
+	}
+	private notice(message: string): void {
+		try { this.deps.notify(message); } catch (error) { this.deps.log("Showing a timer Notice failed: " + String(error)); }
+	}
+
+	async start(target: StartTarget): Promise<StartOutcome> {
+		const { gateway, queue, store, newCorrelationId, log } = this.deps;
+		this.busy(1);
+		let outcome: StartOutcome = "failed";
+		try {
+			outcome = await queue.run(async () => {
+				if ((await gateway.active()).some(item => item.taskPath === target.taskPath && !item.entry.endTime)) return "already-running";
+				await gateway.start(target.taskPath, {}, { source: MUTATION_SOURCE, reason: "user start", correlationId: newCorrelationId() });
+				return "started";
+			});
+		} catch (error) {
+			const { message } = gateway.normalizeError(error);
+			if (/already.*(track|tim|active)/i.test(message)) outcome = "already-running";
+			else {
+				log("Starting the timer failed: " + message);
+				this.notice(`Couldn't start the timer for "${target.title}": ${message.trim().replace(/\.+$/, "") || "TaskNotes reported an error"}. Try again.`);
+			}
+		} finally {
+			try { await store.refreshNow(); } finally { this.busy(-1); }
+		}
+		if (outcome === "already-running") this.notice(target.title + " is already being timed.");
+		return outcome;
+	}
 
 	constructor(deps: TimerControllerDeps) {
 		this.deps = deps;
@@ -41,6 +82,7 @@ export class TimerController {
 	 */
 	async stop(target: StopTarget): Promise<StopOutcome> {
 		const { gateway, store, queue, notify, newCorrelationId, log } = this.deps;
+		this.busy(1);
 		let outcome: StopOutcome;
 		try {
 			await queue.run(() =>
@@ -66,7 +108,7 @@ export class TimerController {
 				outcome = "failed";
 			}
 		}
-		await store.refreshNow();
+		try { await store.refreshNow(); } finally { this.busy(-1); }
 		return outcome;
 	}
 }

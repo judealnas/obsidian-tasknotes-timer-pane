@@ -57,6 +57,10 @@ export function createFakeGateway(initial: BridgeState = { kind: "ready" }): Fak
 		get probeCalls() {
 			return probeCalls;
 		},
+		startAvailability: () => ({ available: state.kind === "ready", reason: "TaskNotes is not connected" }),
+		listTasks: () => Promise.resolve([]),
+		statuses: () => Promise.resolve([]),
+		start: () => Promise.resolve(),
 		getState: () => state,
 		onState(listener) {
 			stateListeners.add(listener);

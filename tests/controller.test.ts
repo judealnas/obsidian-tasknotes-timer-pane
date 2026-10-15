@@ -211,3 +211,26 @@ describe("no automatic stops (D-05)", () => {
 		expect(ctx.store.getSnapshot()?.primary?.taskPath).toBe(EMAIL_PATH);
 	});
 });
+
+
+describe("Start tracer", () => {
+	test("starts alongside existing timers and refreshes without stopping", async () => {
+		const ctx = await setup([report()]);
+		const states: boolean[] = [];
+		ctx.controller.subscribeBusy(() => states.push(ctx.controller.isBusy()));
+		expect(await ctx.controller.start({ taskPath: EMAIL_PATH, title: "Email" })).toBe("started");
+		expect(ctx.tn.startCalls).toEqual([{ path: EMAIL_PATH, options: {}, context: { source: MUTATION_SOURCE, reason: "user start", correlationId: "corr-1" } }]);
+		expect(ctx.tn.stopCalls).toEqual([]);
+		expect(ctx.store.getSnapshot()?.others).toHaveLength(1);
+		expect(states).toEqual([true, false]);
+	});
+	test("queued duplicate starts write once and recover busy even when Notice throws", async () => {
+		const ctx = await setup([]);
+		ctx.notify.mockImplementation(() => { throw new Error("Notice failed"); });
+		const target = { taskPath: EMAIL_PATH, title: "Email" };
+		expect(await Promise.all([ctx.controller.start(target), ctx.controller.start(target)])).toEqual(["started", "already-running"]);
+		expect(ctx.tn.startCalls).toHaveLength(1);
+		expect(ctx.tn.stopCalls).toEqual([]);
+		expect(ctx.controller.isBusy()).toBe(false);
+	});
+});

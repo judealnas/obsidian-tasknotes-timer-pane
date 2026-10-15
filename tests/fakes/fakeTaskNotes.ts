@@ -19,6 +19,8 @@ import type {
 export const NO_ACTIVE_SESSION_MESSAGE = "No active time tracking session for this task";
 
 export const DEFAULT_CAPABILITIES: readonly string[] = [
+	"tasks.read",
+	"catalog.read",
 	"time.read",
 	"time.write",
 	"tasks.events",
@@ -54,6 +56,7 @@ export interface FakeTaskNotes {
 	/** Number of `time.active()` calls so far. */
 	readonly activeCalls: number;
 	readonly stopCalls: StopCall[];
+	readonly startCalls: Array<{ path: string; options: Record<string, never>; context?: TaskNotesMutationContext }>;
 	setReady(ready: boolean): void;
 	setActive(entries: ActiveTimeEntry[]): void;
 	emitLifecycle(name: TaskNotesRuntimeLifecycleEventName): void;
@@ -95,12 +98,20 @@ export function createFakeTaskNotes(options: FakeTaskNotesOptions = {}): FakeTas
 	let activeCalls = 0;
 	let stopFailure: string | null = null;
 	const stopCalls: StopCall[] = [];
+	const startCalls: Array<{ path: string; options: Record<string, never>; context?: TaskNotesMutationContext }> = [];
 	let menuFailure: string | null = null;
 	const menuCalls: MenuCall[] = [];
 	const lifecycleRefs: LifecycleRef[] = [];
 	const taskRefs: TaskRef[] = [];
 
 	const time: TaskNotesRuntimeApiV1["time"] = {
+		start(path, options, context) {
+			startCalls.push({ path, options, ...(context ? { context } : {}) });
+			if (fixture.some(item => item.taskPath === path && !item.entry.endTime)) return Promise.reject(new Error("Task is already being timed"));
+			const item = makeActiveEntry({ taskPath: path, startTime: new Date().toISOString() });
+			fixture.push(item);
+			return Promise.resolve(structuredClone(item.task));
+		},
 		active() {
 			activeCalls++;
 			return Promise.resolve(structuredClone(fixture.filter((item) => !item.entry.endTime)));
@@ -167,6 +178,8 @@ export function createFakeTaskNotes(options: FakeTaskNotesOptions = {}): FakeTas
 		apiVersion: apiVersion as 1,
 		capabilities,
 		hasCapability: (capability: string) => capabilities.includes(capability),
+		tasks: { list: () => Promise.resolve(fixture.map(item => structuredClone(item.task))) },
+		catalog: { statuses: () => [{ value: "done", isCompleted: true }] },
 		time,
 		events,
 		lifecycle,
@@ -180,6 +193,7 @@ export function createFakeTaskNotes(options: FakeTaskNotesOptions = {}): FakeTas
 		get activeCalls() {
 			return activeCalls;
 		},
+		startCalls,
 		stopCalls,
 		setReady(next) {
 			ready = next;

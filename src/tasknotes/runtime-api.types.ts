@@ -22,6 +22,11 @@ export interface TaskInfo {
 	status: string;
 	path: string;
 	archived: boolean;
+	due?: string;
+	priority?: string;
+	contexts?: string[];
+	projects?: string[];
+	tags?: string[];
 	timeEstimate?: number;
 	timeEntries?: TimeEntry[];
 }
@@ -85,6 +90,12 @@ export interface TaskNotesRuntimeTaskMenuShowOptions {
 }
 
 /** The TaskNotes Runtime API v1 surface this plugin uses: `app.plugins.getPlugin("tasknotes").api`. */
+export interface TaskStatus {
+	value: string;
+	label?: string;
+	isCompleted: boolean;
+}
+
 export interface TaskNotesRuntimeApiV1 {
 	readonly apiVersion: 1;
 	readonly capabilities: readonly string[];
@@ -92,7 +103,15 @@ export interface TaskNotesRuntimeApiV1 {
 
 	readonly time: {
 		active(): Promise<ActiveTimeEntry[]>;
+		start?(path: string, options: Record<string, never>, context?: TaskNotesMutationContext): Promise<TaskInfo>;
 		stop(path: string, context?: TaskNotesMutationContext): Promise<TaskInfo>;
+	};
+
+	readonly tasks?: {
+		list(): Promise<TaskInfo[]>;
+	};
+	readonly catalog?: {
+		statuses(): TaskStatus[];
 	};
 
 	readonly events: {

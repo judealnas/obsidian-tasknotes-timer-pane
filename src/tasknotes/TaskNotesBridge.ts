@@ -7,6 +7,8 @@
 import { errorMessage } from "../model/errors";
 import type {
 	ActiveTimeEntry,
+	TaskInfo,
+	TaskStatus,
 	TaskNotesMutationContext,
 	TaskNotesRuntimeApiV1,
 	TaskNotesRuntimeLifecycleEventName,
@@ -45,6 +47,10 @@ export interface TaskNotesGateway {
 	onData(listener: () => void): () => void;
 	probe(): void;
 	active(): Promise<ActiveTimeEntry[]>;
+	startAvailability(): { available: boolean; reason: string };
+	listTasks(): Promise<TaskInfo[]>;
+	statuses(): Promise<TaskStatus[]>;
+	start(path: string, options: Record<string, never>, context: TaskNotesMutationContext): Promise<void>;
 	/** Stops the task's open entry through TaskNotes' own api.time.stop. The only pane write. */
 	stop(taskPath: string, context: TaskNotesMutationContext): Promise<void>;
 	/** A TaskNotes error as `{ code, message }`; code is null when TaskNotes cannot classify it. */
@@ -174,6 +180,41 @@ export class TaskNotesBridge implements TaskNotesGateway {
 		const api = this.api;
 		if (!api || this.state.kind !== "ready") throw new Error("TaskNotes is not connected");
 		await api.time.stop(taskPath, context);
+	}
+
+	startAvailability(): { available: boolean; reason: string } {
+		const api = this.api;
+		if (!api || this.state.kind !== "ready" || this.lookupPlugin()?.api !== api) return { available: false, reason: "TaskNotes is not connected" };
+		for (const capability of ["tasks.read", "catalog.read", "time.write"]) {
+			if (!api.hasCapability(capability)) return { available: false, reason: "TaskNotes is missing " + capability };
+		}
+		if (typeof api.tasks?.list !== "function" || typeof api.catalog?.statuses !== "function" || typeof api.time.start !== "function") return { available: false, reason: "TaskNotes does not provide the Start task methods" };
+		return { available: true, reason: "Start a task alongside running timers" };
+	}
+
+	private startApi(): TaskNotesRuntimeApiV1 {
+		const gate = this.startAvailability();
+		if (!gate.available || !this.api) throw new Error(gate.reason);
+		return this.api;
+	}
+
+	async listTasks(): Promise<TaskInfo[]> {
+		const api = this.startApi();
+		const tasks = await api.tasks!.list();
+		if (this.startApi() !== api) throw new Error("TaskNotes changed while loading tasks");
+		return tasks;
+	}
+
+	async statuses(): Promise<TaskStatus[]> {
+		const api = this.startApi();
+		const statuses = await Promise.resolve(api.catalog!.statuses());
+		if (this.startApi() !== api) throw new Error("TaskNotes changed while loading statuses");
+		return statuses;
+	}
+
+	async start(path: string, options: Record<string, never>, context: TaskNotesMutationContext): Promise<void> {
+		const api = this.startApi();
+		await api.time.start!(path, options, context);
 	}
 
 	normalizeError(error: unknown): { code: string | null; message: string } {
