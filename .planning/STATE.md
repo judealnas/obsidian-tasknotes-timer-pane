@@ -4,10 +4,10 @@ current_phase: 01
 current_phase_name: Live Timer Pane
 status: verifying
 stopped_at: Completed 01-05-PLAN.md
-last_updated: "2026-10-15T03:51:12.233Z"
+last_updated: "2026-10-15T03:57:52.284Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 01 execution started
-state_head: 1886e7780dd87a7efee8d12681b181198e60c712
+state_head: afa6a411b176dbff27a16afa7d70e104f511d10b
 progress:
   total_phases: 3
   completed_phases: 0
@@ -106,6 +106,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 261014-whq | Render card titles as wikilinks so TaskNotes' task-link chip appears; fall back to api.ui.taskMenu on right-click | 2026-10-14 | 1886e77 | [261014-whq-render-card-titles-as-wikilinks-so-taskn](./quick/261014-whq-render-card-titles-as-wikilinks-so-taskn/) |
+| 2 | Hide TaskNotes' tracking outline on chips in the timer pane | 2026-10-14 | afa6a41 | — |
 
 ## Deferred Items
 
