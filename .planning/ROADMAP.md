@@ -19,7 +19,7 @@ When Phase 3 is done, every v1 requirement and the core value are delivered: the
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Live Timer Pane** - Sidebar pane that shows the timed task with live session and total time, stays in sync with changes anywhere, and stops the timer in one click
-- [ ] **Phase 2: Start, Switch & Complete** - Idle state and fuzzy task picker to start or switch tasks, complete the task from the pane, safe and reported actions
+- [ ] **Phase 2: Start, Switch & Complete** - Header with Start task (fuzzy picker) and Stop all, complete from each card, safe and reported actions
 - [ ] **Phase 3: Pause & Resume** - Pause and resume owned by the pane that survives restarts, with Pomodoro-controlled timers labelled and protected
 
 ## Phase Details
@@ -61,17 +61,16 @@ Plans:
 **Goal**: User can start, switch, and complete tasks from the pane in one or two clicks, without going to the status bar, task cards, or commands.
 **Mode:** mvp
 **Depends on**: Phase 1
-**Requirements**: DISP-04, CTRL-05, CTRL-06, CTRL-07, CTRL-09, CTRL-10
+**Requirements**: DISP-04, CTRL-05, CTRL-06, CTRL-07, CTRL-09 (CTRL-10 dropped 2026-10-15)
 **Success Criteria** (what must be TRUE):
-  1. When nothing is being timed, the pane shows an idle state with a "Start a task" button. The button opens a fuzzy task picker, and choosing a task starts its timer.
-  2. While a task is timed, the user can pick a different task from the pane's picker. All running timers stop, then the chosen task starts, and the pane and TaskNotes' status bar show the new task.
-  3. A plugin setting controls whether switching stops all running timers (the default) or only the displayed one, and switching follows it.
-  4. User can mark the active task complete from the pane. Its timer stops and TaskNotes shows the task as done.
-  5. While an action is in progress, the pane's controls are disabled. If an action fails, for example the new task fails to start after a switch, a notice explains what happened.
+  1. The pane has a header with "Start task" and "Stop all" buttons. When nothing is being timed, the header sits above the idle message. Start task opens a fuzzy task picker, and choosing a task starts its timer alongside any running ones.
+  2. "Stop all" stops every running timer except one owned by an active Pomodoro, and the pane and TaskNotes' status bar reflect it.
+  3. User can mark a timed task complete from its card. Its timer stops and TaskNotes shows the task with the completed status chosen in the plugin's settings (default: the same status TaskNotes' own toggle uses).
+  4. While an action is in progress, the pane's controls are disabled. If an action fails, for example a task fails to start, a notice explains what happened.
 
 **Plans**: TBD
 **UI hint**: yes
-**Notes**: Run `/gsd-discuss-phase 2` first to settle two open decisions from research. First, whether "stop all" on switch also stops Pomodoro-owned timers. Second, how archived tasks are treated: research suggests showing them in the pane with a label but leaving them out of the picker. Switch is not atomic (stop, then start). Order the writes stop then start, through one serial queue.
+**Notes**: Discussed 2026-10-15 (see `02-CONTEXT.md`). Switching was removed: the pane shows one card per timer, and a header holds "Start task" and "Stop all". Stop all leaves Pomodoro-owned timers running. The picker matches TaskNotes' Pomodoro selector: archive-flag tasks are left out, and completed tasks are listed last. All writes go through one serial queue.
 
 ### Phase 3: Pause & Resume
 
