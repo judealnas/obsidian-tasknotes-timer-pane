@@ -3,8 +3,18 @@
  * bridge state and the store snapshot. Visibility of the card and message area is
  * driven only by the root `tntp-pane--{state}` modifier class (styles.css).
  */
-import { ItemView, type WorkspaceLeaf } from "obsidian";
-import { derivePaneState, formatHms, sessionMs, type OpenTimer, type PaneState } from "../model/timeMath";
+import { ItemView, Keymap, setTooltip, type PaneType, type WorkspaceLeaf } from "obsidian";
+import {
+	derivePaneState,
+	formatHms,
+	moreRunningLabel,
+	othersTooltip,
+	sessionMs,
+	totalMs,
+	type OpenTimer,
+	type PaneState,
+	type TimerSnapshot,
+} from "../model/timeMath";
 import type { TimerStore } from "../state/TimerStore";
 import type { TaskNotesGateway } from "../tasknotes/TaskNotesBridge";
 
@@ -19,8 +29,11 @@ const PANE_STATES: readonly PaneState[] = ["running", "idle", "loading", "missin
 
 interface PaneElements {
 	root: HTMLElement;
+	more: HTMLElement;
 	title: HTMLElement;
+	titleLabel: HTMLElement;
 	clock: HTMLElement;
+	total: HTMLElement;
 	heading: HTMLElement;
 	body: HTMLElement;
 	meta: HTMLElement;
@@ -30,6 +43,14 @@ interface PaneElements {
 function setTextIfChanged(el: HTMLElement, text: string): void {
 	if (el.textContent !== text) el.setText(text);
 }
+
+/** Obsidian tooltips read aria-label, so only rewrite it when the text changed. */
+function setTooltipIfChanged(el: HTMLElement, text: string): void {
+	if (el.getAttribute("aria-label") !== text) setTooltip(el, text);
+}
+
+/** Unique per view instance: several panes may be open at once. */
+let titleLabelSeq = 0;
 
 export class TimerPaneView extends ItemView {
 	private readonly services: TimerPaneServices;
@@ -62,10 +83,30 @@ export class TimerPaneView extends ItemView {
 		const live = status.createSpan({ cls: "tntp-status__live" });
 		live.createSpan({ cls: "tntp-status__dot" });
 		live.createSpan({ cls: "tntp-label", text: "Tracking" });
-		const title = card.createDiv({ cls: "tntp-title", attr: { role: "link", tabindex: "0" } });
+		const more = status.createSpan({ cls: ["tntp-label", "tntp-status__more"] });
+
+		// The tooltip owns aria-label ("Open task note"); the accessible name
+		// "Open {title}" comes from a visually hidden label via aria-labelledby.
+		const titleLabelId = `tntp-title-label-${++titleLabelSeq}`;
+		const title = card.createDiv({
+			cls: "tntp-title",
+			attr: { role: "link", tabindex: "0", "aria-labelledby": titleLabelId },
+		});
+		setTooltip(title, "Open task note");
+		const titleLabel = card.createSpan({ cls: "tntp-visually-hidden", attr: { id: titleLabelId } });
+		this.registerDomEvent(title, "click", (evt) => this.openPrimary(Keymap.isModEvent(evt)));
+		this.registerDomEvent(title, "keydown", (evt) => {
+			if (evt.key !== "Enter" && evt.key !== " ") return;
+			evt.preventDefault();
+			this.openPrimary(false);
+		});
+
 		const session = card.createDiv({ cls: ["tntp-stat", "tntp-stat--session"] });
 		session.createSpan({ cls: "tntp-label", text: "Session" });
 		const clock = session.createSpan({ cls: "tntp-clock", attr: { role: "timer", "aria-live": "off" } });
+		const totalRow = card.createDiv({ cls: ["tntp-stat", "tntp-stat--total"] });
+		totalRow.createSpan({ cls: "tntp-label", text: "Total" });
+		const total = totalRow.createSpan({ cls: "tntp-total" });
 
 		const message = root.createDiv({ cls: "tntp-message", attr: { "aria-live": "polite" } });
 		const heading = message.createDiv({ cls: "tntp-message__heading" });
@@ -74,7 +115,7 @@ export class TimerPaneView extends ItemView {
 		const retry = message.createEl("button", { cls: "tntp-message__retry", text: "Check for TaskNotes" });
 		this.registerDomEvent(retry, "click", () => gateway.probe());
 
-		this.els = { root, title, clock, heading, body, meta };
+		this.els = { root, more, title, titleLabel, clock, total, heading, body, meta };
 
 		this.register(store.subscribe(() => this.render()));
 		this.register(gateway.onState(() => this.render()));
@@ -89,20 +130,39 @@ export class TimerPaneView extends ItemView {
 		return Promise.resolve();
 	}
 
-	private currentState(): { state: PaneState; primary: OpenTimer | null } {
+	private currentState(): { state: PaneState; primary: OpenTimer | null; snapshot: TimerSnapshot | null } {
 		const snapshot = this.services.store.getSnapshot();
 		const state = derivePaneState(this.services.gateway.getState(), snapshot);
-		return { state, primary: state === "running" ? (snapshot?.primary ?? null) : null };
+		return { state, primary: state === "running" ? (snapshot?.primary ?? null) : null, snapshot };
+	}
+
+	/** Opens the displayed task's note; a modifier click opens it in a new tab (DISP-01). */
+	private openPrimary(newLeaf: PaneType | boolean): void {
+		const { primary } = this.currentState();
+		if (!primary) return;
+		this.app.workspace.openLinkText(primary.taskPath, "", newLeaf).catch((error: unknown) => {
+			console.error(
+				"[tasknotes-timer-pane] Opening the task note failed: " +
+					(error instanceof Error ? error.message : String(error)),
+			);
+		});
 	}
 
 	private render(): void {
 		const els = this.els;
 		if (!els) return;
-		const { state, primary } = this.currentState();
+		const { state, primary, snapshot } = this.currentState();
 		for (const candidate of PANE_STATES) els.root.toggleClass(`tntp-pane--${candidate}`, candidate === state);
+		const others = primary ? (snapshot?.others ?? []) : [];
+		els.root.toggleClass("tntp-pane--others", others.length > 0);
 
 		if (primary) {
 			setTextIfChanged(els.title, primary.title);
+			setTextIfChanged(els.titleLabel, `Open ${primary.title}`);
+			if (others.length > 0) {
+				setTextIfChanged(els.more, moreRunningLabel(others.length));
+				setTooltipIfChanged(els.more, othersTooltip(others));
+			}
 			this.writeTimes(primary, Date.now());
 			return;
 		}
@@ -147,6 +207,7 @@ export class TimerPaneView extends ItemView {
 		const els = this.els;
 		if (!els) return;
 		setTextIfChanged(els.clock, formatHms(sessionMs(primary.startMs, nowMs)));
+		setTextIfChanged(els.total, formatHms(totalMs(primary.entries, nowMs)));
 	}
 
 	/** Wall-clock tick: recomputes from startTime, never calls TaskNotes. */

@@ -56,6 +56,16 @@ export function formatHms(ms: number): string {
 	return `${hours}:${pad2(minutes)}:${pad2(seconds)}`;
 }
 
+/**
+ * Total tracked time to the second, including running entries. Deliberately not
+ * TaskNotes' minute-floored totals (DISP-03).
+ */
+export function totalMs(entries: readonly ParsedEntry[], nowMs: number): number {
+	let sum = 0;
+	for (const entry of entries) sum += Math.max(0, (entry.endMs ?? nowMs) - entry.startMs);
+	return sum;
+}
+
 /** Latest start first; equal starts ordered by task path ascending (plain `<`, locale-independent). */
 function compareTimers(a: OpenTimer, b: OpenTimer): number {
 	if (a.startMs !== b.startMs) return b.startMs - a.startMs;
@@ -87,18 +97,40 @@ export function deriveSnapshot(active: readonly ActiveTimeEntry[]): TimerSnapsho
 		if (startMs === null || typeof startTime !== "string") continue;
 		const taskPath = pathOf(item);
 		if (taskPath === null) continue;
-		const title: unknown = item?.task?.title;
 		timers.push({
 			taskPath,
-			title: typeof title === "string" ? title.trim() : "",
+			title: displayTitle(item?.task?.title, taskPath),
 			startTime,
 			startMs,
-			entries: [],
+			entries: parseEntries(item?.task?.timeEntries),
 		});
 	}
 	const primary = selectPrimary(timers);
 	const others = timers.filter((timer) => timer !== primary).sort(compareTimers);
 	return { primary, others };
+}
+
+/**
+ * The task's own entries for the total. Keeps entries with a parseable startTime,
+ * maps a missing endTime to an open entry, drops an unparseable endTime, and ignores
+ * the legacy `duration` field.
+ */
+function parseEntries(timeEntries: unknown): ParsedEntry[] {
+	if (!Array.isArray(timeEntries)) return [];
+	const parsed: ParsedEntry[] = [];
+	for (const raw of timeEntries as unknown[]) {
+		const entry = (raw ?? {}) as { startTime?: unknown; endTime?: unknown };
+		const startMs = parseMs(entry.startTime);
+		if (startMs === null) continue;
+		if (entry.endTime === undefined || entry.endTime === null || entry.endTime === "") {
+			parsed.push({ startMs, endMs: null });
+			continue;
+		}
+		const endMs = parseMs(entry.endTime);
+		if (endMs === null) continue;
+		parsed.push({ startMs, endMs });
+	}
+	return parsed;
 }
 
 function pathOf(item: ActiveTimeEntry | null | undefined): string | null {
@@ -122,4 +154,28 @@ export function derivePaneState(bridge: BridgeState, snapshot: TimerSnapshot | n
 			if (snapshot === null) return "loading";
 			return snapshot.primary ? "running" : "idle";
 	}
+}
+
+/** A trimmed non-empty title, otherwise the file basename without a trailing ".md". */
+export function displayTitle(title: unknown, taskPath: string): string {
+	if (typeof title === "string") {
+		const trimmed = title.trim();
+		if (trimmed !== "") return trimmed;
+	}
+	const basename = taskPath.split("/").pop() ?? taskPath;
+	return basename.endsWith(".md") ? basename.slice(0, -".md".length) : basename;
+}
+
+/** "+N more running" indicator text. */
+export function moreRunningLabel(n: number): string {
+	return `+${n} more running`;
+}
+
+const TOOLTIP_TITLE_LIMIT = 5;
+
+/** "Also running: A, B" with at most five titles, then ", and {k} more". */
+export function othersTooltip(others: readonly OpenTimer[]): string {
+	const titles = others.slice(0, TOOLTIP_TITLE_LIMIT).map((timer) => timer.title);
+	const rest = others.length - titles.length;
+	return `Also running: ${titles.join(", ")}${rest > 0 ? `, and ${rest} more` : ""}`;
 }

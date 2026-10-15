@@ -24,6 +24,23 @@
 	display: none;
 }
 
+.tntp-pane:not(.tntp-pane--others) .tntp-status__more {
+	display: none;
+}
+
+/* Accessible name for the title link (aria-labelledby); never rendered visually. */
+.tntp-visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
 /* Running-timer card */
 .tntp-card {
 	background-color: var(--background-primary);
@@ -89,6 +106,26 @@
 	line-height: 1.1;
 	white-space: nowrap;
 	letter-spacing: normal;
+	color: var(--text-normal);
+}
+
+/* "+N more running": Label role, muted, not clickable, no accent. */
+.tntp-status__more {
+	text-align: right;
+	cursor: default;
+}
+
+.tntp-stat--total {
+	display: flex;
+	align-items: baseline;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-4);
+}
+
+.tntp-total {
+	font-family: var(--font-monospace);
+	font-variant-numeric: tabular-nums;
+	font-size: var(--font-ui-small);
 	color: var(--text-normal);
 }
 
