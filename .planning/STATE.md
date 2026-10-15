@@ -4,10 +4,10 @@ current_phase: 01
 current_phase_name: Live Timer Pane
 status: verifying
 stopped_at: Completed 01-05-PLAN.md
-last_updated: "2026-10-15T02:47:36.212Z"
+last_updated: "2026-10-15T03:51:12.233Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 01 execution started
-state_head: f52117863840c169504ffd363c44ff1a964dc2b2
+state_head: 1886e7780dd87a7efee8d12681b181198e60c712
 progress:
   total_phases: 3
   completed_phases: 0
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-13)
 Phase: 01 (Live Timer Pane) — EXECUTING
 Plan: 5 of 5
 Status: Phase complete — ready for verification
-Last activity: 2026-10-14 — Phase 01 execution started
+Last activity: 2026-10-14 - Completed quick task 261014-whq: Render card titles as wikilinks so TaskNotes' task-link chip appears; fall back to api.ui.taskMenu on right-click when no chip renders
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -100,6 +100,12 @@ None yet.
 - [Phase 2]: Open decision: does "stop all" on switch also stop timers owned by Pomodoro? Settle it in `/gsd-discuss-phase 2`.
 - [Phase 2]: Open decision: archived tasks. Research suggests showing them labelled in the pane, leaving them out of the picker.
 - [Phase 3]: How Pomodoro-owned timers behave with the pane's controls is unverified. Test with a live Pomodoro session.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 261014-whq | Render card titles as wikilinks so TaskNotes' task-link chip appears; fall back to api.ui.taskMenu on right-click | 2026-10-14 | 1886e77 | [261014-whq-render-card-titles-as-wikilinks-so-taskn](./quick/261014-whq-render-card-titles-as-wikilinks-so-taskn/) |
 
 ## Deferred Items
 
