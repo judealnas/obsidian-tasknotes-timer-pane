@@ -461,3 +461,49 @@ describe("task menu (ui.taskMenu, optional ui.task-menu capability)", () => {
 		expect(tn.menuCalls).toHaveLength(0);
 	});
 });
+
+describe("Start feature gates", () => {
+ test("catalog reads work independently when tasks.read is unavailable", async () => {
+  const tn = createFakeTaskNotes({ capabilities: ["time.read", "time.write", "tasks.events", "lifecycle.events", "catalog.read"] });
+  const { bridge } = setup(tn.plugin); bridge.probe();
+  expect(bridge.getState().kind).toBe("ready");
+  expect(bridge.startAvailability().available).toBe(false);
+  await expect(bridge.statuses()).resolves.toEqual([{ value: "done", isCompleted: true }]);
+ });
+ test.each(["tasks.read", "catalog.read"])("missing %s disables only Start", async capability => {
+  const tn = createFakeTaskNotes();
+  const original = tn.api.hasCapability;
+  tn.api.hasCapability = value => value !== capability && original(value);
+  const { bridge } = setup(tn.plugin); bridge.probe();
+  expect(bridge.getState().kind).toBe("ready");
+  expect(bridge.startAvailability()).toEqual({ available: false, reason: "TaskNotes is missing " + capability });
+  await expect(bridge.active()).resolves.toEqual([]);
+ });
+ test.each(["list", "statuses", "start"] as const)("missing %s callable disables only Start", method => {
+  const tn = createFakeTaskNotes();
+  const namespace = method === "list" ? tn.api.tasks : method === "statuses" ? tn.api.catalog : tn.api.time;
+  Reflect.deleteProperty(namespace!, method);
+  const { bridge } = setup(tn.plugin); bridge.probe();
+  expect(bridge.getState().kind).toBe("ready");
+  expect(bridge.startAvailability().available).toBe(false);
+  expect(bridge.startAvailability().reason).toContain(method);
+ });
+ test("preserves namespace receivers and refuses results from a replaced API", async () => {
+  const tn = createFakeTaskNotes(); const ctx = setup(tn.plugin); ctx.bridge.probe();
+  const tasks = tn.api.tasks!; const catalog = tn.api.catalog!;
+  tasks.list = function () { expect(this).toBe(tasks); return Promise.resolve([]); };
+  catalog.statuses = function () { expect(this).toBe(catalog); return []; };
+  await ctx.bridge.listTasks(); await ctx.bridge.statuses();
+  let resolve!: (tasks: []) => void;
+  tasks.list = () => new Promise<[]>(r => { resolve = r; });
+  const pending = ctx.bridge.listTasks(); ctx.setPlugin(createFakeTaskNotes().plugin); resolve([]);
+  await expect(pending).rejects.toThrow();
+ });
+ test("unload during a task read cannot return stale rows", async () => {
+  const tn = createFakeTaskNotes(); const { bridge } = setup(tn.plugin); bridge.probe();
+  let resolve!: (tasks: []) => void;
+  tn.api.tasks!.list = () => new Promise<[]>(r => { resolve = r; });
+  const pending = bridge.listTasks(); tn.emitLifecycle("unloading"); resolve([]);
+  await expect(pending).rejects.toThrow(); expect(bridge.startAvailability().available).toBe(false);
+ });
+});
