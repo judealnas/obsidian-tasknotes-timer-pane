@@ -3,11 +3,11 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Live Timer Pane
 status: verifying
-stopped_at: Completed 01-05-PLAN.md
-last_updated: "2026-10-15T04:08:24.055Z"
+stopped_at: Phase 2 context gathered
+last_updated: "2026-10-15T04:38:57.133Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 01 execution started
-state_head: 3a2b05dc6d821735be3fc3d92dd9005047dea30d
+state_head: 539d4c89d4abd5a7a164c8ebd4d0a775535ba5c6
 progress:
   total_phases: 3
   completed_phases: 0
@@ -97,8 +97,6 @@ None yet.
 ### Blockers/Concerns
 
 - [Phase 1]: Check cold-start readiness timing by hand. `layout.ready` fires only once, and `isReady()` and `ready()` change at different points.
-- [Phase 2]: Open decision: does "stop all" on switch also stop timers owned by Pomodoro? Settle it in `/gsd-discuss-phase 2`.
-- [Phase 2]: Open decision: archived tasks. Research suggests showing them labelled in the pane, leaving them out of the picker.
 - [Phase 3]: How Pomodoro-owned timers behave with the pane's controls is unverified. Test with a live Pomodoro session.
 
 ### Quick Tasks Completed
@@ -120,6 +118,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T02:47:36.168Z
-Stopped at: Completed 01-05-PLAN.md
-Resume file: None
+Last session: 2026-10-15T04:38:57.069Z
+Stopped at: Phase 2 context gathered
+Resume file: .planning/phases/02-start-switch-complete/02-CONTEXT.md
