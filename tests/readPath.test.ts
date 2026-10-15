@@ -27,7 +27,7 @@ function activeEntry(taskPath: string, startTime: string, title = taskPath): Act
 function connect(plugin: TaskNotesPluginLike | null) {
 	const log = vi.fn<(message: string) => void>();
 	const bridge = new TaskNotesBridge({ lookupPlugin: () => plugin, log, schedule: timerSchedule });
-	const store = new TimerStore({ gateway: bridge, log });
+	const store = new TimerStore({ gateway: bridge, log, schedule: timerSchedule });
 	const paneState = () => derivePaneState(bridge.getState(), store.getSnapshot());
 	return { bridge, store, log, paneState };
 }

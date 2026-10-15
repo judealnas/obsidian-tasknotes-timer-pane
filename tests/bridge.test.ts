@@ -296,7 +296,7 @@ describe("end-to-end reconnect through the real TimerStore", () => {
 			active: [makeActiveEntry({ taskPath: "TaskNotes/Tasks/A.md", startTime: "2026-10-14T09:00:00.000Z", title: "A" })],
 		});
 		const { bridge, log, setPlugin } = setup(oldTn.plugin);
-		const store = new TimerStore({ gateway: bridge, log });
+		const store = new TimerStore({ gateway: bridge, log, schedule: timerSchedule });
 		const paneState = () => derivePaneState(bridge.getState(), store.getSnapshot());
 
 		bridge.probe();

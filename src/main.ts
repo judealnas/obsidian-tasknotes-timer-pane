@@ -1,5 +1,5 @@
 import { Plugin } from "obsidian";
-import { TimerStore } from "./state/TimerStore";
+import { SAFETY_RESYNC_MS, TimerStore } from "./state/TimerStore";
 import { PROBE_INTERVAL_MS, TASKNOTES_PLUGIN_ID, TaskNotesBridge, type Schedule } from "./tasknotes/TaskNotesBridge";
 import { TimerPaneView, VIEW_TYPE_TIMER_PANE } from "./ui/TimerPaneView";
 
@@ -23,7 +23,7 @@ export default class TaskNotesTimerPanePlugin extends Plugin {
 			log,
 			schedule,
 		});
-		const store = new TimerStore({ gateway: bridge, log });
+		const store = new TimerStore({ gateway: bridge, log, schedule });
 		this.register(() => {
 			store.dispose();
 			bridge.dispose();
@@ -42,6 +42,12 @@ export default class TaskNotesTimerPanePlugin extends Plugin {
 
 		this.app.workspace.onLayoutReady(() => bridge.probe());
 		this.registerInterval(window.setInterval(() => bridge.probe(), PROBE_INTERVAL_MS));
+		// Backstop for anything no event reports; a no-op unless TaskNotes is ready.
+		this.registerInterval(window.setInterval(() => store.resync(), SAFETY_RESYNC_MS));
+		// Deleting or renaming a note in Obsidian emits no TaskNotes runtime event (Pitfall 4).
+		// These are Obsidian-owned events, so Obsidian's registry releases them on unload.
+		this.registerEvent(this.app.vault.on("delete", () => store.requestRefresh()));
+		this.registerEvent(this.app.vault.on("rename", () => store.requestRefresh()));
 	}
 
 	/** Reveals the existing pane leaf wherever it is, or creates one in the right sidebar. Never a second leaf. */

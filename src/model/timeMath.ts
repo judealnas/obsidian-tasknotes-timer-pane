@@ -66,6 +66,36 @@ export function totalMs(entries: readonly ParsedEntry[], nowMs: number): number 
 	return sum;
 }
 
+/** Sum of a timer's closed entries, in ms. Open entries are left out: they grow every tick. */
+function closedMs(entries: readonly ParsedEntry[]): number {
+	let sum = 0;
+	for (const entry of entries) if (entry.endMs !== null) sum += Math.max(0, entry.endMs - entry.startMs);
+	return sum;
+}
+
+// Control characters never occur in ISO timestamps (or in a sane title or path).
+const FIELD_SEPARATOR = "\u0000";
+const TIMER_SEPARATOR = "\u0001";
+
+/**
+ * A deterministic string for change detection: the primary, then the others in
+ * order, each as taskPath, startTime, title and the closed-entry total. TaskNotes
+ * returns fresh copies on every call, so object identity cannot be used.
+ */
+export function snapshotSignature(snapshot: TimerSnapshot): string {
+	const timers = snapshot.primary ? [snapshot.primary, ...snapshot.others] : snapshot.others;
+	const head = snapshot.primary ? "P" : "-";
+	return (
+		head +
+		TIMER_SEPARATOR +
+		timers
+			.map((timer) =>
+				[timer.taskPath, timer.startTime, timer.title, String(closedMs(timer.entries))].join(FIELD_SEPARATOR),
+			)
+			.join(TIMER_SEPARATOR)
+	);
+}
+
 /** Latest start first; equal starts ordered by task path ascending (plain `<`, locale-independent). */
 function compareTimers(a: OpenTimer, b: OpenTimer): number {
 	if (a.startMs !== b.startMs) return b.startMs - a.startMs;
