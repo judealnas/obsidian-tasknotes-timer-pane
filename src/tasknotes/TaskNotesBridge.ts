@@ -16,6 +16,8 @@ import type {
 export const TASKNOTES_PLUGIN_ID = "tasknotes";
 export const MIN_TASKNOTES_VERSION = "4.10.0";
 export const REQUIRED_CAPABILITIES = ["time.read", "time.write", "tasks.events", "lifecycle.events"] as const;
+/** Optional: TaskNotes' native task menu (4.11+). Not required for ready. */
+export const TASK_MENU_CAPABILITY = "ui.task-menu";
 export const PROBE_INTERVAL_MS = 5000;
 export const MUTATION_SOURCE = "tasknotes-timer-pane";
 /** Delay of the one-off probe after TaskNotes unloads, so an update (unload, then load) reconnects fast. */
@@ -47,6 +49,12 @@ export interface TaskNotesGateway {
 	stop(taskPath: string, context: TaskNotesMutationContext): Promise<void>;
 	/** A TaskNotes error as `{ code, message }`; code is null when TaskNotes cannot classify it. */
 	normalizeError(error: unknown): { code: string | null; message: string };
+	/**
+	 * Opens TaskNotes' own task context menu at the mouse event. True when TaskNotes
+	 * took the event, and the caller then prevents the default. False when
+	 * unavailable. Never throws.
+	 */
+	showTaskMenu(taskPath: string, event: MouseEvent): boolean;
 }
 
 export interface TaskNotesBridgeDeps {
@@ -184,6 +192,29 @@ export class TaskNotesBridge implements TaskNotesGateway {
 			}
 		}
 		return { code: null, message: errorMessage(error) };
+	}
+
+	/**
+	 * Hands the event to TaskNotes' ui.taskMenu.show. No mutation context: show takes
+	 * none, and every menu action is TaskNotes' own write through its own services.
+	 */
+	showTaskMenu(taskPath: string, event: MouseEvent): boolean {
+		const api = this.api;
+		if (!api || this.state.kind !== "ready") return false;
+		try {
+			if (!api.hasCapability(TASK_MENU_CAPABILITY)) return false;
+			const ui = api.ui;
+			if (typeof ui?.taskMenu?.show !== "function") return false;
+			// Called as a method so TaskNotes keeps its receiver.
+			const result = ui.taskMenu.show({ taskPath, event });
+			Promise.resolve(result).catch((error: unknown) => {
+				this.log("Opening the TaskNotes task menu failed: " + describeError(error));
+			});
+			return true;
+		} catch (error) {
+			this.log("Opening the TaskNotes task menu failed: " + describeError(error));
+			return false;
+		}
 	}
 
 	/** Releases every TaskNotes subscription and cancels a pending early probe. */

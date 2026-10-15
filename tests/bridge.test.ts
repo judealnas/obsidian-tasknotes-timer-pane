@@ -380,3 +380,84 @@ describe("write facade (CTRL-01)", () => {
 		expect(third.log).toHaveBeenCalledWith("Normalizing a TaskNotes error failed: normalize broke");
 	});
 });
+
+describe("task menu (ui.taskMenu, optional ui.task-menu capability)", () => {
+	const TASK = "TaskNotes/Tasks/A.md";
+	/** Tests run in Node: a stand-in object, passed through by identity. */
+	const fakeEvent = () => ({ type: "contextmenu", clientX: 10, clientY: 20 }) as unknown as MouseEvent;
+	const flush = async () => {
+		await Promise.resolve();
+		await Promise.resolve();
+	};
+
+	test("ready with ui.task-menu: hands the task path and the same event to ui.taskMenu.show", () => {
+		const tn = createFakeTaskNotes();
+		const { bridge } = setup(tn.plugin);
+		bridge.probe();
+		const event = fakeEvent();
+		expect(bridge.showTaskMenu(TASK, event)).toBe(true);
+		expect(tn.menuCalls).toHaveLength(1);
+		expect(tn.menuCalls[0]?.taskPath).toBe(TASK);
+		expect(tn.menuCalls[0]?.event).toBe(event);
+	});
+
+	test("without ui.task-menu: returns false, never calls show, and the bridge is still ready", () => {
+		const tn = createFakeTaskNotes({
+			capabilities: ["time.read", "time.write", "tasks.events", "lifecycle.events", "errors.typed"],
+		});
+		const { bridge } = setup(tn.plugin);
+		bridge.probe();
+		expect(bridge.showTaskMenu(TASK, fakeEvent())).toBe(false);
+		expect(tn.menuCalls).toHaveLength(0);
+		expect(bridge.getState()).toEqual({ kind: "ready" });
+	});
+
+	test("capability advertised but no ui namespace (TaskNotes 4.10 shape): returns false without throwing", () => {
+		const tn = createFakeTaskNotes({ ui: false });
+		const { bridge } = setup(tn.plugin);
+		bridge.probe();
+		expect(() => bridge.showTaskMenu(TASK, fakeEvent())).not.toThrow();
+		expect(bridge.showTaskMenu(TASK, fakeEvent())).toBe(false);
+		expect(tn.menuCalls).toHaveLength(0);
+	});
+
+	test("TaskNotes missing or not ready: returns false with no menu call", () => {
+		const missing = setup(null);
+		missing.bridge.probe();
+		expect(missing.bridge.showTaskMenu(TASK, fakeEvent())).toBe(false);
+
+		const tn = createFakeTaskNotes({ ready: false });
+		const loading = setup(tn.plugin);
+		loading.bridge.probe();
+		expect(loading.bridge.getState()).toEqual({ kind: "loading" });
+		expect(loading.bridge.showTaskMenu(TASK, fakeEvent())).toBe(false);
+		expect(tn.menuCalls).toHaveLength(0);
+	});
+
+	test("show rejecting: still true, and the failure is logged, not left unhandled", async () => {
+		const tn = createFakeTaskNotes();
+		tn.failMenuWith("Task not found");
+		const { bridge, log } = setup(tn.plugin);
+		bridge.probe();
+		expect(bridge.showTaskMenu(TASK, fakeEvent())).toBe(true);
+		await flush();
+		expect(log).toHaveBeenCalledWith("Opening the TaskNotes task menu failed: Task not found");
+	});
+
+	test("hasCapability throwing after ready: returns false, logs once, does not throw", () => {
+		const tn = createFakeTaskNotes();
+		const { bridge, log } = setup(tn.plugin);
+		bridge.probe();
+		vi.spyOn(tn.api, "hasCapability").mockImplementation(() => {
+			throw new Error("capabilities broke");
+		});
+		let result: boolean | undefined;
+		expect(() => {
+			result = bridge.showTaskMenu(TASK, fakeEvent());
+		}).not.toThrow();
+		expect(result).toBe(false);
+		expect(log).toHaveBeenCalledTimes(1);
+		expect(log).toHaveBeenCalledWith("Opening the TaskNotes task menu failed: capabilities broke");
+		expect(tn.menuCalls).toHaveLength(0);
+	});
+});

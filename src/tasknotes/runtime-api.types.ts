@@ -74,6 +74,16 @@ export interface TaskNotesRuntimeLifecyclePayload {
 	rawEvent: string;
 }
 
+/**
+ * Options for `ui.taskMenu.show`. Trimmed from upstream
+ * TaskNotesRuntimeTaskMenuShowOptions: `targetDate`, `onUpdate` and
+ * `promoteOccurrenceControls` are left out.
+ */
+export interface TaskNotesRuntimeTaskMenuShowOptions {
+	taskPath: string;
+	event: MouseEvent;
+}
+
 /** The TaskNotes Runtime API v1 surface this plugin uses: `app.plugins.getPlugin("tasknotes").api`. */
 export interface TaskNotesRuntimeApiV1 {
 	readonly apiVersion: 1;
@@ -103,5 +113,16 @@ export interface TaskNotesRuntimeApiV1 {
 
 	readonly errors: {
 		normalize(error: unknown): TaskNotesApiErrorPayload;
+	};
+
+	/**
+	 * TaskNotes' own UI. Absent before TaskNotes 4.11, so it is optional here; gate
+	 * every call on the `ui.task-menu` capability. Only `taskMenu.show` is vendored:
+	 * `showAtElement` and `populate` are not used.
+	 */
+	readonly ui?: {
+		readonly taskMenu: {
+			show(options: TaskNotesRuntimeTaskMenuShowOptions): Promise<void>;
+		};
 	};
 }

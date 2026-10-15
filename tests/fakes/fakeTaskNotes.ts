@@ -24,6 +24,7 @@ export const DEFAULT_CAPABILITIES: readonly string[] = [
 	"tasks.events",
 	"lifecycle.events",
 	"errors.typed",
+	"ui.task-menu",
 ];
 
 export interface FakeTaskNotesOptions {
@@ -32,11 +33,18 @@ export interface FakeTaskNotesOptions {
 	capabilities?: readonly string[];
 	ready?: boolean;
 	active?: ActiveTimeEntry[];
+	/** False builds an api with no `ui` namespace, like TaskNotes 4.10. Default true. */
+	ui?: boolean;
 }
 
 export interface StopCall {
 	path: string;
 	context?: TaskNotesMutationContext;
+}
+
+export interface MenuCall {
+	taskPath: string;
+	event: MouseEvent;
 }
 
 export interface FakeTaskNotes {
@@ -54,6 +62,10 @@ export interface FakeTaskNotes {
 	totalHandlers(): number;
 	/** Makes every later `time.stop` throw `new Error(message)`; null restores normal behavior. */
 	failStopWith(message: string | null): void;
+	/** Every `ui.taskMenu.show` call so far, in order. */
+	readonly menuCalls: MenuCall[];
+	/** Makes every later `ui.taskMenu.show` reject with `new Error(message)`; null restores success. */
+	failMenuWith(message: string | null): void;
 }
 
 interface LifecycleRef extends EventRef {
@@ -83,6 +95,8 @@ export function createFakeTaskNotes(options: FakeTaskNotesOptions = {}): FakeTas
 	let activeCalls = 0;
 	let stopFailure: string | null = null;
 	const stopCalls: StopCall[] = [];
+	let menuFailure: string | null = null;
+	const menuCalls: MenuCall[] = [];
 	const lifecycleRefs: LifecycleRef[] = [];
 	const taskRefs: TaskRef[] = [];
 
@@ -138,6 +152,16 @@ export function createFakeTaskNotes(options: FakeTaskNotesOptions = {}): FakeTas
 		},
 	};
 
+	const ui: NonNullable<TaskNotesRuntimeApiV1["ui"]> = {
+		taskMenu: {
+			show(options) {
+				menuCalls.push({ taskPath: options.taskPath, event: options.event });
+				if (menuFailure !== null) return Promise.reject(new Error(menuFailure));
+				return Promise.resolve();
+			},
+		},
+	};
+
 	const api: TaskNotesRuntimeApiV1 = {
 		// The option lets tests fake a future apiVersion; the contract type pins the literal 1.
 		apiVersion: apiVersion as 1,
@@ -147,6 +171,7 @@ export function createFakeTaskNotes(options: FakeTaskNotesOptions = {}): FakeTas
 		events,
 		lifecycle,
 		errors,
+		...(options.ui === false ? {} : { ui }),
 	};
 
 	return {
@@ -184,6 +209,10 @@ export function createFakeTaskNotes(options: FakeTaskNotesOptions = {}): FakeTas
 		},
 		failStopWith(message) {
 			stopFailure = message;
+		},
+		menuCalls,
+		failMenuWith(message) {
+			menuFailure = message;
 		},
 	};
 }

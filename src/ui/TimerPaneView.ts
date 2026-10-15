@@ -168,6 +168,7 @@ export class TimerPaneView extends ItemView {
 			evt.preventDefault();
 			this.openTask(key, false);
 		});
+		title.addEventListener("contextmenu", (evt) => this.openTaskMenu(key, evt));
 
 		const session = card.createDiv({ cls: ["tntp-stat", "tntp-stat--session"] });
 		session.createSpan({ cls: "tntp-label", text: "Session" });
@@ -197,6 +198,18 @@ export class TimerPaneView extends ItemView {
 					(error instanceof Error ? error.message : String(error)),
 			);
 		});
+	}
+
+	/**
+	 * Right-click on a title: TaskNotes' native task menu. A chip TaskNotes rendered
+	 * prevents the default itself, so an already-handled event is left alone (no
+	 * TaskNotes class names involved). The target is read from the card at event time.
+	 */
+	private openTaskMenu(key: string, evt: MouseEvent): void {
+		if (evt.defaultPrevented) return;
+		const card = this.cards.get(key);
+		if (!card) return;
+		if (this.services.gateway.showTaskMenu(card.timer.taskPath, evt)) evt.preventDefault();
 	}
 
 	/**

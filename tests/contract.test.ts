@@ -12,6 +12,7 @@ import type {
 	TaskNotesRuntimeApiV1,
 	TaskNotesRuntimeLifecycleEventName,
 	TaskNotesRuntimeTaskEventName,
+	TaskNotesRuntimeTaskMenuShowOptions,
 	TimeEntry,
 } from "../src/tasknotes/runtime-api.types";
 
@@ -96,5 +97,19 @@ describe("TaskNotes Runtime API v1 contract", () => {
 		expectTypeOf<Api["errors"]["normalize"]>().returns.toEqualTypeOf<TaskNotesApiErrorPayload>();
 		expectTypeOf<TaskNotesApiErrorPayload>().toHaveProperty("message").toEqualTypeOf<string>();
 		expectTypeOf<TaskNotesApiErrorPayload>().toHaveProperty("status").toEqualTypeOf<number>();
+	});
+
+	test("ui is optional (absent before TaskNotes 4.11)", () => {
+		expectTypeOf<undefined>().toExtend<Api["ui"]>();
+	});
+
+	test("ui.taskMenu.show takes the show options and resolves to void", () => {
+		type Show = NonNullable<Api["ui"]>["taskMenu"]["show"];
+		expectTypeOf<Show>().parameters.toEqualTypeOf<[options: TaskNotesRuntimeTaskMenuShowOptions]>();
+		expectTypeOf<Show>().returns.toEqualTypeOf<Promise<void>>();
+	});
+
+	test("TaskNotesRuntimeTaskMenuShowOptions is exactly taskPath and event", () => {
+		expectTypeOf<TaskNotesRuntimeTaskMenuShowOptions>().toEqualTypeOf<{ taskPath: string; event: MouseEvent }>();
 	});
 });

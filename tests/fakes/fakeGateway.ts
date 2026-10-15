@@ -9,6 +9,11 @@ export interface GatewayStopCall {
 	context: TaskNotesMutationContext;
 }
 
+export interface GatewayMenuCall {
+	taskPath: string;
+	event: MouseEvent;
+}
+
 export interface FakeGateway extends TaskNotesGateway {
 	/** Number of `active()` calls so far. */
 	readonly activeCalls: number;
@@ -26,6 +31,10 @@ export interface FakeGateway extends TaskNotesGateway {
 	readonly stopCalls: GatewayStopCall[];
 	/** Makes every later `stop()` reject with `error`; null restores success. */
 	failStopWith(error: unknown): void;
+	/** Every `showTaskMenu()` call that TaskNotes took, in order. */
+	readonly menuCalls: GatewayMenuCall[];
+	/** Whether `showTaskMenu()` reports TaskNotes' menu as available (default true). */
+	setTaskMenuAvailable(available: boolean): void;
 }
 
 export function createFakeGateway(initial: BridgeState = { kind: "ready" }): FakeGateway {
@@ -36,6 +45,8 @@ export function createFakeGateway(initial: BridgeState = { kind: "ready" }): Fak
 	let probeCalls = 0;
 	let stopFailure: { error: unknown } | null = null;
 	const stopCalls: GatewayStopCall[] = [];
+	let taskMenuAvailable = true;
+	const menuCalls: GatewayMenuCall[] = [];
 	const stateListeners = new Set<(state: BridgeState) => void>();
 	const dataListeners = new Set<() => void>();
 
@@ -80,6 +91,15 @@ export function createFakeGateway(initial: BridgeState = { kind: "ready" }): Fak
 			return Promise.resolve();
 		},
 		normalizeError: (error) => ({ code: null, message: errorMessage(error) }),
+		showTaskMenu(taskPath, event) {
+			if (!taskMenuAvailable) return false;
+			menuCalls.push({ taskPath, event });
+			return true;
+		},
+		menuCalls,
+		setTaskMenuAvailable(available) {
+			taskMenuAvailable = available;
+		},
 		stopCalls,
 		failStopWith(error) {
 			stopFailure = error === null ? null : { error };
