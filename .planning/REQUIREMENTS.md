@@ -9,18 +9,18 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Pane
 
-- [ ] **PANE-01**: User can open the timer pane from a ribbon icon. It opens in the right sidebar, and if it's already open, it is revealed instead of duplicated.
-- [ ] **PANE-02**: User can open the timer pane from the command palette.
+- [x] **PANE-01**: User can open the timer pane from a ribbon icon. It opens in the right sidebar, and if it's already open, it is revealed instead of duplicated.
+- [x] **PANE-02**: User can open the timer pane from the command palette.
 - [ ] **PANE-03**: The pane is still there in the same place after an Obsidian restart.
 
 ### Display
 
-- [ ] **DISP-01**: User sees the title of the task being timed, and clicking it opens the task note.
-- [ ] **DISP-02**: User sees the current session's elapsed time (H:MM:SS), updating every second and calculated from the entry's start time.
-- [ ] **DISP-03**: User sees the task's total tracked time, including the running session, to the second.
+- [x] **DISP-01**: User sees the title of the task being timed, and clicking it opens the task note.
+- [x] **DISP-02**: User sees the current session's elapsed time (H:MM:SS), updating every second and calculated from the entry's start time.
+- [x] **DISP-03**: User sees the task's total tracked time, including the running session, to the second.
 - [ ] **DISP-04**: When nothing is being timed, user sees an idle state with a "Start a task" button.
 - [ ] **DISP-05**: User sees a clear message when TaskNotes is missing, disabled, or older than 4.10.
-- [ ] **DISP-06**: When several timers are running, the pane shows the most recently started one.
+- [x] **DISP-06**: When several timers are running, the pane shows the most recently started one.
 - [ ] **DISP-07**: A timer controlled by an active Pomodoro is labelled as Pomodoro.
 
 ### Controls
@@ -80,15 +80,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PANE-01 | Phase 1 | Pending |
-| PANE-02 | Phase 1 | Pending |
+| PANE-01 | Phase 1 | Complete |
+| PANE-02 | Phase 1 | Complete |
 | PANE-03 | Phase 1 | Pending |
-| DISP-01 | Phase 1 | Pending |
-| DISP-02 | Phase 1 | Pending |
-| DISP-03 | Phase 1 | Pending |
+| DISP-01 | Phase 1 | Complete |
+| DISP-02 | Phase 1 | Complete |
+| DISP-03 | Phase 1 | Complete |
 | DISP-04 | Phase 2 | Pending |
 | DISP-05 | Phase 1 | Pending |
-| DISP-06 | Phase 1 | Pending |
+| DISP-06 | Phase 1 | Complete |
 | DISP-07 | Phase 3 | Pending |
 | CTRL-01 | Phase 1 | Pending |
 | CTRL-02 | Phase 3 | Pending |

@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Live Timer Pane
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-10-15T02:06:33.412Z"
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-10-15T02:19:38.982Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 01 execution started
-state_head: 2d416dbd224975e2621a43d15ca7b57aabffd114
+state_head: da7de2463a772abedeafe8e05efc226531191f23
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 5
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-13)
 ## Current Position
 
 Phase: 01 (Live Timer Pane) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-10-14 — Phase 01 execution started
 
@@ -57,6 +57,7 @@ Progress: [░░░░░░░░░░] 0%
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 01 P01 | 13 min | 3 tasks | 11 files |
+| Phase 01 P02 | 7 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,9 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-01: eslint.config.mts lints manifest.json explicitly (tseslint parser + obsidianmd/validate-manifest), since obsidianmd recommended only matches JS/TS files
 - [Phase 01]: 01-01: Vendored contract types TaskNotesApiErrorPayload.code as string and events.on payload as unknown
 - [Phase 01]: 01-01: Phase 01 commits are on branch gsd/phase-01-live-timer-pane because the executor commit guard refuses master; merge at phase acceptance
+- [Phase 01]: 01-02: Title accessible name uses aria-labelledby to a hidden 'Open {title}' span, since Obsidian setTooltip writes aria-label
+- [Phase 01]: 01-02: deriveSnapshot drops entries with no usable path; TimerStore ignores an active() result that lands after the bridge left ready
+- [Phase 01]: 01-02: An empty-string endTime counts as open, matching TaskNotes' !entry.endTime
 
 ### Pending Todos
 
@@ -95,6 +99,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T02:06:33.373Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-10-15T02:19:38.942Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None
