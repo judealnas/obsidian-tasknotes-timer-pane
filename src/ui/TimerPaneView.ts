@@ -4,7 +4,17 @@
  * Visibility of the card list and message area is driven only by the root
  * `tntp-pane--{state}` modifier class (styles.css).
  */
-import { ItemView, Keymap, setIcon, setTooltip, type PaneType, type WorkspaceLeaf } from "obsidian";
+import {
+	Component,
+	ItemView,
+	Keymap,
+	MarkdownRenderer,
+	setIcon,
+	setTooltip,
+	type PaneType,
+	type WorkspaceLeaf,
+} from "obsidian";
+import { taskLinkpath, taskWikilink } from "../model/taskLink";
 import {
 	derivePaneState,
 	detectWakeGap,
@@ -45,6 +55,16 @@ interface CardElements {
 	card: HTMLElement;
 	title: HTMLElement;
 	titleLabel: HTMLElement;
+	/** Inputs of the last title update (see titleRenderKey). */
+	titleKey: string | null;
+	/** Title render generation: a render that finishes with an older value is discarded. */
+	titleSeq: number;
+	/** "text": plain title text; "markdown": the rendered wikilink (TaskNotes' chip or a plain link). */
+	titleMode: "text" | "markdown";
+	/** The pane's own plain link inside the rendered output; null when none was found. */
+	titleLink: HTMLAnchorElement | null;
+	/** Owns the current title render; unloaded on re-render, card removal and pane close. */
+	titleComponent: Component | null;
 	clock: HTMLElement;
 	total: HTMLElement;
 	stop: HTMLButtonElement;
@@ -54,6 +74,11 @@ interface CardElements {
 /** An open entry is identified by `(taskPath, startTime)`. */
 function timerKey(timer: Pick<OpenTimer, "taskPath" | "startTime">): string {
 	return `${timer.taskPath}\u0000${timer.startTime}`;
+}
+
+/** The inputs a card title is rendered from; a new value triggers a re-render. */
+function titleRenderKey(timer: OpenTimer): string {
+	return [timer.taskPath, timer.title].join("\u0000");
 }
 
 /** Writes text only when it changed, so the polite live region is not re-announced. */
@@ -133,6 +158,7 @@ export class TimerPaneView extends ItemView {
 	}
 
 	onClose(): Promise<void> {
+		for (const card of this.cards.values()) this.discardCard(card);
 		this.els = null;
 		this.cards = new Map();
 		return Promise.resolve();
@@ -162,7 +188,8 @@ export class TimerPaneView extends ItemView {
 		});
 		setTooltip(title, "Open task note");
 		const titleLabel = card.createSpan({ cls: "tntp-visually-hidden", attr: { id: titleLabelId } });
-		title.addEventListener("click", (evt) => this.openTask(key, Keymap.isModEvent(evt)));
+		title.addEventListener("click", (evt) => this.onTitleClick(key, evt));
+		title.addEventListener("auxclick", (evt) => this.onTitleAuxClick(key, evt));
 		title.addEventListener("keydown", (evt) => {
 			if (evt.key !== "Enter" && evt.key !== " ") return;
 			evt.preventDefault();
@@ -185,7 +212,159 @@ export class TimerPaneView extends ItemView {
 		const stopLabel = stop.createSpan({ cls: "tntp-stop__label", text: STOP_LABEL });
 		stop.addEventListener("click", () => void this.stopTask(key));
 
-		return { timer, card, title, titleLabel, clock, total, stop, stopLabel };
+		return {
+			timer,
+			card,
+			title,
+			titleLabel,
+			titleKey: null,
+			titleSeq: 0,
+			titleMode: "text",
+			titleLink: null,
+			titleComponent: null,
+			clock,
+			total,
+			stop,
+			stopLabel,
+		};
+	}
+
+	/**
+	 * Brings a card's title up to date. Synchronous: a text title updates at once, and a
+	 * card already showing a chip or link keeps it until the new render is ready.
+	 */
+	private updateTitle(key: string, card: CardElements): void {
+		const next = titleRenderKey(card.timer);
+		if (next === card.titleKey) return;
+		card.titleKey = next;
+		const seq = ++card.titleSeq;
+		// A new card is never blank, and a text-mode rename shows immediately.
+		if (card.titleMode === "text") this.showTitleText(card);
+		const markdown = taskWikilink(card.timer.taskPath);
+		const linkpath = taskLinkpath(card.timer.taskPath);
+		if (markdown === null || linkpath === null) {
+			this.showTitleText(card);
+			return;
+		}
+		void this.renderTitleLink(key, card, seq, markdown, linkpath);
+	}
+
+	/**
+	 * Renders "[[linkpath]]" through Obsidian's renderer so TaskNotes' post-processor can
+	 * turn it into its chip (when TaskNotes' overlay setting is on). The task title never
+	 * passes through the Markdown parser.
+	 */
+	private async renderTitleLink(
+		key: string,
+		card: CardElements,
+		seq: number,
+		markdown: string,
+		linkpath: string,
+	): Promise<void> {
+		const component = this.addChild(new Component());
+		const wrapper = createDiv({ cls: "tntp-title__md" });
+		const isCurrent = () => this.cards.get(key) === card && card.titleSeq === seq;
+		try {
+			await MarkdownRenderer.render(this.app, markdown, wrapper, "", component);
+		} catch (error) {
+			console.error(
+				"[tasknotes-timer-pane] Rendering the task link failed: " +
+					(error instanceof Error ? error.message : String(error)),
+			);
+			this.removeChild(component);
+			if (isCurrent()) this.showTitleText(card);
+			return;
+		}
+		// The card was removed or re-rendered meanwhile: this render lost the race.
+		if (!isCurrent()) {
+			this.removeChild(component);
+			return;
+		}
+		let link: HTMLAnchorElement | null = null;
+		for (const candidate of Array.from(wrapper.querySelectorAll<HTMLAnchorElement>("a.internal-link"))) {
+			if (candidate.getAttribute("data-href") === linkpath) {
+				link = candidate;
+				break;
+			}
+		}
+		if (link) {
+			// The plain link shows the pane's title, not the path. The container stays the
+			// single tab stop, and dragging the title does not drop an app:// URL.
+			link.setText(card.timer.title);
+			link.setAttribute("tabindex", "-1");
+			link.setAttribute("draggable", "false");
+		} else if (wrapper.childElementCount === 0) {
+			this.removeChild(component);
+			this.showTitleText(card);
+			return;
+		}
+		card.title.empty();
+		card.title.appendChild(wrapper);
+		if (card.titleComponent) this.removeChild(card.titleComponent);
+		card.titleComponent = component;
+		card.titleLink = link;
+		card.titleMode = "markdown";
+		this.applyTitleOwnership(card);
+	}
+
+	/** Plain title text (textContent only), releasing any rendered link. */
+	private showTitleText(card: CardElements): void {
+		if (card.titleComponent) {
+			this.removeChild(card.titleComponent);
+			card.titleComponent = null;
+		}
+		card.titleLink = null;
+		card.titleMode = "text";
+		card.title.setText(card.timer.title);
+		this.applyTitleOwnership(card);
+	}
+
+	/**
+	 * True when clicks on the title are the pane's to handle: plain text, or the pane's
+	 * own link is still in place. Evaluated at event time, so a chip that replaced the
+	 * link at any moment is respected.
+	 */
+	private paneOwnsTitle(card: CardElements): boolean {
+		return card.titleMode === "text" || (card.titleLink !== null && card.title.contains(card.titleLink));
+	}
+
+	/**
+	 * Over a chip the "Open task note" tooltip would mislead, since a chip click runs
+	 * TaskNotes' single-click action. The accessible name still comes from aria-labelledby.
+	 */
+	private applyTitleOwnership(card: CardElements): void {
+		const owned = this.paneOwnsTitle(card);
+		card.title.toggleClass("tntp-title--chip", !owned);
+		if (owned) setTooltip(card.title, "Open task note");
+		else card.title.removeAttribute("aria-label");
+	}
+
+	/** A click TaskNotes' chip handled (or one bubbling from its dots) never also opens the note. */
+	private onTitleClick(key: string, evt: MouseEvent): void {
+		const card = this.cards.get(key);
+		if (!card || evt.defaultPrevented || !this.paneOwnsTitle(card)) return;
+		// Stops the anchor's own navigation.
+		evt.preventDefault();
+		this.openTask(key, Keymap.isModEvent(evt));
+	}
+
+	/** Middle click opens a new tab, like a link in a note. */
+	private onTitleAuxClick(key: string, evt: MouseEvent): void {
+		if (evt.button !== 1) return;
+		const card = this.cards.get(key);
+		if (!card || evt.defaultPrevented || !this.paneOwnsTitle(card)) return;
+		evt.preventDefault();
+		this.openTask(key, Keymap.isModEvent(evt));
+	}
+
+	/** Detaches a card, invalidating an in-flight title render and unloading its Component. */
+	private discardCard(card: CardElements): void {
+		card.titleSeq++;
+		if (card.titleComponent) {
+			this.removeChild(card.titleComponent);
+			card.titleComponent = null;
+		}
+		card.card.detach();
 	}
 
 	/** Opens a card's task note; a modifier click opens it in a new tab (DISP-01). */
@@ -258,7 +437,7 @@ export class TimerPaneView extends ItemView {
 			const card = this.cards.get(key) ?? this.buildCard(els.cards, key, timer);
 			card.timer = timer;
 			next.set(key, card);
-			setTextIfChanged(card.title, timer.title);
+			this.updateTitle(key, card);
 			setTextIfChanged(card.titleLabel, `Open ${timer.title}`);
 			// Never overwrite the busy state of a stop in flight.
 			if (!this.stopping.has(key)) {
@@ -266,7 +445,7 @@ export class TimerPaneView extends ItemView {
 				setTextIfChanged(card.stopLabel, STOP_LABEL);
 			}
 		}
-		for (const [key, card] of this.cards) if (!next.has(key)) card.card.detach();
+		for (const [key, card] of this.cards) if (!next.has(key)) this.discardCard(card);
 		// Move a card only when it is out of place, so focus and hover survive a refresh.
 		let i = 0;
 		for (const card of next.values()) {
