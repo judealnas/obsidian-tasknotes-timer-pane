@@ -25,7 +25,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Controls
 
-- [ ] **CTRL-01**: User can stop the active timer with one click.
+- [x] **CTRL-01**: User can stop the active timer with one click.
 - [ ] **CTRL-02**: User can pause the active timer with one click. This closes the current entry, and the pane shows the paused task.
 - [ ] **CTRL-03**: User can resume a paused task with one click. This opens a new entry on the same task.
 - [ ] **CTRL-04**: Paused state survives an Obsidian restart. It is cleared when another timer starts, or when the paused task is completed or deleted.
@@ -90,7 +90,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DISP-05 | Phase 1 | Complete |
 | DISP-06 | Phase 1 | Complete |
 | DISP-07 | Phase 3 | Pending |
-| CTRL-01 | Phase 1 | Pending |
+| CTRL-01 | Phase 1 | Complete |
 | CTRL-02 | Phase 3 | Pending |
 | CTRL-03 | Phase 3 | Pending |
 | CTRL-04 | Phase 3 | Pending |

@@ -37,7 +37,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Timers started or stopped elsewhere in TaskNotes (status bar, task cards, commands) appear in the pane within about a second. Changes from Obsidian Sync or hand-edited frontmatter also show up.
   5. When TaskNotes is missing, disabled, or older than 4.10, the pane shows a clear message. It reconnects by itself when TaskNotes is re-enabled or updated, without an Obsidian restart. After the computer sleeps and wakes, elapsed time is correct.
 
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans executed
 
 Plans:
 **Wave 1**
@@ -51,7 +51,7 @@ Plans:
 - [x] 01-03-PLAN.md — Sync and resilience: retired-API-aware reconnect, debounced single-flight store, vault delete/rename, sleep/wake and visibility (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 01-05-PLAN.md — One-click Stop of the displayed timer through the serial write queue, with busy state, benign-race and failure handling (wave 4)
+- [x] 01-05-PLAN.md — One-click Stop of the displayed timer through the serial write queue, with busy state, benign-race and failure handling (wave 4)
 
 **UI hint**: yes
 **Notes**: This is the walking skeleton, so the planner emits SKELETON.md. When nothing is timed, Phase 1 shows only a plain message. The "Start a task" button (DISP-04) comes with the picker in Phase 2. Research flag: check cold-start readiness timing by hand. `layout.ready` fires only once, and `isReady()` changes at a different point from `ready()`.
@@ -96,6 +96,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Live Timer Pane | 4/5 | In Progress | - |
+| 1. Live Timer Pane | 5/5 | In Progress | - |
 | 2. Start, Switch & Complete | 0/TBD | Not started | - |
 | 3. Pause & Resume | 0/TBD | Not started | - |
