@@ -178,11 +178,6 @@ export class TimerPaneView extends ItemView {
 
 	private buildCard(parent: HTMLElement, key: string, timer: OpenTimer): CardElements {
 		const card = parent.createDiv({ cls: "tntp-card" });
-		const status = card.createDiv({ cls: "tntp-status" });
-		const live = status.createSpan({ cls: "tntp-status__live" });
-		live.createSpan({ cls: "tntp-status__dot" });
-		live.createSpan({ cls: "tntp-label", text: "Tracking" });
-
 		// The tooltip owns aria-label ("Open task note"); the accessible name
 		// "Open {title}" comes from a visually hidden label via aria-labelledby.
 		const titleLabelId = `tntp-title-label-${++titleLabelSeq}`;

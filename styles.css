@@ -52,34 +52,15 @@
 	container-type: inline-size;
 }
 
-.tntp-status {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-}
-
-.tntp-status__live {
-	display: flex;
-	align-items: center;
-	gap: var(--size-4-2);
-}
-
-.tntp-status__dot {
-	width: var(--size-4-2);
-	height: var(--size-4-2);
-	border-radius: 50%;
-	background-color: var(--interactive-accent);
-}
-
 .tntp-label {
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
 	line-height: var(--line-height-tight);
 }
 
+/* The card's heading. TaskNotes sizes its chip in em, so the chip scales with this. */
 .tntp-title {
-	margin-top: var(--size-4-2);
-	font-size: var(--font-ui-medium);
+	font-size: var(--font-ui-large);
 	font-weight: var(--font-semibold);
 	line-height: var(--line-height-tight);
 	color: var(--text-normal);
@@ -112,6 +93,11 @@
 .tntp-title--chip:focus-visible {
 	box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
 	border-radius: var(--radius-s);
+}
+
+/* TaskNotes keeps inline chips on one line; let a long title wrap inside the card instead. */
+.tntp-pane .tntp-title .task-card--layout-inline {
+	white-space: normal;
 }
 
 /* Every chip in the pane is being tracked, so TaskNotes' tracking outline adds nothing here. */
