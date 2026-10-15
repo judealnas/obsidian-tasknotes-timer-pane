@@ -6,6 +6,7 @@
 import { ItemView, Keymap, setTooltip, type PaneType, type WorkspaceLeaf } from "obsidian";
 import {
 	derivePaneState,
+	detectWakeGap,
 	formatHms,
 	moreRunningLabel,
 	othersTooltip,
@@ -55,6 +56,10 @@ let titleLabelSeq = 0;
 export class TimerPaneView extends ItemView {
 	private readonly services: TimerPaneServices;
 	private els: PaneElements | null = null;
+	/** Wall-clock time of the previous tick, for sleep/wake gap detection. */
+	private lastTickMs: number | null = null;
+	/** Whether the content was visible on the previous tick, for reveal detection. */
+	private wasShown = false;
 
 	constructor(leaf: WorkspaceLeaf, services: TimerPaneServices) {
 		super(leaf);
@@ -76,6 +81,8 @@ export class TimerPaneView extends ItemView {
 	onOpen(): Promise<void> {
 		const { gateway, store } = this.services;
 		this.contentEl.empty();
+		this.lastTickMs = null;
+		this.wasShown = false;
 		const root = this.contentEl.createDiv({ cls: ["tntp-pane", "tntp-pane--loading"] });
 
 		const card = root.createDiv({ cls: "tntp-card" });
@@ -120,6 +127,18 @@ export class TimerPaneView extends ItemView {
 		this.register(store.subscribe(() => this.render()));
 		this.register(gateway.onState(() => this.render()));
 		this.registerInterval(window.setInterval(() => this.tick(), 1000));
+		// The pane's own document and window, so this also works in a pop-out window.
+		// Electron may suspend timers in the background or during OS sleep: tick at once
+		// from the wall clock and re-read TaskNotes when the pane can be seen again.
+		this.registerDomEvent(this.containerEl.doc, "visibilitychange", () => {
+			if (this.containerEl.doc.visibilityState !== "visible") return;
+			this.tick();
+			store.requestRefresh();
+		});
+		this.registerDomEvent(this.containerEl.win, "focus", () => {
+			this.tick();
+			store.requestRefresh();
+		});
 		gateway.probe();
 		this.render();
 		return Promise.resolve();
@@ -210,10 +229,24 @@ export class TimerPaneView extends ItemView {
 		setTextIfChanged(els.total, formatHms(totalMs(primary.entries, nowMs)));
 	}
 
-	/** Wall-clock tick: recomputes from startTime, never calls TaskNotes. */
+	/**
+	 * Wall-clock tick: every duration is recomputed from startTime and Date.now(), never
+	 * counted, so the first tick after sleep is already right. It never calls TaskNotes;
+	 * after a wake gap or a reveal it asks the store for a (debounced) refresh.
+	 */
 	private tick(): void {
-		if (!this.contentEl.isShown()) return;
+		const now = Date.now();
+		const { store } = this.services;
+		// A wake or throttle gap: data may have changed while timers were suspended.
+		if (detectWakeGap(this.lastTickMs, now)) store.requestRefresh();
+		this.lastTickMs = now;
+		const shown = this.contentEl.isShown();
+		// Revealed (sidebar tab switched back, pane expanded): re-read TaskNotes.
+		if (shown && !this.wasShown) store.requestRefresh();
+		this.wasShown = shown;
+		// Hidden: no DOM writes.
+		if (!shown) return;
 		const { primary } = this.currentState();
-		if (primary) this.writeTimes(primary, Date.now());
+		if (primary) this.writeTimes(primary, now);
 	}
 }

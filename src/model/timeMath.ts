@@ -66,6 +66,14 @@ export function totalMs(entries: readonly ParsedEntry[], nowMs: number): number 
 	return sum;
 }
 
+/** A gap between two 1 s ticks longer than this means the machine slept or timers were throttled. */
+export const WAKE_GAP_MS = 3000;
+
+/** True when the time since the previous tick exceeds the threshold (exactly the threshold is not a gap). */
+export function detectWakeGap(lastTickMs: number | null, nowMs: number, thresholdMs: number = WAKE_GAP_MS): boolean {
+	return lastTickMs !== null && nowMs - lastTickMs > thresholdMs;
+}
+
 /** Sum of a timer's closed entries, in ms. Open entries are left out: they grow every tick. */
 function closedMs(entries: readonly ParsedEntry[]): number {
 	let sum = 0;
