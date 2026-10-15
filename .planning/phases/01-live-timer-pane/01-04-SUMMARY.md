@@ -195,3 +195,10 @@ None now. Running the checklist needs the one-time manual installs in README ste
 ---
 *Phase: 01-live-timer-pane*
 *Completed: 2026-10-15*
+
+## Self-Check: PASSED
+
+- All 7 created key files exist on disk. `package.json` carries the `seed` script.
+- Commits `d6d8e39` and `7524ecf` are ancestors of HEAD, and `check evaluation-scope --plan 01-04 --commits-only` resolves both, plus the SUMMARY commit.
+- Task 1 acceptance criteria AC1 to AC7 pass, and Task 2 acceptance criteria AC1 to AC9 pass. That includes `npm run check` exiting 0 with 44 tests.
+- Plan verification passes: fresh seed, no-op re-seed, `--reset` restore, `npm run deploy`, and `git ls-files dev-vault` printing nothing.

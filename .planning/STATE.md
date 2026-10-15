@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Live Timer Pane
 status: executing
-stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-10-15T02:19:38.982Z"
+stopped_at: Completed 01-04-PLAN.md
+last_updated: "2026-10-15T02:26:11.367Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 01 execution started
-state_head: da7de2463a772abedeafe8e05efc226531191f23
+state_head: 97317a6d218478dbecdc13eec6b773a9df13b984
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 5
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-13)
 ## Current Position
 
 Phase: 01 (Live Timer Pane) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-10-14 — Phase 01 execution started
 
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0%
 |------|----------|-------|-------|
 | Phase 01 P01 | 13 min | 3 tasks | 11 files |
 | Phase 01 P02 | 7 min | 2 tasks | 7 files |
+| Phase 01 P04 | 3 min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,8 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-02: Title accessible name uses aria-labelledby to a hidden 'Open {title}' span, since Obsidian setTooltip writes aria-label
 - [Phase 01]: 01-02: deriveSnapshot drops entries with no usable path; TimerStore ignores an active() result that lands after the bridge left ready
 - [Phase 01]: 01-02: An empty-string endTime counts as open, matching TaskNotes' !entry.endTime
+- [Phase 01]: 01-04: Dev-vault seed is a tracked template (dev-vault-seed/) copied by a copy-only script (COPYFILE_EXCL unless --reset; refuses .obsidian and paths outside dev-vault/)
+- [Phase 01]: 01-04: UAT checklist folds in WINDOWS.md entries 1-2 (step 0.3, sections 1-2); they stay open until the checklist is run
 
 ### Pending Todos
 
@@ -99,6 +102,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T02:19:38.942Z
-Stopped at: Completed 01-02-PLAN.md
+Last session: 2026-10-15T02:26:11.327Z
+Stopped at: Completed 01-04-PLAN.md
 Resume file: None

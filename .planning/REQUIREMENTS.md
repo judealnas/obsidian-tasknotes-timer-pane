@@ -11,7 +11,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **PANE-01**: User can open the timer pane from a ribbon icon. It opens in the right sidebar, and if it's already open, it is revealed instead of duplicated.
 - [x] **PANE-02**: User can open the timer pane from the command palette.
-- [ ] **PANE-03**: The pane is still there in the same place after an Obsidian restart.
+- [x] **PANE-03**: The pane is still there in the same place after an Obsidian restart.
 
 ### Display
 
@@ -82,7 +82,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | PANE-01 | Phase 1 | Complete |
 | PANE-02 | Phase 1 | Complete |
-| PANE-03 | Phase 1 | Pending |
+| PANE-03 | Phase 1 | Complete |
 | DISP-01 | Phase 1 | Complete |
 | DISP-02 | Phase 1 | Complete |
 | DISP-03 | Phase 1 | Complete |
