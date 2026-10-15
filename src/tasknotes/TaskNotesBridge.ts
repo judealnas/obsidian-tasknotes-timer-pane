@@ -4,8 +4,10 @@
  * owns the TaskNotes event subscriptions, and exposes a small project-shaped
  * gateway. Runtime Obsidian-free (type-only imports) so Vitest can load it.
  */
+import { errorMessage } from "../model/errors";
 import type {
 	ActiveTimeEntry,
+	TaskNotesMutationContext,
 	TaskNotesRuntimeApiV1,
 	TaskNotesRuntimeLifecycleEventName,
 	TaskNotesRuntimeTaskEventName,
@@ -41,6 +43,10 @@ export interface TaskNotesGateway {
 	onData(listener: () => void): () => void;
 	probe(): void;
 	active(): Promise<ActiveTimeEntry[]>;
+	/** Stops the task's open entry through TaskNotes' own api.time.stop. The only pane write. */
+	stop(taskPath: string, context: TaskNotesMutationContext): Promise<void>;
+	/** A TaskNotes error as `{ code, message }`; code is null when TaskNotes cannot classify it. */
+	normalizeError(error: unknown): { code: string | null; message: string };
 }
 
 export interface TaskNotesBridgeDeps {
@@ -82,7 +88,8 @@ export function isVersionOlder(version: string, minimum: string): boolean {
 	return false;
 }
 
-function errorMessage(error: unknown): string {
+/** For console logs only: never empty, unlike the user-facing errorMessage. */
+function describeError(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
 }
 
@@ -150,6 +157,35 @@ export class TaskNotesBridge implements TaskNotesGateway {
 		return await api.time.active();
 	}
 
+	/**
+	 * Forwards the mutation context, so TaskNotes' events attribute the write to the
+	 * pane. TaskNotes applies its per-path lock and field mapping; the pane never
+	 * writes frontmatter itself.
+	 */
+	async stop(taskPath: string, context: TaskNotesMutationContext): Promise<void> {
+		const api = this.api;
+		if (!api || this.state.kind !== "ready") throw new Error("TaskNotes is not connected");
+		await api.time.stop(taskPath, context);
+	}
+
+	normalizeError(error: unknown): { code: string | null; message: string } {
+		const api = this.api;
+		if (api) {
+			try {
+				if (api.hasCapability("errors.typed")) {
+					const payload = api.errors.normalize(error);
+					return {
+						code: typeof payload.code === "string" ? payload.code : null,
+						message: typeof payload.message === "string" ? payload.message : errorMessage(error),
+					};
+				}
+			} catch (normalizeFailure) {
+				this.log("Normalizing a TaskNotes error failed: " + describeError(normalizeFailure));
+			}
+		}
+		return { code: null, message: errorMessage(error) };
+	}
+
 	/** Releases every TaskNotes subscription and cancels a pending early probe. */
 	dispose(): void {
 		this.disposed = true;
@@ -195,7 +231,7 @@ export class TaskNotesBridge implements TaskNotesGateway {
 			// isReady() is the read gate; the lifecycle ready() promise resolves too early (Pitfall 2).
 			this.setState(api.lifecycle.isReady() ? { kind: "ready" } : { kind: "loading" });
 		} catch (error) {
-			this.log("TaskNotes probe failed: " + errorMessage(error));
+			this.log("TaskNotes probe failed: " + describeError(error));
 			this.detach();
 			this.setState({ kind: "missing" });
 		}
@@ -281,7 +317,7 @@ export class TaskNotesBridge implements TaskNotesGateway {
 			try {
 				off();
 			} catch (error) {
-				this.log("Releasing a TaskNotes subscription failed: " + errorMessage(error));
+				this.log("Releasing a TaskNotes subscription failed: " + describeError(error));
 			}
 		}
 	}
@@ -297,7 +333,7 @@ export class TaskNotesBridge implements TaskNotesGateway {
 			try {
 				listener(next);
 			} catch (error) {
-				this.log("State listener failed: " + errorMessage(error));
+				this.log("State listener failed: " + describeError(error));
 			}
 		}
 	}
@@ -307,7 +343,7 @@ export class TaskNotesBridge implements TaskNotesGateway {
 			try {
 				listener();
 			} catch (error) {
-				this.log("Data listener failed: " + errorMessage(error));
+				this.log("Data listener failed: " + describeError(error));
 			}
 		}
 	}

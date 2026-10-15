@@ -1,5 +1,7 @@
-import { Plugin } from "obsidian";
+import { Notice, Plugin } from "obsidian";
+import { TimerController } from "./state/TimerController";
 import { SAFETY_RESYNC_MS, TimerStore } from "./state/TimerStore";
+import { WriteQueue } from "./state/WriteQueue";
 import { PROBE_INTERVAL_MS, TASKNOTES_PLUGIN_ID, TaskNotesBridge, type Schedule } from "./tasknotes/TaskNotesBridge";
 import { TimerPaneView, VIEW_TYPE_TIMER_PANE } from "./ui/TimerPaneView";
 
@@ -24,13 +26,21 @@ export default class TaskNotesTimerPanePlugin extends Plugin {
 			schedule,
 		});
 		const store = new TimerStore({ gateway: bridge, log, schedule });
+		// The one serial queue every pane write goes through (Phase 2's start and switch reuse it).
+		const queue = new WriteQueue();
+		// The only place the plugin creates Notices; state and model code receive this function.
+		const notify = (message: string) => {
+			new Notice(message);
+		};
+		const newCorrelationId = () => crypto.randomUUID();
+		const controller = new TimerController({ gateway: bridge, store, queue, notify, newCorrelationId, log });
 		this.register(() => {
 			store.dispose();
 			bridge.dispose();
 		});
 
 		// Registered synchronously so Obsidian can restore a saved pane leaf (PANE-03).
-		this.registerView(VIEW_TYPE_TIMER_PANE, (leaf) => new TimerPaneView(leaf, { gateway: bridge, store }));
+		this.registerView(VIEW_TYPE_TIMER_PANE, (leaf) => new TimerPaneView(leaf, { gateway: bridge, store, controller }));
 
 		// Never blocks or waits on TaskNotes: the pane renders whatever state the bridge is in.
 		const open = () =>

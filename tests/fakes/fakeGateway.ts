@@ -1,7 +1,13 @@
 // Fake TaskNotesGateway for store and controller tests: no TaskNotes api, just the
 // project-shaped seam the store and view see.
+import { errorMessage } from "../../src/model/errors";
 import type { BridgeState, TaskNotesGateway } from "../../src/tasknotes/TaskNotesBridge";
-import type { ActiveTimeEntry } from "../../src/tasknotes/runtime-api.types";
+import type { ActiveTimeEntry, TaskNotesMutationContext } from "../../src/tasknotes/runtime-api.types";
+
+export interface GatewayStopCall {
+	taskPath: string;
+	context: TaskNotesMutationContext;
+}
 
 export interface FakeGateway extends TaskNotesGateway {
 	/** Number of `active()` calls so far. */
@@ -16,6 +22,10 @@ export interface FakeGateway extends TaskNotesGateway {
 	rejectNextActive(error: unknown): void;
 	/** Fires every onData listener, as a TaskNotes data hint would. */
 	emitData(): void;
+	/** Every `stop()` call so far, in order. */
+	readonly stopCalls: GatewayStopCall[];
+	/** Makes every later `stop()` reject with `error`; null restores success. */
+	failStopWith(error: unknown): void;
 }
 
 export function createFakeGateway(initial: BridgeState = { kind: "ready" }): FakeGateway {
@@ -24,6 +34,8 @@ export function createFakeGateway(initial: BridgeState = { kind: "ready" }): Fak
 	let nextRejection: { error: unknown } | null = null;
 	let activeCalls = 0;
 	let probeCalls = 0;
+	let stopFailure: { error: unknown } | null = null;
+	const stopCalls: GatewayStopCall[] = [];
 	const stateListeners = new Set<(state: BridgeState) => void>();
 	const dataListeners = new Set<() => void>();
 
@@ -58,6 +70,19 @@ export function createFakeGateway(initial: BridgeState = { kind: "ready" }): Fak
 				return Promise.reject(error instanceof Error ? error : new Error(String(error)));
 			}
 			return Promise.resolve(structuredClone(fixture));
+		},
+		stop(taskPath, context) {
+			stopCalls.push({ taskPath, context });
+			if (stopFailure) {
+				const { error } = stopFailure;
+				return Promise.reject(error instanceof Error ? error : new Error(String(error)));
+			}
+			return Promise.resolve();
+		},
+		normalizeError: (error) => ({ code: null, message: errorMessage(error) }),
+		stopCalls,
+		failStopWith(error) {
+			stopFailure = error === null ? null : { error };
 		},
 		setState(next) {
 			state = next;

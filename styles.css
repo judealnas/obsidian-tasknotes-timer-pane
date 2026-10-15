@@ -129,6 +129,15 @@
 	color: var(--text-normal);
 }
 
+/* Stop timer: mod-cta keeps Obsidian's own colors, padding, height and focus ring. */
+.tntp-actions {
+	margin-top: var(--size-4-4);
+}
+
+.tntp-stop {
+	width: 100%;
+}
+
 /* Message states (idle, loading, missing, incompatible) */
 .tntp-message {
 	padding-top: var(--size-4-6);

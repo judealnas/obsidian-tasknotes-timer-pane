@@ -321,3 +321,62 @@ describe("end-to-end reconnect through the real TimerStore", () => {
 		bridge.dispose();
 	});
 });
+
+describe("write facade (CTRL-01)", () => {
+	const context = { source: "tasknotes-timer-pane", reason: "user stop", correlationId: "corr-1" };
+
+	test("stop forwards the path and the mutation context to api.time.stop", async () => {
+		const tn = createFakeTaskNotes({
+			active: [makeActiveEntry({ taskPath: "TaskNotes/Tasks/A.md", startTime: "2026-10-14T09:00:00.000Z" })],
+		});
+		const { bridge } = setup(tn.plugin);
+		bridge.probe();
+		await expect(bridge.stop("TaskNotes/Tasks/A.md", context)).resolves.toBeUndefined();
+		expect(tn.stopCalls).toEqual([{ path: "TaskNotes/Tasks/A.md", context }]);
+	});
+
+	test("stop rejects without calling TaskNotes when the bridge is not ready", async () => {
+		const tn = createFakeTaskNotes({ ready: false });
+		const { bridge } = setup(tn.plugin);
+		await expect(bridge.stop("TaskNotes/Tasks/A.md", context)).rejects.toThrow("TaskNotes is not connected");
+		bridge.probe();
+		expect(bridge.getState().kind).toBe("loading");
+		await expect(bridge.stop("TaskNotes/Tasks/A.md", context)).rejects.toThrow("TaskNotes is not connected");
+		expect(tn.stopCalls).toEqual([]);
+	});
+
+	test("normalizeError uses api.errors.normalize when errors.typed is present", () => {
+		const tn = createFakeTaskNotes();
+		const normalize = vi.spyOn(tn.api.errors, "normalize");
+		const { bridge } = setup(tn.plugin);
+		bridge.probe();
+		expect(bridge.normalizeError(new Error("Disk is read-only"))).toEqual({
+			code: "operation_failed",
+			message: "Disk is read-only",
+		});
+		expect(normalize).toHaveBeenCalledTimes(1);
+	});
+
+	test("normalizeError falls back to the plain message without errors.typed, when detached, or when normalize throws", () => {
+		const untyped = createFakeTaskNotes({ capabilities: ["time.read", "time.write", "tasks.events", "lifecycle.events"] });
+		const normalize = vi.spyOn(untyped.api.errors, "normalize");
+		const first = setup(untyped.plugin);
+		first.bridge.probe();
+		expect(first.bridge.normalizeError(new Error("boom"))).toEqual({ code: null, message: "boom" });
+		expect(first.bridge.normalizeError("plain")).toEqual({ code: null, message: "plain" });
+		expect(first.bridge.normalizeError({ weird: true })).toEqual({ code: null, message: "" });
+		expect(normalize).not.toHaveBeenCalled();
+
+		const detached = setup(null);
+		expect(detached.bridge.normalizeError(new Error("boom"))).toEqual({ code: null, message: "boom" });
+
+		const throwing = createFakeTaskNotes();
+		vi.spyOn(throwing.api.errors, "normalize").mockImplementation(() => {
+			throw new Error("normalize broke");
+		});
+		const third = setup(throwing.plugin);
+		third.bridge.probe();
+		expect(third.bridge.normalizeError(new Error("boom"))).toEqual({ code: null, message: "boom" });
+		expect(third.log).toHaveBeenCalledWith("Normalizing a TaskNotes error failed: normalize broke");
+	});
+});

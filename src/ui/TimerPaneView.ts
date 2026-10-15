@@ -3,7 +3,7 @@
  * bridge state and the store snapshot. Visibility of the card and message area is
  * driven only by the root `tntp-pane--{state}` modifier class (styles.css).
  */
-import { ItemView, Keymap, setTooltip, type PaneType, type WorkspaceLeaf } from "obsidian";
+import { ItemView, Keymap, setIcon, setTooltip, type PaneType, type WorkspaceLeaf } from "obsidian";
 import {
 	derivePaneState,
 	detectWakeGap,
@@ -16,6 +16,7 @@ import {
 	type PaneState,
 	type TimerSnapshot,
 } from "../model/timeMath";
+import type { TimerController } from "../state/TimerController";
 import type { TimerStore } from "../state/TimerStore";
 import type { TaskNotesGateway } from "../tasknotes/TaskNotesBridge";
 
@@ -24,7 +25,11 @@ export const VIEW_TYPE_TIMER_PANE = "tasknotes-timer-pane";
 export interface TimerPaneServices {
 	gateway: TaskNotesGateway;
 	store: TimerStore;
+	controller: Pick<TimerController, "stop">;
 }
+
+const STOP_LABEL = "Stop timer";
+const STOPPING_LABEL = "Stopping…";
 
 const PANE_STATES: readonly PaneState[] = ["running", "idle", "loading", "missing", "incompatible"];
 
@@ -38,6 +43,8 @@ interface PaneElements {
 	heading: HTMLElement;
 	body: HTMLElement;
 	meta: HTMLElement;
+	stop: HTMLButtonElement;
+	stopLabel: HTMLElement;
 }
 
 /** Writes text only when it changed, so the polite live region is not re-announced. */
@@ -60,6 +67,8 @@ export class TimerPaneView extends ItemView {
 	private lastTickMs: number | null = null;
 	/** Whether the content was visible on the previous tick, for reveal detection. */
 	private wasShown = false;
+	/** True from a Stop click until that stop settles; render() keeps the busy label meanwhile. */
+	private stopping = false;
 
 	constructor(leaf: WorkspaceLeaf, services: TimerPaneServices) {
 		super(leaf);
@@ -83,6 +92,7 @@ export class TimerPaneView extends ItemView {
 		this.contentEl.empty();
 		this.lastTickMs = null;
 		this.wasShown = false;
+		this.stopping = false;
 		const root = this.contentEl.createDiv({ cls: ["tntp-pane", "tntp-pane--loading"] });
 
 		const card = root.createDiv({ cls: "tntp-card" });
@@ -115,6 +125,13 @@ export class TimerPaneView extends ItemView {
 		totalRow.createSpan({ cls: "tntp-label", text: "Total" });
 		const total = totalRow.createSpan({ cls: "tntp-total" });
 
+		// One click, no confirmation: stopping closes the entry and keeps it (CTRL-01).
+		const actions = card.createDiv({ cls: "tntp-actions" });
+		const stop = actions.createEl("button", { cls: ["mod-cta", "tntp-stop"] });
+		setIcon(stop.createSpan({ cls: "tntp-stop__icon" }), "square");
+		const stopLabel = stop.createSpan({ cls: "tntp-stop__label", text: STOP_LABEL });
+		this.registerDomEvent(stop, "click", () => void this.stopPrimary());
+
 		const message = root.createDiv({ cls: "tntp-message", attr: { "aria-live": "polite" } });
 		const heading = message.createDiv({ cls: "tntp-message__heading" });
 		const body = message.createDiv({ cls: "tntp-message__body" });
@@ -122,7 +139,7 @@ export class TimerPaneView extends ItemView {
 		const retry = message.createEl("button", { cls: "tntp-message__retry", text: "Check for TaskNotes" });
 		this.registerDomEvent(retry, "click", () => gateway.probe());
 
-		this.els = { root, more, title, titleLabel, clock, total, heading, body, meta };
+		this.els = { root, more, title, titleLabel, clock, total, heading, body, meta, stop, stopLabel };
 
 		this.register(store.subscribe(() => this.render()));
 		this.register(gateway.onState(() => this.render()));
@@ -167,6 +184,33 @@ export class TimerPaneView extends ItemView {
 		});
 	}
 
+	/**
+	 * Stops the displayed timer only. The target is captured at click time, so a
+	 * refresh landing mid-stop cannot redirect the write to another task.
+	 */
+	private async stopPrimary(): Promise<void> {
+		const els = this.els;
+		if (this.stopping || !els) return;
+		const { primary } = this.currentState();
+		if (!primary) return;
+		const target = { taskPath: primary.taskPath, startTime: primary.startTime, title: primary.title };
+		this.stopping = true;
+		els.stop.disabled = true;
+		setTextIfChanged(els.stopLabel, STOPPING_LABEL);
+		try {
+			await this.services.controller.stop(target);
+		} finally {
+			this.stopping = false;
+			// The view may have closed while the stop was in flight.
+			const current = this.els;
+			if (current) {
+				current.stop.disabled = false;
+				setTextIfChanged(current.stopLabel, STOP_LABEL);
+			}
+			this.render();
+		}
+	}
+
 	private render(): void {
 		const els = this.els;
 		if (!els) return;
@@ -178,6 +222,11 @@ export class TimerPaneView extends ItemView {
 		if (primary) {
 			setTextIfChanged(els.title, primary.title);
 			setTextIfChanged(els.titleLabel, `Open ${primary.title}`);
+			// Never overwrite the busy state of a stop in flight.
+			if (!this.stopping) {
+				els.stop.disabled = false;
+				setTextIfChanged(els.stopLabel, STOP_LABEL);
+			}
 			if (others.length > 0) {
 				setTextIfChanged(els.more, moreRunningLabel(others.length));
 				setTooltipIfChanged(els.more, othersTooltip(others));
