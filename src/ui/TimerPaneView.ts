@@ -1,20 +1,18 @@
 /*
- * The sidebar pane. Builds its DOM once in onOpen and updates it in place from the
- * bridge state and the store snapshot. Visibility of the card and message area is
- * driven only by the root `tntp-pane--{state}` modifier class (styles.css).
+ * The sidebar pane. Builds its frame once in onOpen and updates it in place from the
+ * bridge state and the store snapshot: one card per open timer, reconciled by key.
+ * Visibility of the card list and message area is driven only by the root
+ * `tntp-pane--{state}` modifier class (styles.css).
  */
 import { ItemView, Keymap, setIcon, setTooltip, type PaneType, type WorkspaceLeaf } from "obsidian";
 import {
 	derivePaneState,
 	detectWakeGap,
 	formatHms,
-	moreRunningLabel,
-	othersTooltip,
 	sessionMs,
 	totalMs,
 	type OpenTimer,
 	type PaneState,
-	type TimerSnapshot,
 } from "../model/timeMath";
 import type { TimerController } from "../state/TimerController";
 import type { TimerStore } from "../state/TimerStore";
@@ -35,16 +33,27 @@ const PANE_STATES: readonly PaneState[] = ["running", "idle", "loading", "missin
 
 interface PaneElements {
 	root: HTMLElement;
-	more: HTMLElement;
+	cards: HTMLElement;
+	heading: HTMLElement;
+	body: HTMLElement;
+	meta: HTMLElement;
+}
+
+/** One running-timer card. `timer` is replaced on every render with the latest data. */
+interface CardElements {
+	timer: OpenTimer;
+	card: HTMLElement;
 	title: HTMLElement;
 	titleLabel: HTMLElement;
 	clock: HTMLElement;
 	total: HTMLElement;
-	heading: HTMLElement;
-	body: HTMLElement;
-	meta: HTMLElement;
 	stop: HTMLButtonElement;
 	stopLabel: HTMLElement;
+}
+
+/** An open entry is identified by `(taskPath, startTime)`. */
+function timerKey(timer: Pick<OpenTimer, "taskPath" | "startTime">): string {
+	return `${timer.taskPath}\u0000${timer.startTime}`;
 }
 
 /** Writes text only when it changed, so the polite live region is not re-announced. */
@@ -52,23 +61,20 @@ function setTextIfChanged(el: HTMLElement, text: string): void {
 	if (el.textContent !== text) el.setText(text);
 }
 
-/** Obsidian tooltips read aria-label, so only rewrite it when the text changed. */
-function setTooltipIfChanged(el: HTMLElement, text: string): void {
-	if (el.getAttribute("aria-label") !== text) setTooltip(el, text);
-}
-
-/** Unique per view instance: several panes may be open at once. */
+/** Unique per card: several panes and cards may be open at once. */
 let titleLabelSeq = 0;
 
 export class TimerPaneView extends ItemView {
 	private readonly services: TimerPaneServices;
 	private els: PaneElements | null = null;
+	/** Cards by timer key, in display order. */
+	private cards = new Map<string, CardElements>();
 	/** Wall-clock time of the previous tick, for sleep/wake gap detection. */
 	private lastTickMs: number | null = null;
 	/** Whether the content was visible on the previous tick, for reveal detection. */
 	private wasShown = false;
-	/** True from a Stop click until that stop settles; render() keeps the busy label meanwhile. */
-	private stopping = false;
+	/** Keys of timers from a Stop click until that stop settles; render() keeps their busy label. */
+	private readonly stopping = new Set<string>();
 
 	constructor(leaf: WorkspaceLeaf, services: TimerPaneServices) {
 		super(leaf);
@@ -92,45 +98,10 @@ export class TimerPaneView extends ItemView {
 		this.contentEl.empty();
 		this.lastTickMs = null;
 		this.wasShown = false;
-		this.stopping = false;
+		this.stopping.clear();
+		this.cards = new Map();
 		const root = this.contentEl.createDiv({ cls: ["tntp-pane", "tntp-pane--loading"] });
-
-		const card = root.createDiv({ cls: "tntp-card" });
-		const status = card.createDiv({ cls: "tntp-status" });
-		const live = status.createSpan({ cls: "tntp-status__live" });
-		live.createSpan({ cls: "tntp-status__dot" });
-		live.createSpan({ cls: "tntp-label", text: "Tracking" });
-		const more = status.createSpan({ cls: ["tntp-label", "tntp-status__more"] });
-
-		// The tooltip owns aria-label ("Open task note"); the accessible name
-		// "Open {title}" comes from a visually hidden label via aria-labelledby.
-		const titleLabelId = `tntp-title-label-${++titleLabelSeq}`;
-		const title = card.createDiv({
-			cls: "tntp-title",
-			attr: { role: "link", tabindex: "0", "aria-labelledby": titleLabelId },
-		});
-		setTooltip(title, "Open task note");
-		const titleLabel = card.createSpan({ cls: "tntp-visually-hidden", attr: { id: titleLabelId } });
-		this.registerDomEvent(title, "click", (evt) => this.openPrimary(Keymap.isModEvent(evt)));
-		this.registerDomEvent(title, "keydown", (evt) => {
-			if (evt.key !== "Enter" && evt.key !== " ") return;
-			evt.preventDefault();
-			this.openPrimary(false);
-		});
-
-		const session = card.createDiv({ cls: ["tntp-stat", "tntp-stat--session"] });
-		session.createSpan({ cls: "tntp-label", text: "Session" });
-		const clock = session.createSpan({ cls: "tntp-clock", attr: { role: "timer", "aria-live": "off" } });
-		const totalRow = card.createDiv({ cls: ["tntp-stat", "tntp-stat--total"] });
-		totalRow.createSpan({ cls: "tntp-label", text: "Total" });
-		const total = totalRow.createSpan({ cls: "tntp-total" });
-
-		// One click, no confirmation: stopping closes the entry and keeps it (CTRL-01).
-		const actions = card.createDiv({ cls: "tntp-actions" });
-		const stop = actions.createEl("button", { cls: ["mod-cta", "tntp-stop"] });
-		setIcon(stop.createSpan({ cls: "tntp-stop__icon" }), "square");
-		const stopLabel = stop.createSpan({ cls: "tntp-stop__label", text: STOP_LABEL });
-		this.registerDomEvent(stop, "click", () => void this.stopPrimary());
+		const cards = root.createDiv({ cls: "tntp-cards" });
 
 		const message = root.createDiv({ cls: "tntp-message", attr: { "aria-live": "polite" } });
 		const heading = message.createDiv({ cls: "tntp-message__heading" });
@@ -139,7 +110,7 @@ export class TimerPaneView extends ItemView {
 		const retry = message.createEl("button", { cls: "tntp-message__retry", text: "Check for TaskNotes" });
 		this.registerDomEvent(retry, "click", () => gateway.probe());
 
-		this.els = { root, more, title, titleLabel, clock, total, heading, body, meta, stop, stopLabel };
+		this.els = { root, cards, heading, body, meta };
 
 		this.register(store.subscribe(() => this.render()));
 		this.register(gateway.onState(() => this.render()));
@@ -163,20 +134,64 @@ export class TimerPaneView extends ItemView {
 
 	onClose(): Promise<void> {
 		this.els = null;
+		this.cards = new Map();
 		return Promise.resolve();
 	}
 
-	private currentState(): { state: PaneState; primary: OpenTimer | null; snapshot: TimerSnapshot | null } {
+	/** Every open timer in display order (most recently started first); none unless running. */
+	private currentTimers(): { state: PaneState; timers: OpenTimer[] } {
 		const snapshot = this.services.store.getSnapshot();
 		const state = derivePaneState(this.services.gateway.getState(), snapshot);
-		return { state, primary: state === "running" ? (snapshot?.primary ?? null) : null, snapshot };
+		if (state !== "running" || !snapshot?.primary) return { state, timers: [] };
+		return { state, timers: [snapshot.primary, ...snapshot.others] };
 	}
 
-	/** Opens the displayed task's note; a modifier click opens it in a new tab (DISP-01). */
-	private openPrimary(newLeaf: PaneType | boolean): void {
-		const { primary } = this.currentState();
-		if (!primary) return;
-		this.app.workspace.openLinkText(primary.taskPath, "", newLeaf).catch((error: unknown) => {
+	private buildCard(parent: HTMLElement, key: string, timer: OpenTimer): CardElements {
+		const card = parent.createDiv({ cls: "tntp-card" });
+		const status = card.createDiv({ cls: "tntp-status" });
+		const live = status.createSpan({ cls: "tntp-status__live" });
+		live.createSpan({ cls: "tntp-status__dot" });
+		live.createSpan({ cls: "tntp-label", text: "Tracking" });
+
+		// The tooltip owns aria-label ("Open task note"); the accessible name
+		// "Open {title}" comes from a visually hidden label via aria-labelledby.
+		const titleLabelId = `tntp-title-label-${++titleLabelSeq}`;
+		const title = card.createDiv({
+			cls: "tntp-title",
+			attr: { role: "link", tabindex: "0", "aria-labelledby": titleLabelId },
+		});
+		setTooltip(title, "Open task note");
+		const titleLabel = card.createSpan({ cls: "tntp-visually-hidden", attr: { id: titleLabelId } });
+		title.addEventListener("click", (evt) => this.openTask(key, Keymap.isModEvent(evt)));
+		title.addEventListener("keydown", (evt) => {
+			if (evt.key !== "Enter" && evt.key !== " ") return;
+			evt.preventDefault();
+			this.openTask(key, false);
+		});
+
+		const session = card.createDiv({ cls: ["tntp-stat", "tntp-stat--session"] });
+		session.createSpan({ cls: "tntp-label", text: "Session" });
+		const clock = session.createSpan({ cls: "tntp-clock", attr: { role: "timer", "aria-live": "off" } });
+		const totalRow = card.createDiv({ cls: ["tntp-stat", "tntp-stat--total"] });
+		totalRow.createSpan({ cls: "tntp-label", text: "Total" });
+		const total = totalRow.createSpan({ cls: "tntp-total" });
+
+		// One click, no confirmation: stopping closes the entry and keeps it (CTRL-01).
+		// Card listeners live on the card itself and go away with it when it is detached.
+		const actions = card.createDiv({ cls: "tntp-actions" });
+		const stop = actions.createEl("button", { cls: ["mod-cta", "tntp-stop"] });
+		setIcon(stop.createSpan({ cls: "tntp-stop__icon" }), "square");
+		const stopLabel = stop.createSpan({ cls: "tntp-stop__label", text: STOP_LABEL });
+		stop.addEventListener("click", () => void this.stopTask(key));
+
+		return { timer, card, title, titleLabel, clock, total, stop, stopLabel };
+	}
+
+	/** Opens a card's task note; a modifier click opens it in a new tab (DISP-01). */
+	private openTask(key: string, newLeaf: PaneType | boolean): void {
+		const card = this.cards.get(key);
+		if (!card) return;
+		this.app.workspace.openLinkText(card.timer.taskPath, "", newLeaf).catch((error: unknown) => {
 			console.error(
 				"[tasknotes-timer-pane] Opening the task note failed: " +
 					(error instanceof Error ? error.message : String(error)),
@@ -185,24 +200,22 @@ export class TimerPaneView extends ItemView {
 	}
 
 	/**
-	 * Stops the displayed timer only. The target is captured at click time, so a
+	 * Stops that card's timer only. The target is captured at click time, so a
 	 * refresh landing mid-stop cannot redirect the write to another task.
 	 */
-	private async stopPrimary(): Promise<void> {
-		const els = this.els;
-		if (this.stopping || !els) return;
-		const { primary } = this.currentState();
-		if (!primary) return;
-		const target = { taskPath: primary.taskPath, startTime: primary.startTime, title: primary.title };
-		this.stopping = true;
-		els.stop.disabled = true;
-		setTextIfChanged(els.stopLabel, STOPPING_LABEL);
+	private async stopTask(key: string): Promise<void> {
+		const card = this.cards.get(key);
+		if (this.stopping.has(key) || !card) return;
+		const { taskPath, startTime, title } = card.timer;
+		this.stopping.add(key);
+		card.stop.disabled = true;
+		setTextIfChanged(card.stopLabel, STOPPING_LABEL);
 		try {
-			await this.services.controller.stop(target);
+			await this.services.controller.stop({ taskPath, startTime, title });
 		} finally {
-			this.stopping = false;
-			// The view may have closed while the stop was in flight.
-			const current = this.els;
+			this.stopping.delete(key);
+			// The card, or the whole view, may be gone once the stop settles.
+			const current = this.cards.get(key);
 			if (current) {
 				current.stop.disabled = false;
 				setTextIfChanged(current.stopLabel, STOP_LABEL);
@@ -214,27 +227,40 @@ export class TimerPaneView extends ItemView {
 	private render(): void {
 		const els = this.els;
 		if (!els) return;
-		const { state, primary, snapshot } = this.currentState();
+		const { state, timers } = this.currentTimers();
 		for (const candidate of PANE_STATES) els.root.toggleClass(`tntp-pane--${candidate}`, candidate === state);
-		const others = primary ? (snapshot?.others ?? []) : [];
-		els.root.toggleClass("tntp-pane--others", others.length > 0);
-
-		if (primary) {
-			setTextIfChanged(els.title, primary.title);
-			setTextIfChanged(els.titleLabel, `Open ${primary.title}`);
-			// Never overwrite the busy state of a stop in flight.
-			if (!this.stopping) {
-				els.stop.disabled = false;
-				setTextIfChanged(els.stopLabel, STOP_LABEL);
-			}
-			if (others.length > 0) {
-				setTextIfChanged(els.more, moreRunningLabel(others.length));
-				setTooltipIfChanged(els.more, othersTooltip(others));
-			}
-			this.writeTimes(primary, Date.now());
+		this.reconcileCards(els, timers);
+		if (timers.length > 0) {
+			this.writeTimes(Date.now());
 			return;
 		}
 		this.renderMessage(els, state);
+	}
+
+	/** Keeps exactly one card per open timer, in display order, reusing existing cards. */
+	private reconcileCards(els: PaneElements, timers: readonly OpenTimer[]): void {
+		const next = new Map<string, CardElements>();
+		for (const timer of timers) {
+			const key = timerKey(timer);
+			const card = this.cards.get(key) ?? this.buildCard(els.cards, key, timer);
+			card.timer = timer;
+			next.set(key, card);
+			setTextIfChanged(card.title, timer.title);
+			setTextIfChanged(card.titleLabel, `Open ${timer.title}`);
+			// Never overwrite the busy state of a stop in flight.
+			if (!this.stopping.has(key)) {
+				card.stop.disabled = false;
+				setTextIfChanged(card.stopLabel, STOP_LABEL);
+			}
+		}
+		for (const [key, card] of this.cards) if (!next.has(key)) card.card.detach();
+		// Move a card only when it is out of place, so focus and hover survive a refresh.
+		let i = 0;
+		for (const card of next.values()) {
+			if (els.cards.children[i] !== card.card) els.cards.insertBefore(card.card, els.cards.children[i] ?? null);
+			i++;
+		}
+		this.cards = next;
 	}
 
 	private renderMessage(els: PaneElements, state: PaneState): void {
@@ -271,11 +297,11 @@ export class TimerPaneView extends ItemView {
 		setTextIfChanged(els.meta, meta);
 	}
 
-	private writeTimes(primary: OpenTimer, nowMs: number): void {
-		const els = this.els;
-		if (!els) return;
-		setTextIfChanged(els.clock, formatHms(sessionMs(primary.startMs, nowMs)));
-		setTextIfChanged(els.total, formatHms(totalMs(primary.entries, nowMs)));
+	private writeTimes(nowMs: number): void {
+		for (const { timer, clock, total } of this.cards.values()) {
+			setTextIfChanged(clock, formatHms(sessionMs(timer.startMs, nowMs)));
+			setTextIfChanged(total, formatHms(totalMs(timer.entries, nowMs)));
+		}
 	}
 
 	/**
@@ -295,7 +321,6 @@ export class TimerPaneView extends ItemView {
 		this.wasShown = shown;
 		// Hidden: no DOM writes.
 		if (!shown) return;
-		const { primary } = this.currentState();
-		if (primary) this.writeTimes(primary, now);
+		this.writeTimes(now);
 	}
 }

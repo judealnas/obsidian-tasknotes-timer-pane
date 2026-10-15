@@ -8,7 +8,7 @@
 
 /* Visibility is driven only by the root modifier class. */
 .tntp-pane--running .tntp-message,
-.tntp-pane:not(.tntp-pane--running) .tntp-card {
+.tntp-pane:not(.tntp-pane--running) .tntp-cards {
 	display: none;
 }
 
@@ -21,10 +21,6 @@
 }
 
 .tntp-message__meta:empty {
-	display: none;
-}
-
-.tntp-pane:not(.tntp-pane--others) .tntp-status__more {
 	display: none;
 }
 
@@ -41,7 +37,13 @@
 	border: 0;
 }
 
-/* Running-timer card */
+/* Running-timer cards: one per open timer, most recently started first */
+.tntp-cards {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-3);
+}
+
 .tntp-card {
 	background-color: var(--background-primary);
 	border: var(--border-width) solid var(--background-modifier-border);
@@ -107,12 +109,6 @@
 	white-space: nowrap;
 	letter-spacing: normal;
 	color: var(--text-normal);
-}
-
-/* "+N more running": Label role, muted, not clickable, no accent. */
-.tntp-status__more {
-	text-align: right;
-	cursor: default;
 }
 
 .tntp-stat--total {
