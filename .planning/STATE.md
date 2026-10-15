@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Live Timer Pane
 status: executing
-stopped_at: Completed 01-04-PLAN.md
-last_updated: "2026-10-15T02:26:11.367Z"
+stopped_at: Completed 01-03-PLAN.md
+last_updated: "2026-10-15T02:40:14.160Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 01 execution started
-state_head: 97317a6d218478dbecdc13eec6b773a9df13b984
+state_head: 127804a4c9cb7fd65fdf5e01241c6931442ee70e
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 5
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-13)
 ## Current Position
 
 Phase: 01 (Live Timer Pane) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-10-14 — Phase 01 execution started
 
@@ -59,6 +59,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P01 | 13 min | 3 tasks | 11 files |
 | Phase 01 P02 | 7 min | 2 tasks | 7 files |
 | Phase 01 P04 | 3 min | 2 tasks | 8 files |
+| Phase 01 P03 | 10 min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,10 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-02: An empty-string endTime counts as open, matching TaskNotes' !entry.endTime
 - [Phase 01]: 01-04: Dev-vault seed is a tracked template (dev-vault-seed/) copied by a copy-only script (COPYFILE_EXCL unless --reset; refuses .obsidian and paths outside dev-vault/)
 - [Phase 01]: 01-04: UAT checklist folds in WINDOWS.md entries 1-2 (step 0.3, sections 1-2); they stay open until the checklist is run
+- [Phase 01]: 01-03: Bridge retires an api on 'unloading' (WeakSet) and never re-attaches it; one 1 s early probe follows; a disposed bridge ignores probe()
+- [Phase 01]: 01-03: Entering ready requests a debounced (200 ms) refresh so the state change and the layout.ready data hint coalesce into one active() call
+- [Phase 01]: 01-03: Test timerSchedule reads global timers at call time through a local object; obsidianmd rules cannot be disabled and Node tests have no window
+- [Phase 01]: 01-03: Only the 1 s tick skips DOM writes while hidden; event-driven render() still runs so a revealed pane never shows a stale state class
 
 ### Pending Todos
 
@@ -102,6 +107,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T02:26:11.327Z
-Stopped at: Completed 01-04-PLAN.md
+Last session: 2026-10-15T02:40:14.119Z
+Stopped at: Completed 01-03-PLAN.md
 Resume file: None

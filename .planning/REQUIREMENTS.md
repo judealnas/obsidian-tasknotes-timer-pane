@@ -19,7 +19,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **DISP-02**: User sees the current session's elapsed time (H:MM:SS), updating every second and calculated from the entry's start time.
 - [x] **DISP-03**: User sees the task's total tracked time, including the running session, to the second.
 - [ ] **DISP-04**: When nothing is being timed, user sees an idle state with a "Start a task" button.
-- [ ] **DISP-05**: User sees a clear message when TaskNotes is missing, disabled, or older than 4.10.
+- [x] **DISP-05**: User sees a clear message when TaskNotes is missing, disabled, or older than 4.10.
 - [x] **DISP-06**: When several timers are running, the pane shows the most recently started one.
 - [ ] **DISP-07**: A timer controlled by an active Pomodoro is labelled as Pomodoro.
 
@@ -38,10 +38,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Sync
 
-- [ ] **SYNC-01**: Timers started or stopped elsewhere in TaskNotes appear in the pane within about a second.
-- [ ] **SYNC-02**: Changes from Obsidian Sync or hand-edited frontmatter appear in the pane.
-- [ ] **SYNC-03**: The pane reconnects by itself after TaskNotes is disabled, re-enabled, or updated, without restarting Obsidian.
-- [ ] **SYNC-04**: Elapsed time is correct after the computer sleeps and wakes.
+- [x] **SYNC-01**: Timers started or stopped elsewhere in TaskNotes appear in the pane within about a second.
+- [x] **SYNC-02**: Changes from Obsidian Sync or hand-edited frontmatter appear in the pane.
+- [x] **SYNC-03**: The pane reconnects by itself after TaskNotes is disabled, re-enabled, or updated, without restarting Obsidian.
+- [x] **SYNC-04**: Elapsed time is correct after the computer sleeps and wakes.
 
 ## v2 Requirements
 
@@ -87,7 +87,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DISP-02 | Phase 1 | Complete |
 | DISP-03 | Phase 1 | Complete |
 | DISP-04 | Phase 2 | Pending |
-| DISP-05 | Phase 1 | Pending |
+| DISP-05 | Phase 1 | Complete |
 | DISP-06 | Phase 1 | Complete |
 | DISP-07 | Phase 3 | Pending |
 | CTRL-01 | Phase 1 | Pending |
@@ -100,10 +100,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CTRL-08 | Phase 3 | Pending |
 | CTRL-09 | Phase 2 | Pending |
 | CTRL-10 | Phase 2 | Pending |
-| SYNC-01 | Phase 1 | Pending |
-| SYNC-02 | Phase 1 | Pending |
-| SYNC-03 | Phase 1 | Pending |
-| SYNC-04 | Phase 1 | Pending |
+| SYNC-01 | Phase 1 | Complete |
+| SYNC-02 | Phase 1 | Complete |
+| SYNC-03 | Phase 1 | Complete |
+| SYNC-04 | Phase 1 | Complete |
 
 **Coverage:**
 - v1 requirements: 24 total

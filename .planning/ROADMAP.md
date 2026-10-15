@@ -37,7 +37,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Timers started or stopped elsewhere in TaskNotes (status bar, task cards, commands) appear in the pane within about a second. Changes from Obsidian Sync or hand-edited frontmatter also show up.
   5. When TaskNotes is missing, disabled, or older than 4.10, the pane shows a clear message. It reconnects by itself when TaskNotes is re-enabled or updated, without an Obsidian restart. After the computer sleeps and wakes, elapsed time is correct.
 
-**Plans:** 3/5 plans executed
+**Plans:** 4/5 plans executed
 
 Plans:
 **Wave 1**
@@ -48,7 +48,7 @@ Plans:
 - [x] 01-04-PLAN.md — Seeded dev vault, README, and the Phase 1 UAT checklist (wave 2, parallel with 01-02; checklist section Stop requires 01-05)
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 01-03-PLAN.md — Sync and resilience: retired-API-aware reconnect, debounced single-flight store, vault delete/rename, sleep/wake and visibility (wave 3)
+- [x] 01-03-PLAN.md — Sync and resilience: retired-API-aware reconnect, debounced single-flight store, vault delete/rename, sleep/wake and visibility (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 01-05-PLAN.md — One-click Stop of the displayed timer through the serial write queue, with busy state, benign-race and failure handling (wave 4)
@@ -96,6 +96,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Live Timer Pane | 3/5 | In Progress | - |
+| 1. Live Timer Pane | 4/5 | In Progress | - |
 | 2. Start, Switch & Complete | 0/TBD | Not started | - |
 | 3. Pause & Resume | 0/TBD | Not started | - |
