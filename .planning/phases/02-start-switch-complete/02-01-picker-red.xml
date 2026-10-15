@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="12" failures="11" errors="0" time="0.0204458">
+    <testsuite name="tests/taskPicker.test.ts" timestamp="2026-10-15T17:41:28.754Z" hostname="DESKTOP-SD9404U" tests="12" failures="11" errors="0" skipped="0" time="0.0204458">
+        <testcase classname="tests/taskPicker.test.ts" name="task picker policy &gt; excludes archived tasks but retains completed and already timed tasks" time="0.0092522">
+            <failure message="expected [ &apos;Archived&apos;, &apos;Done&apos;, &apos;Running&apos; ] to deeply equal [ &apos;Running&apos;, &apos;Done&apos; ]" type="AssertionError">
+AssertionError: expected [ &apos;Archived&apos;, &apos;Done&apos;, &apos;Running&apos; ] to deeply equal [ &apos;Running&apos;, &apos;Done&apos; ]
+
+- Expected
++ Received
+
+  [
++   &quot;Archived&quot;,
++   &quot;Done&quot;,
+    &quot;Running&quot;,
+-   &quot;Done&quot;,
+  ]
+
+ ❯ tests/taskPicker.test.ts:10:60
+            </failure>
+        </testcase>
+        <testcase classname="tests/taskPicker.test.ts" name="task picker policy &gt; empty query orders completed last then due presence/date priority and title" time="0.0016754">
+            <failure message="expected [ &apos;done&apos;, &apos;no due&apos;, &apos;late&apos;, …(3) ] to deeply equal [ &apos;high&apos;, &apos;normal&apos;, &apos;low&apos;, …(3) ]" type="AssertionError">
+AssertionError: expected [ &apos;done&apos;, &apos;no due&apos;, &apos;late&apos;, …(3) ] to deeply equal [ &apos;high&apos;, &apos;normal&apos;, &apos;low&apos;, …(3) ]
+
+- Expected
++ Received
+
+  [
+-   &quot;high&quot;,
+-   &quot;normal&quot;,
+-   &quot;low&quot;,
+-   &quot;late&quot;,
+-   &quot;no due&quot;,
+    &quot;done&quot;,
++   &quot;no due&quot;,
++   &quot;late&quot;,
++   &quot;low&quot;,
++   &quot;normal&quot;,
++   &quot;high&quot;,
+  ]
+
+ ❯ tests/taskPicker.test.ts:14:60
+            </failure>
+        </testcase>
+        <testcase classname="tests/taskPicker.test.ts" name="task picker policy &gt; searches due" time="0.0013038">
+            <failure message="expected null to be +0 // Object.is equality" type="AssertionError">
+AssertionError: expected null to be +0 // Object.is equality
+
+- Expected:
+0
+
++ Received:
+null
+
+ ❯ tests/taskPicker.test.ts:18:73
+            </failure>
+        </testcase>
+        <testcase classname="tests/taskPicker.test.ts" name="task picker policy &gt; searches priority" time="0.0006927">
+            <failure message="expected null to be +0 // Object.is equality" type="AssertionError">
+AssertionError: expected null to be +0 // Object.is equality
+
+- Expected:
+0
+
++ Received:
+null
+
+ ❯ tests/taskPicker.test.ts:18:73
+            </failure>
+        </testcase>
+        <testcase classname="tests/taskPicker.test.ts" name="task picker policy &gt; searches contexts" time="0.0004947">
+            <failure message="expected null to be +0 // Object.is equality" type="AssertionError">
+AssertionError: expected null to be +0 // Object.is equality
+
+- Expected:
+0
+
++ Received:
+null
+
+ ❯ tests/taskPicker.test.ts:18:73
+            </failure>
+        </testcase>
+        <testcase classname="tests/taskPicker.test.ts" name="task picker policy &gt; searches projects" time="0.0003998">
+            <failure message="expected null to be +0 // Object.is equality" type="AssertionError">
+AssertionError: expected null to be +0 // Object.is equality
+
+- Expected:
+0
+
++ Received:
+null
+
+ ❯ tests/taskPicker.test.ts:18:73
+            </failure>
+        </testcase>
+        <testcase classname="tests/taskPicker.test.ts" name="task picker policy &gt; searches tags" time="0.0003689">
+            <failure message="expected null to be +0 // Object.is equality" type="AssertionError">
+AssertionError: expected null to be +0 // Object.is equality
+
+- Expected:
+0
+
++ Received:
+null
+
+ ❯ tests/taskPicker.test.ts:18:73
+            </failure>
+        </testcase>
+        <testcase classname="tests/taskPicker.test.ts" name="task picker policy &gt; normal priority is not searchable" time="0.0005195">
+        </testcase>
+        <testcase classname="tests/taskPicker.test.ts" name="task picker policy &gt; ranks exact prefix word prefix substring without field weights" time="0.0008743">
+            <failure message="expected [ &apos;xneedle&apos;, &apos;a needle tail&apos;, …(3) ] to deeply equal [ &apos;needle&apos;, &apos;Other&apos;, …(3) ]" type="AssertionError">
+AssertionError: expected [ &apos;xneedle&apos;, &apos;a needle tail&apos;, …(3) ] to deeply equal [ &apos;needle&apos;, &apos;Other&apos;, …(3) ]
+
+- Expected
++ Received
+
+  [
++   &quot;xneedle&quot;,
++   &quot;a needle tail&quot;,
++   &quot;needle tail&quot;,
+    &quot;needle&quot;,
+    &quot;Other&quot;,
+-   &quot;needle tail&quot;,
+-   &quot;a needle tail&quot;,
+-   &quot;xneedle&quot;,
+  ]
+
+ ❯ tests/taskPicker.test.ts:23:66
+            </failure>
+        </testcase>
+        <testcase classname="tests/taskPicker.test.ts" name="task picker policy &gt; best field wins and completed remains last even for exact matches" time="0.00071">
+            <failure message="expected [ &apos;needle&apos;, &apos;xneedle&apos;, &apos;z&apos; ] to deeply equal [ &apos;z&apos;, &apos;xneedle&apos;, &apos;needle&apos; ]" type="AssertionError">
+AssertionError: expected [ &apos;needle&apos;, &apos;xneedle&apos;, &apos;z&apos; ] to deeply equal [ &apos;z&apos;, &apos;xneedle&apos;, &apos;needle&apos; ]
+
+- Expected
++ Received
+
+  [
+-   &quot;z&quot;,
+-   &quot;xneedle&quot;,
+    &quot;needle&quot;,
++   &quot;xneedle&quot;,
++   &quot;z&quot;,
+  ]
+
+ ❯ tests/taskPicker.test.ts:27:66
+            </failure>
+        </testcase>
+        <testcase classname="tests/taskPicker.test.ts" name="task picker policy &gt; unknown priority is normal, titles break ties and exact ties stay stable" time="0.0017622">
+            <failure message="expected [ { title: &apos;same&apos;, …(4) }, …(3) ] to deeply equal [ …(4) ]" type="AssertionError">
+AssertionError: expected [ { title: &apos;same&apos;, …(4) }, …(3) ] to deeply equal [ …(4) ]
+
+- Expected
++ Received
+
+  [
+    {
+      &quot;archived&quot;: false,
+-     &quot;path&quot;: &quot;A.md&quot;,
++     &quot;path&quot;: &quot;same.md&quot;,
++     &quot;priority&quot;: &quot;normal&quot;,
+      &quot;status&quot;: &quot;open&quot;,
+-     &quot;title&quot;: &quot;A&quot;,
++     &quot;title&quot;: &quot;same&quot;,
+    },
+    {
+      &quot;archived&quot;: false,
+-     &quot;path&quot;: &quot;same.md&quot;,
+-     &quot;priority&quot;: &quot;normal&quot;,
++     &quot;path&quot;: &quot;Z.md&quot;,
+      &quot;status&quot;: &quot;open&quot;,
+-     &quot;title&quot;: &quot;same&quot;,
++     &quot;title&quot;: &quot;Z&quot;,
+    },
+    {
+      &quot;archived&quot;: false,
+      &quot;path&quot;: &quot;same.md&quot;,
+      &quot;priority&quot;: &quot;unknown&quot;,
+      &quot;status&quot;: &quot;open&quot;,
+      &quot;title&quot;: &quot;same&quot;,
+    },
+    {
+      &quot;archived&quot;: false,
+-     &quot;path&quot;: &quot;Z.md&quot;,
++     &quot;path&quot;: &quot;A.md&quot;,
+      &quot;status&quot;: &quot;open&quot;,
+-     &quot;title&quot;: &quot;Z&quot;,
++     &quot;title&quot;: &quot;A&quot;,
+    },
+  ]
+
+ ❯ tests/taskPicker.test.ts:31:75
+            </failure>
+        </testcase>
+        <testcase classname="tests/taskPicker.test.ts" name="task picker policy &gt; unmatched tasks disappear and blank query acts like empty" time="0.0005515">
+            <failure message="expected [ { title: &apos;Alpha&apos;, …(3) } ] to deeply equal []" type="AssertionError">
+AssertionError: expected [ { title: &apos;Alpha&apos;, …(3) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     &quot;archived&quot;: false,
++     &quot;path&quot;: &quot;Alpha.md&quot;,
++     &quot;status&quot;: &quot;open&quot;,
++     &quot;title&quot;: &quot;Alpha&quot;,
++   },
++ ]
+
+ ❯ tests/taskPicker.test.ts:34:69
+            </failure>
+        </testcase>
+    </testsuite>
+</testsuites>
