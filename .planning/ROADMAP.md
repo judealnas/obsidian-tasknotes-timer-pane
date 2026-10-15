@@ -68,7 +68,18 @@ Plans:
   3. User can mark a timed task complete from its card. Its timer stops and TaskNotes shows the task with the completed status chosen in the plugin's settings (default: the same status TaskNotes' own toggle uses).
   4. While an action is in progress, the pane's controls are disabled. If an action fails, for example a task fails to start, a notice explains what happened.
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+**Wave 1**
+- [ ] 02-01-PLAN.md — Start-task tracer, deterministic searchable picker, and shared busy controls
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 02-02-PLAN.md — Pomodoro-safe sequential Stop all with live eligibility
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 02-03-PLAN.md — Status-first Complete action and live completion-status setting
+
 **UI hint**: yes
 **Notes**: Discussed 2026-10-15 (see `02-CONTEXT.md`). Switching was removed: the pane shows one card per timer, and a header holds "Start task" and "Stop all". Stop all leaves Pomodoro-owned timers running. The picker matches TaskNotes' Pomodoro selector: archive-flag tasks are left out, and completed tasks are listed last. All writes go through one serial queue.
 
