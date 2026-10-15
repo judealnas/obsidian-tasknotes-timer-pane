@@ -1,1 +1,120 @@
 /* TaskNotes Timer Pane: tntp- BEM classes, Obsidian CSS variables only (01-UI-SPEC.md). */
+
+/* Root */
+.tntp-pane {
+	padding: var(--size-4-4);
+	max-width: 480px;
+}
+
+/* Visibility is driven only by the root modifier class. */
+.tntp-pane--running .tntp-message,
+.tntp-pane:not(.tntp-pane--running) .tntp-card {
+	display: none;
+}
+
+.tntp-pane--loading .tntp-message__heading {
+	display: none;
+}
+
+.tntp-pane:not(.tntp-pane--missing):not(.tntp-pane--incompatible) .tntp-message__retry {
+	display: none;
+}
+
+.tntp-message__meta:empty {
+	display: none;
+}
+
+/* Running-timer card */
+.tntp-card {
+	background-color: var(--background-primary);
+	border: var(--border-width) solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	padding: var(--size-4-4);
+	container-type: inline-size;
+}
+
+.tntp-status {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.tntp-status__live {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+}
+
+.tntp-status__dot {
+	width: var(--size-4-2);
+	height: var(--size-4-2);
+	border-radius: 50%;
+	background-color: var(--interactive-accent);
+}
+
+.tntp-label {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	line-height: var(--line-height-tight);
+}
+
+.tntp-title {
+	margin-top: var(--size-4-2);
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-semibold);
+	line-height: var(--line-height-tight);
+	color: var(--text-normal);
+	overflow-wrap: anywhere;
+	cursor: var(--cursor-link);
+}
+
+.tntp-title:hover,
+.tntp-title:focus-visible {
+	color: var(--text-accent);
+	text-decoration: underline;
+}
+
+.tntp-stat--session {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-1);
+	margin-top: var(--size-4-4);
+}
+
+.tntp-clock {
+	font-family: var(--font-monospace);
+	font-variant-numeric: tabular-nums;
+	font-size: min(calc(var(--font-ui-large) * 1.6), 17cqi);
+	font-weight: var(--font-semibold);
+	line-height: 1.1;
+	white-space: nowrap;
+	letter-spacing: normal;
+	color: var(--text-normal);
+}
+
+/* Message states (idle, loading, missing, incompatible) */
+.tntp-message {
+	padding-top: var(--size-4-6);
+}
+
+.tntp-message__heading {
+	margin-bottom: var(--size-4-1);
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-semibold);
+	line-height: var(--line-height-tight);
+	color: var(--text-normal);
+}
+
+.tntp-message__body {
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	line-height: var(--line-height-normal);
+}
+
+.tntp-message__meta {
+	margin-top: var(--size-4-1);
+}
+
+.tntp-message__retry {
+	margin-top: var(--size-4-6);
+}

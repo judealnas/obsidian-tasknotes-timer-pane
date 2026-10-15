@@ -1,3 +1,51 @@
 import { Plugin } from "obsidian";
+import { TimerStore } from "./state/TimerStore";
+import { PROBE_INTERVAL_MS, TASKNOTES_PLUGIN_ID, TaskNotesBridge } from "./tasknotes/TaskNotesBridge";
+import { TimerPaneView, VIEW_TYPE_TIMER_PANE } from "./ui/TimerPaneView";
 
-export default class TaskNotesTimerPanePlugin extends Plugin {}
+// `app.plugins` is not in obsidian.d.ts. This is the one property the pane needs.
+declare module "obsidian" {
+	interface App {
+		plugins?: { getPlugin(id: string): (Plugin & { api?: unknown }) | null };
+	}
+}
+
+export default class TaskNotesTimerPanePlugin extends Plugin {
+	onload(): void {
+		const log = (message: string) => console.error("[tasknotes-timer-pane] " + message);
+		const bridge = new TaskNotesBridge({
+			lookupPlugin: () => this.app.plugins?.getPlugin(TASKNOTES_PLUGIN_ID) ?? null,
+			log,
+		});
+		const store = new TimerStore({ gateway: bridge, log });
+		this.register(() => {
+			store.dispose();
+			bridge.dispose();
+		});
+
+		// Registered synchronously so Obsidian can restore a saved pane leaf (PANE-03).
+		this.registerView(VIEW_TYPE_TIMER_PANE, (leaf) => new TimerPaneView(leaf, { gateway: bridge, store }));
+
+		// Never blocks or waits on TaskNotes: the pane renders whatever state the bridge is in.
+		const open = () =>
+			void this.activateView().catch((error: unknown) =>
+				log("Opening the timer pane failed: " + (error instanceof Error ? error.message : String(error))),
+			);
+		this.addRibbonIcon("timer", "Open TaskNotes timer", open);
+		this.addCommand({ id: "open-timer-pane", name: "Open timer pane", callback: open });
+
+		this.app.workspace.onLayoutReady(() => bridge.probe());
+		this.registerInterval(window.setInterval(() => bridge.probe(), PROBE_INTERVAL_MS));
+	}
+
+	/** Reveals the existing pane leaf wherever it is, or creates one in the right sidebar. Never a second leaf. */
+	private async activateView(): Promise<void> {
+		const { workspace } = this.app;
+		const existing = workspace.getLeavesOfType(VIEW_TYPE_TIMER_PANE)[0];
+		if (existing) {
+			await workspace.revealLeaf(existing);
+			return;
+		}
+		await workspace.ensureSideLeaf(VIEW_TYPE_TIMER_PANE, "right", { active: true, reveal: true });
+	}
+}
