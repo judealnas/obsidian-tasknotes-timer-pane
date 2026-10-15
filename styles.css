@@ -114,6 +114,11 @@
 	border-radius: var(--radius-s);
 }
 
+/* Every chip in the pane is being tracked, so TaskNotes' tracking outline adds nothing here. */
+.tntp-pane .tntp-title .task-card--actively-tracked::before {
+	display: none;
+}
+
 .tntp-stat--session {
 	display: flex;
 	flex-direction: column;
