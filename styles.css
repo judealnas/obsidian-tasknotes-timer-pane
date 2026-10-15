@@ -112,14 +112,18 @@
 	margin-top: var(--size-4-4);
 }
 
+/*
+ * Numbers match TaskNotes' Pomodoro timer: it asks for an undefined --tn-font-mono, so it
+ * renders in the interface font, bold, spaced 0.05em. Tabular digits stop the clock jittering.
+ */
 .tntp-clock {
-	font-family: var(--font-monospace);
+	font-family: var(--font-interface);
 	font-variant-numeric: tabular-nums;
 	font-size: min(calc(var(--font-ui-large) * 1.6), 17cqi);
-	font-weight: var(--font-semibold);
+	font-weight: var(--font-bold);
 	line-height: 1.1;
 	white-space: nowrap;
-	letter-spacing: normal;
+	letter-spacing: 0.05em;
 	color: var(--text-normal);
 }
 
@@ -131,7 +135,7 @@
 }
 
 .tntp-total {
-	font-family: var(--font-monospace);
+	font-family: var(--font-interface);
 	font-variant-numeric: tabular-nums;
 	font-size: var(--font-ui-small);
 	color: var(--text-normal);
