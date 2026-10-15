@@ -1,0 +1,9 @@
+{
+	"id": "tasknotes-timer-pane",
+	"name": "TaskNotes Timer Pane",
+	"version": "0.1.0",
+	"minAppVersion": "1.12.2",
+	"description": "Sidebar pane that shows the task TaskNotes is timing and stops it in one click.",
+	"author": "judealnas",
+	"isDesktopOnly": false
+}
