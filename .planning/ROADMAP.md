@@ -37,11 +37,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Timers started or stopped elsewhere in TaskNotes (status bar, task cards, commands) appear in the pane within about a second. Changes from Obsidian Sync or hand-edited frontmatter also show up.
   5. When TaskNotes is missing, disabled, or older than 4.10, the pane shows a clear message. It reconnects by itself when TaskNotes is re-enabled or updated, without an Obsidian restart. After the computer sleeps and wakes, elapsed time is correct.
 
-**Plans:** 5 plans
+**Plans:** 1/5 plans executed
 
 Plans:
 **Wave 1**
-- [ ] 01-01-PLAN.md — Walking-skeleton scaffold: package-legitimacy gate, pinned toolchain, dev-vault deploy loop, plugin entry point, vendored TaskNotes contract (wave 1)
+- [x] 01-01-PLAN.md — Walking-skeleton scaffold: package-legitimacy gate, pinned toolchain, dev-vault deploy loop, plugin entry point, vendored TaskNotes contract (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 01-02-PLAN.md — Walking-skeleton read path: pane + bridge + store, live card for the most recently started timer (wave 2)
@@ -96,6 +96,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Live Timer Pane | 0/4 | Planned | - |
+| 1. Live Timer Pane | 1/5 | In Progress | - |
 | 2. Start, Switch & Complete | 0/TBD | Not started | - |
 | 3. Pause & Resume | 0/TBD | Not started | - |
