@@ -3,8 +3,10 @@
 // D-12: pure logic plus a faked TaskNotes boundary; no DOM, no view, no obsidian mocks.
 import { describe, expect, test, vi } from "vitest";
 import {
+	WAKE_GAP_MS,
 	derivePaneState,
 	deriveSnapshot,
+	detectWakeGap,
 	displayTitle,
 	formatHms,
 	moreRunningLabel,
@@ -345,5 +347,27 @@ describe("display copy", () => {
 		expect(othersTooltip(named(["A", "B", "C", "D", "E", "F", "G"]))).toBe(
 			"Also running: A, B, C, D, E, and 2 more",
 		);
+	});
+});
+
+describe("sleep/wake (SYNC-04)", () => {
+	test("detectWakeGap: no previous tick, short gaps and exactly 3000 ms are not gaps; 3001 ms is", () => {
+		expect(WAKE_GAP_MS).toBe(3000);
+		expect(detectWakeGap(null, 5000)).toBe(false);
+		expect(detectWakeGap(1000, 2000)).toBe(false);
+		expect(detectWakeGap(1000, 4000)).toBe(false);
+		expect(detectWakeGap(1000, 4001)).toBe(true);
+		expect(detectWakeGap(1000, 1500, 400)).toBe(true);
+	});
+
+	test("an entry started at T reads 1:00:00 at T + 1 h after a simulated sleep, with no counter state", () => {
+		const t = Date.parse("2026-10-14T09:00:00.000Z");
+		const timer = deriveSnapshot([activeEntry("TaskNotes/Tasks/A.md", iso(t), "A")]).primary as OpenTimer;
+		// The last tick before sleep was 2 s after the start; the next is an hour later.
+		const lastTick = t + 2000;
+		const wake = t + 3_600_000;
+		expect(detectWakeGap(lastTick, wake)).toBe(true);
+		expect(formatHms(sessionMs(timer.startMs, wake))).toBe("1:00:00");
+		expect(formatHms(totalMs(timer.entries, wake))).toBe("1:00:00");
 	});
 });
