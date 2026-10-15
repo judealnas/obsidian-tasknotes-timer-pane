@@ -45,13 +45,13 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 01-02-PLAN.md — Walking-skeleton read path: pane + bridge + store, live card for the most recently started timer (wave 2)
-- [ ] 01-04-PLAN.md — Seeded dev vault, README, and the Phase 1 UAT checklist (wave 2, parallel with 01-02; checklist sections Stop and Archived require 01-05)
+- [ ] 01-04-PLAN.md — Seeded dev vault, README, and the Phase 1 UAT checklist (wave 2, parallel with 01-02; checklist section Stop requires 01-05)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 01-03-PLAN.md — Sync and resilience: retired-API-aware reconnect, debounced single-flight store, vault delete/rename, sleep/wake and visibility (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 01-05-PLAN.md — One-click Stop through the serial write queue, plus archived-timer auto-stop that follows TaskNotes' settings (wave 4)
+- [ ] 01-05-PLAN.md — One-click Stop of the displayed timer through the serial write queue, with busy state, benign-race and failure handling (wave 4)
 
 **UI hint**: yes
 **Notes**: This is the walking skeleton, so the planner emits SKELETON.md. When nothing is timed, Phase 1 shows only a plain message. The "Start a task" button (DISP-04) comes with the picker in Phase 2. Research flag: check cold-start readiness timing by hand. `layout.ready` fires only once, and `isReady()` changes at a different point from `ready()`.

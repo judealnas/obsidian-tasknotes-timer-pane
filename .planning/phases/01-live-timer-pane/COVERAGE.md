@@ -20,7 +20,7 @@
 | events: task.updated | INTEGRATE | |
 | events: task.deleted | INTEGRATE | |
 | events: task.created | OPT-OUT | metadata-path creates also arrive as task.updated, which already triggers a re-derive from `time.active()` |
-| events: task.archived | OPT-OUT | archive changes also arrive as task.updated, and the archived flag is re-read from `time.active()` (D-06, D-07) |
+| events: task.archived | OPT-OUT | not needed: the pane shows archive-flag timers like any other, and archive changes also arrive as task.updated, which re-derives from `time.active()` |
 | events: task.moved | OPT-OUT | not needed yet: the store keys by the snapshot path; Phase 3 pause state follows moves |
 | events: time.started / time.stopped | OPT-OUT | same raw event as task.updated; not emitted for hand edits or Sync; each extra subscription re-runs TaskNotes' deep-copy normalizer |
 | lifecycle.isReady | INTEGRATE | |
@@ -32,8 +32,8 @@
 | lifecycle.on: unloading | INTEGRATE | |
 | lifecycle.on: ready | OPT-OUT | not needed: replayed readiness is covered by `isReady()` plus the 5 s probe |
 | lifecycle.on: extension.registered / extension.unregistered | OPT-OUT | not needed: the pane registers no TaskNotes extensions |
-| settings.snapshot | INTEGRATE | |
-| model.config | INTEGRATE | |
+| settings.snapshot | OPT-OUT | not needed: the pane reads no TaskNotes settings; completion auto-stop is TaskNotes' own (D-05), and the archive auto-stop that needed it (D-06..D-11) was superseded on 2026-10-13 |
+| model.config | OPT-OUT | not needed: same reason as settings.snapshot; the pane reads no TaskNotes time-tracking config |
 | errors.normalize | INTEGRATE | |
 | errors.isApiError / errors.toResult | OPT-OUT | not needed: `normalize` covers Notice text; stop errors are plain Errors matched by message |
 | catalog.statuses | OPT-OUT | not needed yet: the Phase 2 picker and complete; Phase 1 never interprets status (D-05) |
