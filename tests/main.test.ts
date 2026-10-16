@@ -97,3 +97,29 @@ test("a failed settings save rejects to the caller and does not break later save
 	await save({ completionStatus: "kept" });
 	expect(host.saved).toEqual([{ completionStatus: "kept", pauseRecordsVersion: 1, pauseRecords: [] }]);
 });
+
+test("a pause change writes data.json with the settings last saved, never an older setting", async () => {
+	host.data = { completionStatus: "x", extraKey: 1 };
+	const plugin = new TaskNotesTimerPanePlugin({} as App, {} as PluginManifest);
+	const calls: unknown[] = [];
+	const releases: Array<() => void> = [];
+	plugin.saveData = (value: unknown) => {
+		calls.push(structuredClone(value));
+		return new Promise<void>(resolve => releases.push(resolve));
+	};
+	plugin.onload();
+	await flush();
+	const pauses = (plugin as unknown as { pauses: { set(record: unknown): void } }).pauses;
+	const settingsSave = saveSettingsOf(host.tabs[0])({ completionStatus: "newer" });
+	await flush();
+	// The settings write is in flight; this pause save queues behind it.
+	pauses.set(PAUSED);
+	releases[0]!();
+	await settingsSave; await flush();
+	releases[1]!();
+	await flush();
+	expect(calls).toEqual([
+		{ extraKey: 1, completionStatus: "newer", pauseRecordsVersion: 1, pauseRecords: [] },
+		{ extraKey: 1, completionStatus: "newer", pauseRecordsVersion: 1, pauseRecords: [PAUSED] },
+	]);
+});

@@ -7,6 +7,17 @@ import { PROBE_INTERVAL_MS, TASKNOTES_PLUGIN_ID, TaskNotesBridge, type Schedule 
 import { TimerPaneView, VIEW_TYPE_TIMER_PANE } from "./ui/TimerPaneView";
 import { DEFAULT_SETTINGS, loadSettings, type TimerPaneSettings } from "./settings";
 import { TimerPaneSettingTab } from "./ui/TimerPaneSettingTab";
+import { PAUSE_RECORDS_VERSION, loadPauseRecords } from "./model/pauseLedger";
+
+/** The data.json keys this plugin owns; everything else is kept as found. */
+const OWNED_KEYS = new Set(["completionStatus", "pauseRecordsVersion", "pauseRecords"]);
+
+function extrasOf(data: unknown): Record<string, unknown> {
+	if (typeof data !== "object" || data === null || Array.isArray(data)) return {};
+	const extras: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(data)) if (!OWNED_KEYS.has(key)) extras[key] = value;
+	return extras;
+}
 
 // `app.plugins` is not in obsidian.d.ts. This is the one property the pane needs.
 declare module "obsidian" {
@@ -18,6 +29,38 @@ declare module "obsidian" {
 export default class TaskNotesTimerPanePlugin extends Plugin {
 	private paneSettings: TimerPaneSettings = { ...DEFAULT_SETTINGS };
 	private settingsReady: Promise<void> = Promise.resolve();
+	private pauses: PauseStore | null = null;
+	/** Settings as last written to data.json; a pause-only save writes these. */
+	private fileSettings: TimerPaneSettings = { ...DEFAULT_SETTINGS };
+	/** Keys in the loaded data.json that this plugin does not own, preserved on every save. */
+	private extras: Record<string, unknown> = {};
+	/** Serializes saveData calls. Never rejects, so one failed save never blocks the next. */
+	private saveChain: Promise<void> = Promise.resolve();
+
+	/**
+	 * The one writer of data.json (CTRL-04, T-03-04). Appends a save to the chain; the
+	 * object is built when the save runs, so it always holds the newest pauses, and
+	 * either the given settings (a settings save) or the settings last written (a pause
+	 * save). The returned promise carries this save's own result or rejection.
+	 */
+	private persistAll(settings?: TimerPaneSettings): Promise<void> {
+		const result = this.saveChain.then(async () => {
+			const written = settings ? { ...settings } : this.fileSettings;
+			await this.saveData({
+				...this.extras,
+				completionStatus: written.completionStatus,
+				pauseRecordsVersion: PAUSE_RECORDS_VERSION,
+				pauseRecords: this.pauses?.serialize() ?? [],
+			});
+			this.fileSettings = written;
+		});
+		this.saveChain = result.then(
+			() => undefined,
+			() => undefined,
+		);
+		return result;
+	}
+
 	onload(): void {
 		const log = (message: string) => console.error("[tasknotes-timer-pane] " + message);
 		// Cancellable one-off timers; bridge.dispose() cancels any that are still pending.
@@ -31,7 +74,9 @@ export default class TaskNotesTimerPanePlugin extends Plugin {
 			schedule,
 		});
 		// The one pause store: plugin-scoped so pauses outlive the pane, shared by store and controller.
-		const pauses = new PauseStore({ log });
+		// Every pause change rewrites data.json with the current settings too.
+		const pauses = new PauseStore({ log, persist: () => this.persistAll() });
+		this.pauses = pauses;
 		const store = new TimerStore({ gateway: bridge, log, schedule, pauses });
 		// The one serial queue every pane write goes through.
 		const queue = new WriteQueue();
@@ -49,15 +94,19 @@ export default class TaskNotesTimerPanePlugin extends Plugin {
 
 		// Registered synchronously so Obsidian can restore a saved pane leaf (PANE-03).
 		this.registerView(VIEW_TYPE_TIMER_PANE, (leaf) => new TimerPaneView(leaf, { gateway: bridge, store, controller }));
-		this.settingsReady = this.loadData().then((data: unknown) => { this.paneSettings = loadSettings(data); pauses.load([]); })
-			.catch(() => { log("Loading timer pane settings failed; using defaults."); pauses.load([]); });
+		this.settingsReady = this.loadData().then((data: unknown) => {
+			this.paneSettings = loadSettings(data);
+			this.fileSettings = { ...this.paneSettings };
+			this.extras = extrasOf(data);
+			pauses.load(loadPauseRecords(data));
+		}).catch(() => { log("Loading timer pane settings failed; using defaults."); pauses.load([]); });
 		this.addSettingTab(new TimerPaneSettingTab(this.app, this, {
 			gateway: bridge,
 			getSettings: () => this.paneSettings,
 			ready: () => this.settingsReady,
 			saveSettings: async settings => {
 				await this.settingsReady;
-				await this.saveData(settings);
+				await this.persistAll(settings);
 				this.paneSettings = { ...settings };
 				await store.refreshNow();
 			},

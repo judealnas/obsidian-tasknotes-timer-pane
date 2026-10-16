@@ -83,6 +83,67 @@ export function pausedFromStop(input: PausedFromStopInput): PausedRecord {
 	};
 }
 
+/** At most this many stored items are examined (T-03-01). */
+const MAX_STORED_RECORDS = 1000;
+
+function plainRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function timestamp(value: unknown): value is string {
+	return typeof value === "string" && value.length > 0 && Number.isFinite(Date.parse(value));
+}
+
+/** One stored item as a record, or null when any required field is malformed. */
+function parseStoredRecord(value: unknown): PauseRecord | null {
+	if (!plainRecord(value)) return null;
+	if (typeof value.taskPath !== "string") return null;
+	const taskPath = normalizeTimerPath(value.taskPath);
+	if (taskPath === "") return null;
+	if (!timestamp(value.sessionStartedAt)) return null;
+	if (typeof value.accumulatedMs !== "number" || !Number.isFinite(value.accumulatedMs)) return null;
+	const accumulatedMs = Math.max(0, value.accumulatedMs);
+	const basename = taskPath.split("/").pop() ?? taskPath;
+	const title = typeof value.title === "string" ? value.title : basename.endsWith(".md") ? basename.slice(0, -".md".length) : basename;
+	const base = { taskPath, title, sessionStartedAt: value.sessionStartedAt, accumulatedMs };
+	if (value.state === "paused") {
+		if (!timestamp(value.pausedAt) || !timestamp(value.lastEntryStart)) return null;
+		return { state: "paused", ...base, pausedAt: value.pausedAt, lastEntryStart: value.lastEntryStart };
+	}
+	if (value.state === "running") {
+		if (!timestamp(value.entryStart)) return null;
+		return { state: "running", ...base, entryStart: value.entryStart };
+	}
+	return null;
+}
+
+/** When a record last changed: the pause for a paused record, the resume entry for a running one. */
+function newnessMs(record: PauseRecord): number {
+	return Date.parse(record.state === "paused" ? record.pausedAt : record.entryStart);
+}
+
+/**
+ * Pause records from untrusted data.json content (Sync, other devices, hand edits).
+ * Reads only pauseRecordsVersion and pauseRecords, never completionStatus. Returns []
+ * unless the version is PAUSE_RECORDS_VERSION and the records are an array; examines
+ * at most the first 1000 items; drops malformed items one by one; keeps the newest
+ * record per normalized path (a later item wins a tie). Never throws.
+ */
+export function loadPauseRecords(data: unknown): PauseRecord[] {
+	if (!plainRecord(data) || data.pauseRecordsVersion !== PAUSE_RECORDS_VERSION || !Array.isArray(data.pauseRecords)) return [];
+	const items = (data.pauseRecords as unknown[]).slice(0, MAX_STORED_RECORDS);
+	const byPath = new Map<string, PauseRecord>();
+	for (const item of items) {
+		const record = parseStoredRecord(item);
+		if (record === null) continue;
+		const existing = byPath.get(record.taskPath);
+		if (existing && newnessMs(existing) > newnessMs(record)) continue;
+		// Re-insert so the surviving record takes the later position.
+		byPath.delete(record.taskPath);
+		byPath.set(record.taskPath, record);
+	}
+	return [...byPath.values()];
+}
+
 /** Session value from stored timestamps, never counted ticks (D-08). */
 export function sessionValueMs(record: PauseRecord, nowMs: number): number {
 	if (record.state === "paused") return record.accumulatedMs;
