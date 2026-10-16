@@ -1,0 +1,121 @@
+TAP version 13
+1..17
+not ok 1 - tests/pauseResume.test.ts > Pause (CTRL-02) > pausing the only running card closes its entry once and keeps the card, frozen and paused # time=9.86ms
+    ---
+    error:
+        name: "TypeError"
+        message: "controller.pause is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseResume.test.ts:52:21"
+    ...
+not ok 2 - tests/pauseResume.test.ts > Pause (CTRL-02) > while paused, time passing never changes the paused Session value # time=1.14ms
+    ---
+    error:
+        name: "TypeError"
+        message: "controller.pause is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseResume.test.ts:52:21"
+    ...
+not ok 3 - tests/pauseResume.test.ts > Pause (CTRL-02) > a paused-only pane is not idle: the paused card is still shown # time=0.95ms
+    ---
+    error:
+        name: "TypeError"
+        message: "controller.pause is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseResume.test.ts:52:21"
+    ...
+not ok 4 - tests/pauseResume.test.ts > Pause (CTRL-02) > two tasks started at the same instant: pausing one stops only that one # time=1.00ms
+    ---
+    error:
+        name: "TypeError"
+        message: "controller.pause is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseResume.test.ts:52:21"
+    ...
+not ok 5 - tests/pauseResume.test.ts > Pause (CTRL-02) > TaskNotes reporting no active session is already-stopped: no pause record, no notice # time=0.92ms
+    ---
+    error:
+        name: "TypeError"
+        message: "controller.pause is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseResume.test.ts:52:21"
+    ...
+not ok 6 - tests/pauseResume.test.ts > Pause (CTRL-02) > a timer that vanished before its turn is already-stopped with no write # time=0.81ms
+    ---
+    error:
+        name: "TypeError"
+        message: "ctx.controller.pause is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseResume.test.ts:134:31"
+    ...
+not ok 7 - tests/pauseResume.test.ts > Pause (CTRL-02) > any other stop failure shows a plain pause notice and records nothing # time=0.70ms
+    ---
+    error:
+        name: "TypeError"
+        message: "controller.pause is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseResume.test.ts:52:21"
+    ...
+not ok 8 - tests/pauseResume.test.ts > Resume (CTRL-03) > resume starts the same task once and Session continues from the paused value # time=0.78ms
+    ---
+    error:
+        name: "TypeError"
+        message: "controller.pause is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseResume.test.ts:52:21"
+    ...
+not ok 9 - tests/pauseResume.test.ts > Resume (CTRL-03) > a zero-length gap continues from exactly the frozen value # time=0.87ms
+    ---
+    error:
+        name: "TypeError"
+        message: "controller.pause is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseResume.test.ts:52:21"
+    ...
+not ok 10 - tests/pauseResume.test.ts > Resume (CTRL-03) > pause, resume, pause again: both closed segments are summed once, the first start is kept # time=0.91ms
+    ---
+    error:
+        name: "TypeError"
+        message: "controller.pause is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseResume.test.ts:52:21"
+    ...
+not ok 11 - tests/pauseResume.test.ts > Resume (CTRL-03) > resuming onto the Pomodoro's own entry shows the Pomodoro notice and writes nothing # time=0.66ms
+    ---
+    error:
+        name: "TypeError"
+        message: "controller.pause is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseResume.test.ts:52:21"
+    ...
+not ok 12 - tests/pauseResume.test.ts > Resume (CTRL-03) > an already-active start error is already-running with no notice; the next refresh converts the record # time=3.84ms
+    ---
+    error:
+        name: "TypeError"
+        message: "controller.pause is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseResume.test.ts:52:21"
+    ...
+not ok 13 - tests/pauseResume.test.ts > Resume (CTRL-03) > any other start failure shows a plain resume notice and keeps the pause # time=0.75ms
+    ---
+    error:
+        name: "TypeError"
+        message: "controller.pause is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseResume.test.ts:52:21"
+    ...
+not ok 14 - tests/pauseResume.test.ts > Pauses and other timers (D-03, D-11) > starting another task from the pane leaves the pause untouched # time=0.68ms
+    ---
+    error:
+        name: "TypeError"
+        message: "controller.pause is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseResume.test.ts:52:21"
+    ...
+not ok 15 - tests/pauseResume.test.ts > Pauses and other timers (D-03, D-11) > starting another task from TaskNotes leaves the pause untouched # time=0.59ms
+    ---
+    error:
+        name: "TypeError"
+        message: "controller.pause is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseResume.test.ts:52:21"
+    ...
+not ok 16 - tests/pauseResume.test.ts > Pauses and other timers (D-03, D-11) > starting the paused task from TaskNotes resumes its card, Session continuing # time=0.50ms
+    ---
+    error:
+        name: "TypeError"
+        message: "controller.pause is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseResume.test.ts:52:21"
+    ...
+not ok 17 - tests/pauseResume.test.ts > Pauses and other timers (D-03, D-11) > a resumed timer stopped elsewhere loses its record and its card # time=0.46ms
+    ---
+    error:
+        name: "TypeError"
+        message: "controller.pause is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseResume.test.ts:52:21"
+    ...

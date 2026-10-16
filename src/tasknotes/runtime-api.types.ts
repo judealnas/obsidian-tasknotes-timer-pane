@@ -127,6 +127,8 @@ export interface TaskNotesRuntimeApiV1 {
 
 	readonly tasks?: {
 		list(): Promise<TaskInfo[]>;
+		/** 4.13.8: null when the path is not a cached task (also while TaskNotes' cache warms). */
+		get?(path: string): Promise<TaskInfo | null>;
   complete?(path: string, options?: CompleteTaskOptions, context?: TaskNotesMutationContext): Promise<TaskInfo>;
 	};
 	readonly catalog?: {

@@ -1,10 +1,16 @@
 // Fake TaskNotesGateway for store and controller tests: no TaskNotes api, just the
 // project-shaped seam the store and view see.
 import { errorMessage } from "../../src/model/errors";
+import type { Ownership } from "../../src/model/pomodoroOwnership";
 import type { BridgeState, TaskNotesGateway } from "../../src/tasknotes/TaskNotesBridge";
-import type { ActiveTimeEntry, TaskNotesMutationContext } from "../../src/tasknotes/runtime-api.types";
+import type { ActiveTimeEntry, TaskInfo, TaskNotesMutationContext } from "../../src/tasknotes/runtime-api.types";
 
 export interface GatewayStopCall {
+	taskPath: string;
+	context: TaskNotesMutationContext;
+}
+
+export interface GatewayStartCall {
 	taskPath: string;
 	context: TaskNotesMutationContext;
 }
@@ -31,6 +37,12 @@ export interface FakeGateway extends TaskNotesGateway {
 	readonly stopCalls: GatewayStopCall[];
 	/** Makes every later `stop()` reject with `error`; null restores success. */
 	failStopWith(error: unknown): void;
+	/** Every `start()` call so far, in order. */
+	readonly startCalls: GatewayStartCall[];
+	/** What `getTask(path)` resolves to; an unset path resolves null. */
+	setTask(path: string, task: TaskInfo | null): void;
+	/** What `pomodoroOwnership()` resolves to (default readable, no owner). */
+	setOwnership(ownership: Ownership): void;
 	/** Every `showTaskMenu()` call that TaskNotes took, in order. */
 	readonly menuCalls: GatewayMenuCall[];
 	/** Whether `showTaskMenu()` reports TaskNotes' menu as available (default true). */
@@ -45,6 +57,9 @@ export function createFakeGateway(initial: BridgeState = { kind: "ready" }): Fak
 	let probeCalls = 0;
 	let stopFailure: { error: unknown } | null = null;
 	const stopCalls: GatewayStopCall[] = [];
+	const startCalls: GatewayStartCall[] = [];
+	const taskFixtures = new Map<string, TaskInfo | null>();
+	let ownership: Ownership = { readable: true, owner: null };
 	let taskMenuAvailable = true;
 	const menuCalls: GatewayMenuCall[] = [];
 	const stateListeners = new Set<(state: BridgeState) => void>();
@@ -62,8 +77,12 @@ export function createFakeGateway(initial: BridgeState = { kind: "ready" }): Fak
 		statuses: () => Promise.resolve([]),
 		completionAvailable: () => state.kind === "ready",
 		completeTask: () => Promise.resolve(),
-		start: () => Promise.resolve(),
-		pomodoroOwnership: () => Promise.resolve({ readable: true, owner: null }),
+		start(taskPath, _options, context) {
+			startCalls.push({ taskPath, context });
+			return Promise.resolve();
+		},
+		pomodoroOwnership: () => Promise.resolve(structuredClone(ownership)),
+		getTask: (path) => Promise.resolve(structuredClone(taskFixtures.get(path) ?? null)),
 		getState: () => state,
 		onState(listener) {
 			stateListeners.add(listener);
@@ -95,7 +114,13 @@ export function createFakeGateway(initial: BridgeState = { kind: "ready" }): Fak
 				const { error } = stopFailure;
 				return Promise.reject(error instanceof Error ? error : new Error(String(error)));
 			}
-			return Promise.resolve();
+			// Like TaskNotes: the task as saved, with the first open entry on the path now closed.
+			const open = fixture.find((item) => item.taskPath === taskPath && !item.entry.endTime);
+			const endTime = new Date().toISOString();
+			const timeEntries = (open?.task.timeEntries ?? (open ? [open.entry] : [])).map((entry) =>
+				open && entry.startTime === open.entry.startTime && !entry.endTime ? { ...entry, endTime } : { ...entry },
+			);
+			return Promise.resolve({ title: open?.task.title ?? taskPath, status: open?.task.status ?? "open", path: taskPath, archived: false, timeEntries });
 		},
 		normalizeError: (error) => ({ code: null, message: errorMessage(error) }),
 		showTaskMenu(taskPath, event) {
@@ -108,6 +133,13 @@ export function createFakeGateway(initial: BridgeState = { kind: "ready" }): Fak
 			taskMenuAvailable = available;
 		},
 		stopCalls,
+		startCalls,
+		setTask(path, task) {
+			taskFixtures.set(path, task);
+		},
+		setOwnership(next) {
+			ownership = next;
+		},
 		failStopWith(error) {
 			stopFailure = error === null ? null : { error };
 		},

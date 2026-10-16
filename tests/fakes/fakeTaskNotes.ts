@@ -43,7 +43,7 @@ export interface FakeTaskNotesOptions {
  tasks?: TaskInfo[];
  statuses?: TaskStatus[];
  pomodoro?: PomodoroState;
- omitMethods?: Array<"tasks.list" | "tasks.complete" | "catalog.statuses" | "time.start" | "pomodoro.status">;
+ omitMethods?: Array<"tasks.list" | "tasks.get" | "tasks.complete" | "catalog.statuses" | "time.start" | "pomodoro.status">;
 	/** False builds an api with no `ui` namespace, like TaskNotes 4.10. Default true. */
 	ui?: boolean;
 }
@@ -133,7 +133,11 @@ export function createFakeTaskNotes(options: FakeTaskNotesOptions = {}): FakeTas
    if (startFailure !== null) return Promise.reject(new Error(startFailure));
 			if (fixture.some(item => item.taskPath === path && !item.entry.endTime)) return Promise.reject(new Error("Task is already being timed"));
 			const known = tasks.find(task => task.path === path);
-   const item = makeActiveEntry({ taskPath: path, startTime: new Date().toISOString(), ...(known ? {title: known.title, status: known.status} : {}) });
+			// A restart on the same task keeps its earlier (closed) entries, as TaskNotes does.
+			const previous = fixture.filter(item => item.taskPath === path);
+			const priorEntries = structuredClone(previous[previous.length - 1]?.task.timeEntries ?? known?.timeEntries ?? []);
+			fixture = fixture.filter(item => item.taskPath !== path);
+   const item = makeActiveEntry({ taskPath: path, startTime: new Date().toISOString(), timeEntries: priorEntries, ...(known ? {title: known.title, status: known.status} : {}) });
    if (known) { item.task = { ...structuredClone(known), timeEntries: item.task.timeEntries ?? [] }; }
    else tasks.push(item.task);
 			fixture.push(item);
@@ -207,6 +211,12 @@ export function createFakeTaskNotes(options: FakeTaskNotesOptions = {}): FakeTas
 		hasCapability: (capability: string) => capabilities.includes(capability),
 		tasks: {
    list: () => readFailure !== null ? Promise.reject(new Error(readFailure)) : Promise.resolve(structuredClone(tasks)),
+   get(path) {
+    if (readFailure !== null) return Promise.reject(new Error(readFailure));
+    // The live copy: a task's newest active() item carries its current entries.
+    const live = [...fixture].reverse().find(item => item.taskPath === path)?.task ?? tasks.find(task => task.path === path);
+    return Promise.resolve(live ? structuredClone(live) : null);
+   },
    complete(path, options, context) {
     const status = options?.status ?? statuses.find(status => status.isCompleted)?.value;
     completeCalls.push({path, status, ...(context ? {context} : {})});

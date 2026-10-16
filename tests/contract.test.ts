@@ -130,6 +130,10 @@ describe("Phase 2 public contract (TaskNotes 4.13.8)", () => {
   expectTypeOf<NonNullable<NonNullable<Api["tasks"]>["complete"]>>().returns.toEqualTypeOf<Promise<TaskInfo>>();
   expectTypeOf<CompleteTaskOptions>().toEqualTypeOf<{ status?: string }>();
  });
+ test("tasks.get reads one task or null (Phase 3 paused cards)", () => {
+  expectTypeOf<NonNullable<NonNullable<Api["tasks"]>["get"]>>().toEqualTypeOf<(path: string) => Promise<TaskInfo | null>>();
+  expectTypeOf<undefined>().toExtend<NonNullable<Api["tasks"]>["get"]>();
+ });
  test("picker fields and status catalog", () => {
   expectTypeOf<Pick<TaskInfo, "due" | "priority" | "contexts" | "projects" | "tags">>().toEqualTypeOf<{due?: string; priority?: string; contexts?: string[]; projects?: string[]; tags?: string[]}>();
   expectTypeOf<TaskStatus["value"]>().toEqualTypeOf<string>();
