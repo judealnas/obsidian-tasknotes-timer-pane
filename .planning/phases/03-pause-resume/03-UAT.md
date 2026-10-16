@@ -3,7 +3,7 @@ status: complete
 phase: 03-pause-resume
 source: [03-01-SUMMARY.md, 03-02-SUMMARY.md, 03-03-SUMMARY.md, 03-04-SUMMARY.md]
 started: 2026-10-16T13:59:33Z
-updated: 2026-10-16T17:43:32.103Z
+updated: 2026-10-16T17:45:14.137Z
 ---
 
 ## Current Test
@@ -93,7 +93,7 @@ source: user
 ### 15. Can't-check Pomodoro line
 expected: If Pomodoro ownership can be made unreadable (e.g. disabling the Pomodoro feature) while TaskNotes is ready, a muted line appears under the header saying the Pomodoro can't be checked, and Pause all and Stop all are disabled. The line is absent in normal operation.
 result: skipped
-reason: "User reported: Skip (no reason given)"
+reason: "Deferred follow-up: user chose to defer (Pomodoro ownership could not be made unreadable in the dev vault)"
 
 ### 16. Picker Pomodoro tag and start guard
 expected: With a live Pomodoro work session on a task, open Start task: that task's row shows a muted "Pomodoro" tag. Choosing it shows the Notice "{title} is being timed by Pomodoro." and writes no new entry. After pausing the Pomodoro in TaskNotes, the tag is gone on the next opening.
@@ -186,6 +186,12 @@ issues: 0
 pending: 0
 skipped: 1
 blocked: 0
+
+## Deferred Follow-Ups
+
+- test: 15
+  idea: "Verify the muted can't-check Pomodoro line and disabled Pause all/Stop all when Pomodoro ownership is unreadable"
+  deferred_at: 2026-10-16
 
 ## Gaps
 
