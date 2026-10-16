@@ -508,3 +508,59 @@ test("an external same-task start winning after recheck is already-running witho
  expect(ctx.tn.stopCalls).toEqual([]); expect(ctx.notify).toHaveBeenCalledWith("Report is already being timed.");
  expect(ctx.controller.isBusy()).toBe(false);
 });
+
+// ---- plan 03-04: Start refuses the Pomodoro's task, re-checked inside the queue (D-17) ----
+describe("Start Pomodoro guard (D-17)", () => {
+	function pomodoroOn(taskPath: string, startTime: string) {
+		return { isRunning: true, timeRemaining: 1500, currentSession: { taskPath, startTime, timeTrackingStartTime: startTime, type: "work" as const, completed: false } };
+	}
+	test("start on the Pomodoro's task writes nothing and explains, before the already-running check", async () => {
+		const ctx = await setup([report()]);
+		ctx.tn.setPomodoro(pomodoroOn(REPORT_PATH, REPORT_START));
+		expect(await ctx.controller.start({ taskPath: REPORT_PATH, title: "Write quarterly report" })).toBe("pomodoro");
+		expect(ctx.tn.startCalls).toHaveLength(0);
+		expect(ctx.tn.stopCalls).toEqual([]);
+		expect(ctx.notify).toHaveBeenCalledTimes(1);
+		expect(ctx.notify).toHaveBeenCalledWith("Write quarterly report is being timed by Pomodoro.");
+		expect(ctx.controller.isBusy()).toBe(false);
+	});
+	test("an owner path written differently still matches the target", async () => {
+		const ctx = await setup([report()]);
+		ctx.tn.setPomodoro(pomodoroOn("./" + REPORT_PATH, REPORT_START));
+		expect(await ctx.controller.start({ taskPath: REPORT_PATH, title: "Report" })).toBe("pomodoro");
+		expect(ctx.tn.startCalls).toHaveLength(0);
+	});
+	test("a Pomodoro on another task does not block the start", async () => {
+		const ctx = await setup([report()]);
+		ctx.tn.setPomodoro(pomodoroOn(REPORT_PATH, REPORT_START));
+		expect(await ctx.controller.start({ taskPath: EMAIL_PATH, title: "Email" })).toBe("started");
+		expect(ctx.tn.startCalls).toHaveLength(1);
+	});
+	test("the Pomodoro ending between picker open and choice lets the start proceed", async () => {
+		const ctx = await setup([]);
+		// The picker saw the Pomodoro on REPORT; by the time the user chose, it had ended.
+		ctx.tn.setPomodoro({ isRunning: false, timeRemaining: 0 });
+		expect(await ctx.controller.start({ taskPath: REPORT_PATH, title: "Report" })).toBe("started");
+		expect(ctx.tn.startCalls).toHaveLength(1);
+		expect(ctx.notify).not.toHaveBeenCalled();
+	});
+	test("a paused Pomodoro owns no entry, so its task can be started (Open Question 1)", async () => {
+		const ctx = await setup([]);
+		ctx.tn.setPomodoro({ isRunning: false, timeRemaining: 900, currentSession: { taskPath: REPORT_PATH, startTime: REPORT_START, timeTrackingStartTime: REPORT_START, type: "work", completed: false } });
+		expect(await ctx.controller.start({ taskPath: REPORT_PATH, title: "Report" })).toBe("started");
+		expect(ctx.tn.startCalls).toHaveLength(1);
+	});
+	test("ownership unreadable inside the queue falls back to the Phase 2 already-running check", async () => {
+		const ctx = await setup([report()]);
+		vi.spyOn(ctx.bridge, "pomodoroOwnership").mockRejectedValue(new Error("pomodoro down"));
+		expect(await ctx.controller.start({ taskPath: REPORT_PATH, title: "Report" })).toBe("already-running");
+		expect(ctx.tn.startCalls).toHaveLength(0);
+		expect(ctx.notify).toHaveBeenCalledWith("Report is already being timed.");
+	});
+	test("ownership unreadable inside the queue still starts a task with no open entry", async () => {
+		const ctx = await setup([]);
+		vi.spyOn(ctx.bridge, "pomodoroOwnership").mockResolvedValue({ readable: false });
+		expect(await ctx.controller.start({ taskPath: REPORT_PATH, title: "Report" })).toBe("started");
+		expect(ctx.tn.startCalls).toHaveLength(1);
+	});
+});

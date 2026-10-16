@@ -10,8 +10,9 @@ class Element {
  win = { Event, createDiv: () => new Element() };
  doc = { win: this.win };
  addClass(): void {}
- createDiv(options?: { text?: string }): Element { const el = new Element(); el.textContent = options?.text ?? ""; this.children.push(el); return el; }
- createSpan(options?: { text?: string }): Element { return this.createDiv(options); }
+ cls: unknown = undefined;
+ createDiv(options?: { text?: string; cls?: unknown }): Element { const el = new Element(); el.textContent = options?.text ?? ""; el.cls = options?.cls; this.children.push(el); return el; }
+ createSpan(options?: { text?: string; cls?: unknown }): Element { return this.createDiv(options); }
  addEventListener(name: string, fn: (event: MouseEvent) => void): void { this.listeners.set(name, fn); }
  dispatchEvent(): boolean { return true; }
  querySelector(): Element | null { return this.children[0] ?? null; }
@@ -88,4 +89,77 @@ test.each([false, true])("picker read failure closes and releases guards when No
  expect(closed).toHaveBeenCalledTimes(1); expect(host.notices).toBe(1);
  expect(modal.getSuggestions("")).toEqual([]);
  host.throwNotice = false; errorLog.mockRestore();
+});
+
+// ---- plan 03-04: the Pomodoro row tag (D-17) ----
+describe("Pomodoro row tag (D-17)", () => {
+ const other = { title: "Other", path: "Other.md", status: "open", archived: false };
+ beforeEach(() => { host.loaded = 0; host.unloaded = 0; host.notices = 0; host.throwNotice = false; host.renders = []; vi.stubGlobal("createDiv", () => new Element()); });
+ function open(ownership: () => Promise<import("../src/model/pomodoroOwnership").Ownership>) {
+  const gateway = createFakeGateway();
+  gateway.listTasks = () => Promise.resolve([task, other]);
+  const read = vi.fn(ownership);
+  gateway.pomodoroOwnership = read;
+  const closed = vi.fn();
+  const start = vi.fn(() => Promise.resolve("started" as const));
+  const modal = new TaskPickerModal({} as App, gateway, { start, isBusy: () => false }, closed);
+  return { modal, gateway, read, closed, start };
+ }
+ function tags(modal: TaskPickerModal, row: typeof task | typeof other): Element[] {
+  const el = new Element();
+  modal.renderSuggestion(row, el as unknown as HTMLElement);
+  return el.children.filter(child => child.cls === "tntp-picker-pomodoro");
+ }
+ test("a readable owner on Task.md tags only that row with a muted Pomodoro span", async () => {
+  const { modal } = open(() => Promise.resolve({ readable: true, owner: { taskPath: "./Task.md", startTime: "2026-10-14T09:00:00.000Z" } }));
+  modal.onOpen(); await flush();
+  const tagged = tags(modal, task);
+  expect(tagged).toHaveLength(1);
+  expect(tagged[0]!.textContent).toBe("Pomodoro");
+  expect(tags(modal, other)).toHaveLength(0);
+ });
+ test("no owner tags no row", async () => {
+  const { modal } = open(() => Promise.resolve({ readable: true, owner: null }));
+  modal.onOpen(); await flush();
+  expect(tags(modal, task)).toHaveLength(0);
+ });
+ test.each([
+  ["unreadable", () => Promise.resolve({ readable: false } as const)],
+  ["rejected", () => Promise.reject(new Error("pomodoro down"))],
+ ])("%s ownership tags no row and the task list still loads", async (_label, ownership) => {
+  const { modal, closed } = open(ownership);
+  modal.onOpen(); await flush();
+  expect(closed).not.toHaveBeenCalled();
+  expect(host.notices).toBe(0);
+  expect(modal.getSuggestions("").map(row => row.path)).toEqual(expect.arrayContaining(["Task.md", "Other.md"]));
+  expect(tags(modal, task)).toHaveLength(0);
+ });
+ test("ownership is read once per opening, together with the task list", async () => {
+  const { modal, read } = open(() => Promise.resolve({ readable: true, owner: null }));
+  modal.onOpen(); await flush();
+  modal.getSuggestions("t"); modal.getSuggestions("ta");
+  expect(read).toHaveBeenCalledTimes(1);
+  modal.onClose(); modal.onOpen(); await flush();
+  expect(read).toHaveBeenCalledTimes(2);
+ });
+ test("a close before the ownership read resolves discards it", async () => {
+  let resolve!: (value: { readable: true; owner: { taskPath: string; startTime: string } }) => void;
+  let calls = 0;
+  const { modal } = open(() => {
+   calls++;
+   if (calls === 1) return new Promise(r => { resolve = r; });
+   return new Promise(() => undefined);
+  });
+  modal.onOpen(); modal.onClose();
+  resolve({ readable: true, owner: { taskPath: "Task.md", startTime: "2026-10-14T09:00:00.000Z" } });
+  await flush();
+  modal.onOpen(); await flush();
+  expect(tags(modal, task)).toHaveLength(0);
+ });
+ test("choosing the tagged row still calls controller.start, which decides", async () => {
+  const { modal, start } = open(() => Promise.resolve({ readable: true, owner: { taskPath: "Task.md", startTime: "2026-10-14T09:00:00.000Z" } }));
+  modal.onOpen(); await flush();
+  modal.onChooseSuggestion(task);
+  expect(start).toHaveBeenCalledWith({ taskPath: "Task.md", title: "Task" });
+ });
 });
