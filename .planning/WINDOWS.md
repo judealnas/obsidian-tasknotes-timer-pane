@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 4
-waived_count: 3
+open_count: 0
+waived_count: 7
 fixed_count: 2
 total_count: 9
-last_updated: 2026-10-16T02:57:20.503Z
+last_updated: 2026-10-16T05:09:05.699Z
 ---
 
 # Broken Windows Ledger
@@ -15,10 +15,10 @@ last_updated: 2026-10-16T02:57:20.503Z
 
 | id | phase | kind | file | line | description | status | reason | recorded_at | resolved_at |
 |----|-------|------|------|------|-------------|--------|--------|-------------|-------------|
-| 1 | 01 | unrun-verify | manifest.json |  | 01-01 Task 2 human-check (plugin listed as TaskNotes Timer Pane 0.1.0 and enables without console error in dev-vault) deferred to end-of-phase UAT section 0 (plan 01-04) | open |  | 2026-10-15T02:05:05.426Z |  |
-| 2 | 01 | unrun-verify | src/ui/TimerPaneView.ts |  | 01-02 Task 2 human-check (ribbon/command reveal, restart restore, title link and Ctrl/Cmd-click, +N more running tooltip, 100:00:00 clock at minimum sidebar width) deferred to end-of-phase UAT (plan 01-04, D-13) | open |  | 2026-10-15T02:18:29.745Z |  |
-| 3 | 01 | unrun-verify | src/state/TimerController.ts |  | 01-05 Task 1 human-check (Stop while a second timer runs, race and simulated-failure Notice, archive-flag timer stop, TaskNotes completion auto-stop vs YAML-edited done task) deferred to end-of-phase UAT sections 6-7 (D-13) | open |  | 2026-10-15T02:46:01.709Z |  |
-| 4 | 01 | unrun-verify | src/ui/TimerPaneView.ts |  | Quick 261014-whq human-check (TaskNotes chip in card titles, chip click/right-click ownership, chip refresh after status/priority change, plain-link fallback with overlay off, no console errors on card removal or pane close) must be run by the user in Obsidian desktop | open |  | 2026-10-15T03:49:39.773Z |  |
+| 1 | 01 | unrun-verify | manifest.json |  | 01-01 Task 2 human-check (plugin listed as TaskNotes Timer Pane 0.1.0 and enables without console error in dev-vault) deferred to end-of-phase UAT section 0 (plan 01-04) | waived | Outstanding human-only verification waived under the user's standing no-intervention instruction. Observed results remain in 01-UAT.md; skipped checks and limits remain unverified in 01-VERIFICATION.md. | 2026-10-15T02:05:05.426Z | 2026-10-16T05:09:02.783Z |
+| 2 | 01 | unrun-verify | src/ui/TimerPaneView.ts |  | 01-02 Task 2 human-check (ribbon/command reveal, restart restore, title link and Ctrl/Cmd-click, +N more running tooltip, 100:00:00 clock at minimum sidebar width) deferred to end-of-phase UAT (plan 01-04, D-13) | waived | Outstanding human-only verification waived under the user's standing no-intervention instruction. Observed results remain in 01-UAT.md; skipped checks and limits remain unverified in 01-VERIFICATION.md. | 2026-10-15T02:18:29.745Z | 2026-10-16T05:09:03.618Z |
+| 3 | 01 | unrun-verify | src/state/TimerController.ts |  | 01-05 Task 1 human-check (Stop while a second timer runs, race and simulated-failure Notice, archive-flag timer stop, TaskNotes completion auto-stop vs YAML-edited done task) deferred to end-of-phase UAT sections 6-7 (D-13) | waived | Outstanding human-only verification waived under the user's standing no-intervention instruction. Observed results remain in 01-UAT.md; skipped checks and limits remain unverified in 01-VERIFICATION.md. | 2026-10-15T02:46:01.709Z | 2026-10-16T05:09:04.583Z |
+| 4 | 01 | unrun-verify | src/ui/TimerPaneView.ts |  | Quick 261014-whq human-check (TaskNotes chip in card titles, chip click/right-click ownership, chip refresh after status/priority change, plain-link fallback with overlay off, no console errors on card removal or pane close) must be run by the user in Obsidian desktop | waived | Outstanding human-only verification waived under the user's standing no-intervention instruction. Observed results remain in 01-UAT.md; skipped checks and limits remain unverified in 01-VERIFICATION.md. | 2026-10-15T03:49:39.773Z | 2026-10-16T05:09:05.699Z |
 | 5 | 02 | unrun-verify | src/ui/TaskPickerModal.ts |  | 02-01 live picker UAT pending: chip/status/due clicks, arrows/Enter/Escape, slow render close/reopen, search fields and completed ordering. | waived | User explicitly requested skipping tests requiring human intervention. Native Phase 2 checks were not performed; retain skipped evidence in 02-UAT.md. | 2026-10-15T17:50:06.915Z | 2026-10-16T02:57:17.827Z |
 | 6 | 02 | lint-warning | eslint.config.mts |  | npm run check blocked by pre-existing nested .claude/worktrees/effort-repo-local project-service errors; project lint excluding that checkout passes with zero warnings. | fixed |  | 2026-10-15T17:50:07.970Z | 2026-10-16T01:31:57.127Z |
 | 7 | 02 | stub | src/ui/TimerPaneView.ts |  | Stop all is intentionally present but disabled in 02-01; plan 02-02 implements the action. | fixed |  | 2026-10-15T17:50:08.907Z | 2026-10-16T01:42:53.911Z |
@@ -34,10 +34,10 @@ last_updated: 2026-10-16T02:57:20.503Z
     "file": "manifest.json",
     "line": null,
     "description": "01-01 Task 2 human-check (plugin listed as TaskNotes Timer Pane 0.1.0 and enables without console error in dev-vault) deferred to end-of-phase UAT section 0 (plan 01-04)",
-    "status": "open",
-    "reason": "",
+    "status": "waived",
+    "reason": "Outstanding human-only verification waived under the user's standing no-intervention instruction. Observed results remain in 01-UAT.md; skipped checks and limits remain unverified in 01-VERIFICATION.md.",
     "recorded_at": "2026-10-15T02:05:05.426Z",
-    "resolved_at": null,
+    "resolved_at": "2026-10-16T05:09:02.783Z",
     "milestone": null
   },
   {
@@ -47,10 +47,10 @@ last_updated: 2026-10-16T02:57:20.503Z
     "file": "src/ui/TimerPaneView.ts",
     "line": null,
     "description": "01-02 Task 2 human-check (ribbon/command reveal, restart restore, title link and Ctrl/Cmd-click, +N more running tooltip, 100:00:00 clock at minimum sidebar width) deferred to end-of-phase UAT (plan 01-04, D-13)",
-    "status": "open",
-    "reason": "",
+    "status": "waived",
+    "reason": "Outstanding human-only verification waived under the user's standing no-intervention instruction. Observed results remain in 01-UAT.md; skipped checks and limits remain unverified in 01-VERIFICATION.md.",
     "recorded_at": "2026-10-15T02:18:29.745Z",
-    "resolved_at": null,
+    "resolved_at": "2026-10-16T05:09:03.618Z",
     "milestone": null
   },
   {
@@ -60,10 +60,10 @@ last_updated: 2026-10-16T02:57:20.503Z
     "file": "src/state/TimerController.ts",
     "line": null,
     "description": "01-05 Task 1 human-check (Stop while a second timer runs, race and simulated-failure Notice, archive-flag timer stop, TaskNotes completion auto-stop vs YAML-edited done task) deferred to end-of-phase UAT sections 6-7 (D-13)",
-    "status": "open",
-    "reason": "",
+    "status": "waived",
+    "reason": "Outstanding human-only verification waived under the user's standing no-intervention instruction. Observed results remain in 01-UAT.md; skipped checks and limits remain unverified in 01-VERIFICATION.md.",
     "recorded_at": "2026-10-15T02:46:01.709Z",
-    "resolved_at": null,
+    "resolved_at": "2026-10-16T05:09:04.583Z",
     "milestone": null
   },
   {
@@ -73,10 +73,10 @@ last_updated: 2026-10-16T02:57:20.503Z
     "file": "src/ui/TimerPaneView.ts",
     "line": null,
     "description": "Quick 261014-whq human-check (TaskNotes chip in card titles, chip click/right-click ownership, chip refresh after status/priority change, plain-link fallback with overlay off, no console errors on card removal or pane close) must be run by the user in Obsidian desktop",
-    "status": "open",
-    "reason": "",
+    "status": "waived",
+    "reason": "Outstanding human-only verification waived under the user's standing no-intervention instruction. Observed results remain in 01-UAT.md; skipped checks and limits remain unverified in 01-VERIFICATION.md.",
     "recorded_at": "2026-10-15T03:49:39.773Z",
-    "resolved_at": null,
+    "resolved_at": "2026-10-16T05:09:05.699Z",
     "milestone": null
   },
   {

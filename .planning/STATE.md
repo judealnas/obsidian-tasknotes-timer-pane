@@ -3,7 +3,7 @@ gsd_state_version: "1.0"
 current_phase: 2
 current_phase_name: Start, Switch & Complete
 status: completed
-stopped_at: Phase 2 accepted after user desktop verification
+stopped_at: Phase 1 verification records reconciled; Phase 2 remains accepted
 last_updated: "2026-10-16T04:55:07.743Z"
 last_activity: 2026-10-16
 last_activity_desc: Phase 2 complete; all desktop checks accepted by user
@@ -71,6 +71,8 @@ Progress: [███░░░░░░░] 33%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [Phase 01 reconciliation 2026-10-16]: Added the missing canonical verification and security reports on gsd/verification-reconciliation. Regression suite: 216 tests passed. Five native checks remain skipped under the no-human-intervention instruction; the accepted timing discrepancy and two enforcement-test evidence limits remain documented. Phase 1 is implementation-complete but not fully verified; no user response or fix work is requested.
+
 - [Verification policy 2026-10-15]: User requested no human intervention. Skip manual Phase 2 tests with reasons, preserve automated evidence, and never count skipped checks as observed passes. Canonical phase verification remains human_needed because the installed completion predicate blocks ordinary skips; no user test response is awaited.
 
 - [Init]: Integrate in-process through TaskNotes Runtime API v1 only (TaskNotes >= 4.10.0), behind one bridge. Write only through `api.time.start`/`stop`. Never use internals.
@@ -126,5 +128,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-10-16
-Stopped at: Phase 2 complete; Phase 1 historical verification debt remains recorded separately
+Stopped at: Phase 1 records reconciled with explicit evidence limits; Phase 2 complete
 Resume file: None

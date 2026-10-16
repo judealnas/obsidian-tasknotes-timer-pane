@@ -3,14 +3,19 @@ status: partial
 phase: 01-live-timer-pane
 source: [01-01-SUMMARY.md, 01-02-SUMMARY.md, 01-03-SUMMARY.md, 01-04-SUMMARY.md, 01-05-SUMMARY.md]
 started: 2026-10-15T16:53:50.595Z
-updated: 2026-10-15T17:26:54.049Z
+updated: 2026-10-16T05:03:34.660Z
 ---
 
 ## Current Test
 
-[testing paused — 4 live tests blocked; 1 skipped test remains unverified]
+[reconciliation complete; no user action requested; five live checks skipped and one minor discrepancy accepted unchanged]
 
 ## Session Notes
+
+### Reconciliation 2026-10-16T05:03:34.660Z
+
+All five implementation plans remain complete and were not rerun. The current regression suite passed 216 tests in 10 files. Previously blocked live checks 19–22 are now skipped under the user's standing no-human-intervention instruction; test 18 remains skipped. Test 7 remains the user-accepted minor timing discrepancy, not a new fix request and not a fabricated pass. Later Phase 2 desktop confirmations are recorded in 02-UAT.md and are not silently substituted for unrelated Phase 1 checks. Historical notes below describe the earlier session.
+
 
 Manual checks run only in the repository dev-vault. Current multi-card and task-chip UI supersedes old single-card, +N-more, and Tracking-row expectations in the Phase 1 summaries/checklist. Automated passes below are inherited from recorded SUMMARY coverage, not a fresh test run. No native Obsidian UI was auto-verified. All five bounded plan commit counts reconcile with Git history. Canonical VERIFICATION.md is still missing; UAT alone will not mark the phase complete.
 
@@ -107,27 +112,23 @@ reason: "User requested skip; live race not verified."
 
 ### 19. Stop failure and recovery
 expected: Only in dev-vault: save the original public api.time.stop in the dev console, temporarily replace it with a function returning Promise.reject(new Error("Simulated failure")), then click Stop timer. A Notice explains that the timer could not be stopped, includes Simulated failure, and appears once; the button returns to Stop timer and is usable, while timing continues. Restore the original method immediately, or disable/re-enable TaskNotes, then verify normal Stop works.
-result: blocked
-blocked_by: third-party
-reason: "Native Obsidian button/Notice/recovery cannot be observed: no usable CLI or debugging endpoint, no Hot Reload plugin, and native UI automation unavailable. Automated controller tests verify one failure Notice and queue survival; rendered busy-button recovery remains unverified."
+result: skipped
+reason: "User requested no human intervention. Previously blocked desktop check deliberately skipped; existing automated evidence does not establish native behavior."
 
 ### 20. Archived timers are ordinary cards
 expected: Start a disposable task timer, archive it using TaskNotes, then start another task timer. Both remain as normal cards without a special archive label; the pane stops nothing by itself. TaskNotes status bar may hide the archived task. Its pane Stop button still stops it with one click. Unarchive or restore the seed afterward.
-result: blocked
-blocked_by: third-party
-reason: "Live TaskNotes Archive action and rendered cards cannot be controlled/observed with available tools. Automated integration tests verify archived and done timers remain running without a click and an archived timer stops on request."
+result: skipped
+reason: "User requested no human intervention. Previously blocked desktop check deliberately skipped; existing automated evidence does not establish native behavior."
 
 ### 21. Completion follows TaskNotes auto-stop
 expected: Note TaskNotes auto-stop time tracking setting, enable it for this check, start a timer, then complete the task through TaskNotes UI. TaskNotes stops the timer and the pane follows within about 1 second with no extra Notice. Restore the setting afterward.
-result: blocked
-blocked_by: third-party
-reason: "TaskNotes completion UI and auto-stop setting cannot be exercised in the running application with available tools. Unit tests using fake TaskNotes do not prove third-party auto-stop behavior."
+result: skipped
+reason: "User requested no human intervention. Previously blocked desktop check deliberately skipped; existing automated evidence does not establish native behavior."
 
 ### 22. Hand-edited completion does not stop timing
 expected: On a disposable task with a running timer, change its status to done in YAML and save. The timer keeps running and the pane shows its card normally; the pane adds no automatic stop. Stop it from the pane and restore the task afterward.
-result: blocked
-blocked_by: third-party
-reason: "The file can be edited, but live TaskNotes state and pane response cannot be observed with available tools, so no unobservable mutation was made. Automated integration tests verify done-status timers remain running without a stop click."
+result: skipped
+reason: "User requested no human intervention. Previously blocked desktop check deliberately skipped; existing automated evidence does not establish native behavior."
 
 ### 23. Pinned toolchain installed from the user-approved pins; build and lint pass at zero warnings
 expected: Pinned toolchain installed from the user-approved pins; build and lint pass at zero warnings
@@ -279,8 +280,8 @@ total: 46
 passed: 40
 issues: 1
 pending: 0
-skipped: 1
-blocked: 4
+skipped: 5
+blocked: 0
 
 ## Gaps
 
