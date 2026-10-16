@@ -26,6 +26,7 @@ export interface TimerStoreDeps {
 }
 
 export class TimerStore {
+	getStopAllState(): { eligibleCount: number; readable: boolean } { return { eligibleCount: 0, readable: false }; }
 	private readonly gateway: TaskNotesGateway;
 	private readonly log: (message: string) => void;
 	private readonly schedule: Schedule;

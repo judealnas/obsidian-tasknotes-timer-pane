@@ -41,6 +41,27 @@ afterEach(() => {
 });
 
 describe("constants", () => {
+	test("Stop all eligibility follows exact ownership and recovers from unreadable state", async () => {
+		const ctx = await primed();
+		expect(ctx.store.getStopAllState()).toEqual({ eligibleCount: 1, readable: true });
+		const ownership = vi.spyOn(ctx.gateway, "pomodoroOwnership");
+		ownership.mockResolvedValue({ readable: true, owner: { taskPath: entryA().taskPath, startTime: A_START } });
+		await ctx.store.refreshNow();
+		expect(ctx.store.getStopAllState()).toEqual({ eligibleCount: 0, readable: true });
+		ctx.gateway.setActive([entryA({ startTime: B_START })]);
+		await ctx.store.refreshNow();
+		expect(ctx.store.getStopAllState().eligibleCount).toBe(1);
+		ownership.mockResolvedValue({ readable: false });
+		await ctx.store.refreshNow();
+		expect(ctx.store.getStopAllState()).toEqual({ eligibleCount: 0, readable: false });
+		expect(ctx.store.getSnapshot()?.primary?.startTime).toBe(B_START);
+		ownership.mockResolvedValue({ readable: true, owner: null });
+		await ctx.store.refreshNow();
+		expect(ctx.store.getStopAllState().eligibleCount).toBe(1);
+		ctx.gateway.setActive([]);
+		await ctx.store.refreshNow();
+		expect(ctx.store.getStopAllState().eligibleCount).toBe(0);
+	});
 	test("debounce 200 ms, safety resync 45 s", () => {
 		expect(REFRESH_DEBOUNCE_MS).toBe(200);
 		expect(SAFETY_RESYNC_MS).toBe(45000);
