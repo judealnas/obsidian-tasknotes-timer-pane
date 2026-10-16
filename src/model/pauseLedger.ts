@@ -117,7 +117,7 @@ function parseStoredRecord(value: unknown): PauseRecord | null {
 }
 
 /** When a record last changed: the pause for a paused record, the resume entry for a running one. */
-function newnessMs(record: PauseRecord): number {
+export function newnessMs(record: PauseRecord): number {
 	return Date.parse(record.state === "paused" ? record.pausedAt : record.entryStart);
 }
 

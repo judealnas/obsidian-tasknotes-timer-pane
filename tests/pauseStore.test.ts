@@ -82,7 +82,7 @@ describe("PauseStore.renamePath", () => {
 
 	test("backslash and leading-slash inputs are normalized before matching", () => {
 		const { store } = loaded([paused("Projects/A/x.md")]);
-		expect(store.renamePath("\Projects\A", "/Projects/B/")).toBe(1);
+		expect(store.renamePath("\\Projects\\A", "/Projects/B/")).toBe(1);
 		expect(paths(store)).toEqual(["Projects/B/x.md"]);
 	});
 
@@ -126,7 +126,7 @@ describe("PauseStore.removePath", () => {
 
 	test("backslash and leading-slash inputs are normalized before matching", () => {
 		const { store } = loaded([paused("T/A.md")]);
-		expect(store.removePath("\T\A.md")).toBe(1);
+		expect(store.removePath("\\T\\A.md")).toBe(1);
 		expect(store.records()).toEqual([]);
 	});
 });

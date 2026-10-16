@@ -6,7 +6,7 @@
  * Runtime Obsidian-free so Vitest can load it.
  */
 import { normalizeTimerPath } from "../model/pomodoroOwnership";
-import type { PauseRecord } from "../model/pauseLedger";
+import { newnessMs, type PauseRecord } from "../model/pauseLedger";
 
 export interface PauseStoreDeps {
 	log: (message: string) => void;
@@ -16,6 +16,11 @@ export interface PauseStoreDeps {
 
 function withPath<T extends PauseRecord>(record: T): T {
 	return { ...record, taskPath: normalizeTimerPath(record.taskPath) };
+}
+
+/** True when `path` is `target` itself or lies inside the folder `target` ("/"-bounded, T-03-09). */
+function under(path: string, target: string): boolean {
+	return path === target || path.startsWith(target + "/");
 }
 
 export class PauseStore {
@@ -90,6 +95,50 @@ export class PauseStore {
 
 	remove(path: string): void {
 		if (this.map.delete(normalizeTimerPath(path))) this.changed();
+	}
+
+	/**
+	 * Follows a rename or move in the vault (D-12): every record on `oldPath`, or inside
+	 * it when it is a folder, moves to the same place under `newPath`. A record moved onto
+	 * a path that already has one keeps the newer of the two. Changes, notifies and
+	 * persists once. Returns how many records moved.
+	 */
+	renamePath(oldPath: string, newPath: string): number {
+		const from = normalizeTimerPath(oldPath);
+		const to = normalizeTimerPath(newPath);
+		if (from === "" || to === "" || from === to) return 0;
+		const kept = new Map<string, PauseRecord>();
+		const moved: PauseRecord[] = [];
+		for (const [path, record] of this.map) {
+			if (under(path, from)) moved.push({ ...record, taskPath: to + path.slice(from.length) });
+			else kept.set(path, record);
+		}
+		if (moved.length === 0) return 0;
+		for (const record of moved) {
+			const existing = kept.get(record.taskPath);
+			if (existing && newnessMs(existing) > newnessMs(record)) continue;
+			kept.set(record.taskPath, record);
+		}
+		this.map = kept;
+		this.changed();
+		return moved.length;
+	}
+
+	/**
+	 * Clears the pauses of a deleted note, or of every note inside a deleted folder (D-12).
+	 * Changes, notifies and persists once. Returns how many records were removed.
+	 */
+	removePath(path: string): number {
+		const target = normalizeTimerPath(path);
+		if (target === "") return 0;
+		let removed = 0;
+		for (const key of [...this.map.keys()]) {
+			if (!under(key, target)) continue;
+			this.map.delete(key);
+			removed++;
+		}
+		if (removed > 0) this.changed();
+		return removed;
 	}
 
 	/** Replaces every record with the outcome of reconcile(). */

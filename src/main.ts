@@ -77,7 +77,15 @@ export default class TaskNotesTimerPanePlugin extends Plugin {
 		// Every pause change rewrites data.json with the current settings too.
 		const pauses = new PauseStore({ log, persist: () => this.persistAll() });
 		this.pauses = pauses;
-		const store = new TimerStore({ gateway: bridge, log, schedule, pauses });
+		// The vault can only tell a deleted note from one not yet indexed once the layout is ready (Pitfall 2).
+		let layoutReady = false;
+		const store = new TimerStore({
+			gateway: bridge,
+			log,
+			schedule,
+			pauses,
+			fileCheck: () => (layoutReady ? (path: string) => this.app.vault.getFileByPath(path) !== null : null),
+		});
 		// The one serial queue every pane write goes through.
 		const queue = new WriteQueue();
 		// The only place the plugin creates Notices; state and model code receive this function.
@@ -120,14 +128,25 @@ export default class TaskNotesTimerPanePlugin extends Plugin {
 		this.addRibbonIcon("timer", "Open TaskNotes timer", open);
 		this.addCommand({ id: "open-timer-pane", name: "Open timer pane", callback: open });
 
-		this.app.workspace.onLayoutReady(() => bridge.probe());
+		this.app.workspace.onLayoutReady(() => {
+			layoutReady = true;
+			bridge.probe();
+		});
 		this.registerInterval(window.setInterval(() => bridge.probe(), PROBE_INTERVAL_MS));
 		// Backstop for anything no event reports; a no-op unless TaskNotes is ready.
 		this.registerInterval(window.setInterval(() => store.resync(), SAFETY_RESYNC_MS));
 		// Deleting or renaming a note in Obsidian emits no TaskNotes runtime event (Pitfall 4).
 		// These are Obsidian-owned events, so Obsidian's registry releases them on unload.
-		this.registerEvent(this.app.vault.on("delete", () => store.requestRefresh()));
-		this.registerEvent(this.app.vault.on("rename", () => store.requestRefresh()));
+		// The pause changes synchronously, before TaskNotes re-indexes the note under its new
+		// path and before the next refresh reads it (D-12). Also works for folders.
+		this.registerEvent(this.app.vault.on("delete", file => {
+			pauses.removePath(file.path);
+			store.requestRefresh();
+		}));
+		this.registerEvent(this.app.vault.on("rename", (file, oldPath) => {
+			pauses.renamePath(oldPath, file.path);
+			store.requestRefresh();
+		}));
 	}
 
 	/** Reveals the existing pane leaf wherever it is, or creates one in the right sidebar. Never a second leaf. */
