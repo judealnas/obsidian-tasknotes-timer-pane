@@ -1,198 +1,187 @@
 ---
 phase: 01-live-timer-pane
-verified: 2026-10-16T05:07:44Z
+verified: 2026-10-16T19:30:00Z
 status: human_needed
-score: 13/16 consolidated must-have truths verified
-covered_files: [".gitignore",".planning/phases/01-live-timer-pane/01-01-PLAN.md",".planning/phases/01-live-timer-pane/01-01-SUMMARY.md",".planning/phases/01-live-timer-pane/01-02-PLAN.md",".planning/phases/01-live-timer-pane/01-02-SUMMARY.md",".planning/phases/01-live-timer-pane/01-03-PLAN.md",".planning/phases/01-live-timer-pane/01-03-SUMMARY.md",".planning/phases/01-live-timer-pane/01-04-PLAN.md",".planning/phases/01-live-timer-pane/01-04-SUMMARY.md",".planning/phases/01-live-timer-pane/01-05-PLAN.md",".planning/phases/01-live-timer-pane/01-05-SUMMARY.md",".planning/phases/01-live-timer-pane/01-REVIEW-DISPOSITION.md",".planning/phases/01-live-timer-pane/01-REVIEW.md",".planning/phases/01-live-timer-pane/01-SECURITY.md",".planning/phases/01-live-timer-pane/01-UAT-CHECKLIST.md",".planning/phases/01-live-timer-pane/01-UAT.md",".planning/phases/01-live-timer-pane/deferred-items.md",".planning/phases/02-start-switch-complete/02-CONTEXT.md","README.md","dev-vault-seed/TaskNotes/Tasks/Clean up old project archive.md","dev-vault-seed/TaskNotes/Tasks/Draft the migration plan for the legacy billing system so this title wraps across several lines.md","dev-vault-seed/TaskNotes/Tasks/Review pull requests.md","dev-vault-seed/TaskNotes/Tasks/Write quarterly report.md","esbuild.config.mjs","eslint.config.mts","manifest.json","package-lock.json","package.json","scripts/seed-dev-vault.mjs","src/main.ts","src/model/errors.ts","src/model/pomodoroOwnership.ts","src/model/taskLink.ts","src/model/taskPicker.ts","src/model/timeMath.ts","src/settings.ts","src/state/TimerController.ts","src/state/TimerStore.ts","src/state/WriteQueue.ts","src/tasknotes/TaskNotesBridge.ts","src/tasknotes/runtime-api.types.ts","src/ui/TaskPickerModal.ts","src/ui/TimerPaneSettingTab.ts","src/ui/TimerPaneView.ts","styles.css","tests/bridge.test.ts","tests/contract.test.ts","tests/controller.test.ts","tests/fakes/fakeGateway.ts","tests/fakes/fakeObsidian.ts","tests/fakes/fakeTaskNotes.ts","tests/main.test.ts","tests/readPath.test.ts","tests/settings.test.ts","tests/store.test.ts","tests/taskLink.test.ts","tests/taskPicker.test.ts","tests/taskPickerModal.test.ts","tsconfig.json"]
-covered_digest: "v3:sha256:ff81aa6659d4e9c4851da8d19d4b017135ce406f287e0cfdd45e30f675d1f9c7"
-behavior_unverified: 2
+score: 14/16 consolidated must-have truths verified
+covered_files: [".gitignore",".planning/phases/01-live-timer-pane/01-01-PLAN.md",".planning/phases/01-live-timer-pane/01-01-SUMMARY.md",".planning/phases/01-live-timer-pane/01-02-PLAN.md",".planning/phases/01-live-timer-pane/01-02-SUMMARY.md",".planning/phases/01-live-timer-pane/01-03-PLAN.md",".planning/phases/01-live-timer-pane/01-03-SUMMARY.md",".planning/phases/01-live-timer-pane/01-04-PLAN.md",".planning/phases/01-live-timer-pane/01-04-SUMMARY.md",".planning/phases/01-live-timer-pane/01-05-PLAN.md",".planning/phases/01-live-timer-pane/01-05-SUMMARY.md",".planning/phases/01-live-timer-pane/01-UAT-CHECKLIST.md",".planning/phases/01-live-timer-pane/01-UAT.md",".planning/phases/03-pause-resume/03-UAT.md","README.md","dev-vault-seed/TaskNotes/Tasks/Clean up old project archive.md","dev-vault-seed/TaskNotes/Tasks/Draft the migration plan for the legacy billing system so this title wraps across several lines.md","dev-vault-seed/TaskNotes/Tasks/Review pull requests.md","dev-vault-seed/TaskNotes/Tasks/Write quarterly report.md","esbuild.config.mjs","eslint.config.mts","manifest.json","package-lock.json","package.json","scripts/seed-dev-vault.mjs","src/main.ts","src/model/errors.ts","src/model/pauseLedger.ts","src/model/pomodoroOwnership.ts","src/model/taskLink.ts","src/model/taskPicker.ts","src/model/timeMath.ts","src/settings.ts","src/state/PauseStore.ts","src/state/TimerController.ts","src/state/TimerStore.ts","src/state/WriteQueue.ts","src/tasknotes/TaskNotesBridge.ts","src/tasknotes/runtime-api.types.ts","src/ui/TaskPickerModal.ts","src/ui/TimerPaneSettingTab.ts","src/ui/TimerPaneView.ts","styles.css","tests/bridge.test.ts","tests/contract.test.ts","tests/controller.test.ts","tests/fakes/fakeGateway.ts","tests/fakes/fakeObsidian.ts","tests/fakes/fakeTaskNotes.ts","tests/main.test.ts","tests/pauseLedger.test.ts","tests/pauseResume.test.ts","tests/pauseStore.test.ts","tests/readPath.test.ts","tests/settings.test.ts","tests/store.test.ts","tests/taskLink.test.ts","tests/taskPicker.test.ts","tests/taskPickerModal.test.ts","tsconfig.json"]
+covered_digest: "v3:sha256:015c76937fd3a3dfd704724eeae026e9cfba240b414c76495d1fe2a3fba5a1cc"
+behavior_unverified: 1
 overrides_applied: 0
-decision_coverage:
-  honored: 8
-  total: 8
-  not_honored: []
+re_verification:
+  previous_status: human_needed
+  previous_score: 13/16 consolidated must-have truths verified
+  reason: "Prior report stale: Phase 2 and Phase 3 changed covered source files (24 source/test files, +2974/-67 lines since commit 5fb3f94)."
+  gaps_closed:
+    - "Deploy writes all four assets to the fixed dev target (upgraded from PRESENT_BEHAVIOR_UNVERIFIED: deployed manifest.json and styles.css byte-match current sources, main.js contains Phase 3 code, .hotreload present; 03-UAT records the 2026-10-16 deploy)"
+  gaps_remaining: []
+  regressions: []
 flagged_prohibitions:
   - plan: 01-04
     verification: test
     status: unverified
     flagged: true
-    reason: "Seed containment has source guards and historical checks, but no wired current enforcement test was found; existing IN-05 remains open."
+    reason: "Seed containment: source guards present (fixed roots, .obsidian refusal, COPYFILE_EXCL, no delete path); no wired enforcement test exists in tests/. IN-05 still open."
   - plan: 01-05
+    statement: "No task writes other than TaskNotes Runtime API calls"
     verification: test
     status: unverified
     flagged: true
-    reason: "No direct frontmatter writes found; no wired negative enforcement test was found. Later explicitly authorized start/complete Runtime API calls supersede stop-only wording."
+    reason: "Source scan of src/ finds no processFrontMatter, vault.modify/process/create/delete, tasks.update, time.append or deleteEntry. The only writes are api.time.stop, api.time.start (Phase 2/3) and api.tasks.complete (Phase 2 D-14), all authorized later. No wired negative enforcement test exists."
 behavior_unverified_items:
-  - truth: "Deploy copies all required assets only to the fixed development target."
-    test: "Deploy into the disposable development vault."
-    expected: "main.js, manifest.json, styles.css and .hotreload exist at the fixed target."
-    why_human: "Not rerun in this record-only reconciliation; static path checks and historical UAT24 establish narrower evidence."
-  - truth: "Seeding preserves existing files and reset affects only seed notes within its intended boundary."
-    test: "Run the seed/reset containment checks against disposable files."
-    expected: "Existing files survive ordinary seed; reset affects only the approved seed paths."
-    why_human: "Not rerun because this reconciliation must not mutate the vault; no current automated seed test is wired."
+  - truth: "Seeding preserves existing files and --reset affects only the seed notes; nothing under dev-vault/.obsidian/ is written."
+    test: "Run npm run seed, npm run seed, npm run seed -- --reset against a disposable dev-vault copy with an edited seed note and a marker under .obsidian/."
+    expected: "Plain re-seed keeps the edited note; --reset restores it; the .obsidian marker survives both; no file outside dev-vault/ changes."
+    why_human: "Not rerun (would mutate the vault); no automated seed test is wired. Historical UAT36/37 passed on the original code; scripts/seed-dev-vault.mjs is unchanged since Phase 1."
 human_verification:
-  - test: "UAT18 already-stopped race — skipped by user."
-    expected: "No failure Notice; pane refreshes."
-    why_human: "Native timing window was not exercised; controller test passes against fake TaskNotes."
-  - test: "UAT19 native stop failure/recovery — skipped under no-human-intervention instruction."
-    expected: "One Notice; controls recover and later Stop works."
-    why_human: "Controller error tests do not exercise Obsidian Notice rendering or native button recovery."
-  - test: "UAT20 native archive behavior — skipped."
-    expected: "Archived running task remains an ordinary stoppable card."
-    why_human: "Fake TaskNotes covers selection and writes, not the installed TaskNotes archive interaction."
-  - test: "UAT21 completion from TaskNotes with auto-stop — skipped."
-    expected: "TaskNotes closes its timer; pane follows without an extra write."
-    why_human: "Installed TaskNotes auto-stop is external integration; later pane Complete checks do not replace this check."
-  - test: "UAT22 hand-edited completed status — skipped."
-    expected: "Pane adds no automatic stop."
-    why_human: "Automated no-auto-stop checks pass; native metadata/TaskNotes interaction was not observed."
-  - test: "Historical pre-install approval chronology — not independently reconstructable from current source."
-    expected: "Original package approval preceded installation."
-    why_human: "SUMMARY records approval and UAT23 records pass, but current code cannot establish past command order."
-  - test: "Deploy and seed behavior evidence — not refreshed."
-    expected: "Fixed deployment target and non-destructive seed behavior."
-    why_human: "Historical UAT24/36-38 retained; no vault mutations rerun for this reconciliation."
-  - test: "Two test-tier prohibition enforcement checks — unverified."
-    expected: "Seed boundary and forbidden direct-write paths have wired negative enforcement."
-    why_human: "Source inspection is not a passing enforcement test; no waiver is invented."
+  - test: "UAT18 already-stopped race (skipped in 01-UAT)."
+    expected: "Stop a timer in TaskNotes and immediately click its pane Stop: no failure Notice, pane refreshes."
+    why_human: "Native timing window never exercised; controller test 'a no active session race is silent and still refreshes' passes against fake TaskNotes only."
+  - test: "UAT19 native Stop failure and recovery (skipped in 01-UAT)."
+    expected: "One Stop-failed Notice including the reason; button returns to 'Stop timer' and works later."
+    why_human: "Controller tests cover Notice text and refresh; Obsidian Notice rendering and native button recovery not observed."
+  - test: "UAT20 archived running timer is an ordinary card (skipped in 01-UAT)."
+    expected: "Archived running task keeps a normal card; pane stops nothing; one-click Stop works."
+    why_human: "03-UAT test 6 only covers an archived PAUSED task; the running-archived case with installed TaskNotes was not observed."
+  - test: "UAT21 completion from TaskNotes UI with auto-stop (skipped in 01-UAT)."
+    expected: "TaskNotes stops the timer; pane follows within about 1 s with no extra Notice."
+    why_human: "02-UAT test 3 covers the pane's own Complete action, not completion from TaskNotes' UI."
+  - test: "UAT22 hand-edited done status does not stop timing (skipped in 01-UAT)."
+    expected: "Timer keeps running and the card shows normally; pane adds no stop."
+    why_human: "D-05 no-automatic-stop tests pass with fakes; native metadata-cache path not observed."
+  - test: "Seed containment behavior (see behavior_unverified_items)."
+    expected: "Non-destructive seed, bounded reset, nothing under .obsidian written."
+    why_human: "No wired test; not rerun to avoid vault mutation."
+  - test: "Two test-tier prohibitions without wired enforcement (seed boundary; no direct task writes)."
+    expected: "A negative test enforces each, or the user accepts source inspection as sufficient."
+    why_human: "Source inspection is not a passing enforcement test; fail-closed per verifier rules."
+  - test: "Historical: package approval preceded the original install (01-01 truth 1)."
+    expected: "User confirms the six [SUS] pins were approved before npm install ran."
+    why_human: "Past command order cannot be reconstructed from current code."
 ---
 
 # Phase 1: Live Timer Pane Verification Report
 
 **Phase Goal:** As a TaskNotes user, I want to see and stop my running timer from a sidebar pane, so that I always know what I am timing and for how long.
-
-**Status:** human_needed — implementation is present; skipped native checks and enforcement evidence remain explicit.
-**Verification:** Initial canonical report, reconciling previously missing bookkeeping. No previous 01-VERIFICATION.md existed.
-**Scope:** No implementation plans were rerun, and no implementation code was changed. The orchestrator refreshed the current regression suite; source reviewed here includes accepted Phase 2 extensions. No fresh native Obsidian session, deployment, seeding, package installation, or vulnerability audit was performed. No human action is requested: all human-dependent work stays skipped under the user's standing instruction.
+**Verified:** 2026-10-16T19:30:00Z
+**Status:** human_needed
+**Re-verification:** Yes. The previous report (5fb3f94) was stale because Phases 2 and 3 changed covered source files. Every Phase 1 truth was checked again against the current code, not the Phase 1-era code.
+**Mode:** mvp. The user-story validator returned `valid=true`.
 
 ## User Flow Coverage
 
-| Step | Expected | Evidence | Status |
+| Step | Expected | Evidence in current code | Status |
 |---|---|---|---|
-| Open pane | Ribbon/command opens or reveals the existing sidebar pane | src/main.ts registerView, addRibbonIcon, addCommand, activateView; prior user UAT1,3,4 | VERIFIED |
-| Return after restart | Same leaf restored with current data | Synchronous view registration; prior user UAT5; onOpen probes and renders immediately | VERIFIED |
-| See tracked task and time | Running titles, session and total clocks show real active data | Bridge → store → timeMath → TimerPaneView; readPath tests; prior UAT6,8,9 | VERIFIED with accepted timing limitation |
-| Stop a timer | One click closes that task's time entry and refreshes the pane | stopTask → controller.stop → WriteQueue → api.time.stop → refreshNow; controller tests; user UAT17 | VERIFIED |
-| Outcome | User knows what is being timed and for how long | Live data chain and prior user observations above; independent cards are the accepted current design | VERIFIED with recorded limits |
+| Open pane | Ribbon/command opens the pane in the right sidebar, or reveals the existing one | `src/main.ts:128-129` addRibbonIcon("timer","Open TaskNotes timer") and addCommand("open-timer-pane"); `activateView` (lines 153-161, unchanged since Phase 1) reveals `getLeavesOfType(...)[0]` and calls `ensureSideLeaf(...,"right")` only when no leaf exists. Prior user UAT3/4 passed; 03-UAT test 1 (current build) opens the pane after a cold start | VERIFIED |
+| Return after restart | Same leaf restored, shows state immediately | `registerView` called synchronously in onload (line 104), before loadData; main.test "registers view synchronously before loading settings". `onOpen` probes and renders at once. UAT5 passed; 03-UAT tests 1 and 5 restart the current build | VERIFIED |
+| See what is timed and for how long | Title (opens note), H:MM:SS session ticking every second, total including the running session | bridge `time.active()` → TimerStore → `deriveSnapshot` → TimerPaneView `writeTimes` (`timerSessionMs`, `totalMs`, `formatHms`) on a 1 s `registerInterval`. Title: `openTask` → `openLinkText`, Enter/Space and mod-click handled. readPath tests pass. UAT6, 8, 9 passed | VERIFIED (UAT7 minor discrepancy accepted, see below) |
+| Stop | One click closes that entry; pane and status bar agree | Stop button → `stopTask` → `controller.stop` → `queue.run(gateway.stop(taskPath, ctx))` → `api.time.stop` → `store.refreshNow()`. Controller "Stop (CTRL-01)" tests pass. UAT17 passed; 03-UAT tests 8 and 10 exercise Stop/Stop all on the current build | VERIFIED |
+| Outcome: always know what is timed and for how long | Live data stays in sync | Sync, reconnect and wake paths below; 03-UAT test 4 (start elsewhere is reflected) and test 7 (rename) on the current build | VERIFIED |
 
-User-story validator returned valid=true. UAT7 remains an **accepted minor discrepancy**, not a pass: sometimes Total gains a second before the large session clock does. The user explicitly requested no fix. No new override, risk acceptance, or defect fix is created here.
+UAT7 is still an accepted minor discrepancy, not a pass: sometimes Total gains a second before the session clock does. The user asked for no fix. The likely cause is that each value is floored independently (`formatHms(totalMs)` vs `formatHms(timerSessionMs)`) when closed entries carry sub-second remainders. This is noted for information only and does not count as a gap.
 
 ## Goal Achievement
 
 ### Observable Truths
 
-The five roadmap criteria are mandatory. Related PLAN UI permutations are consolidated below to avoid counting the same outcome repeatedly; original plan contracts remain covered by the fingerprint.
-
-| # | Contract / truth | Status | Evidence |
+| # | Contract / truth | Status | Evidence (current code) |
 |---|---|---|---|
-| 1 | Roadmap SC1: ribbon/command, reveal without duplicate, restore placement | VERIFIED | src/main.ts; user UAT1,3–5. ensureSideLeaf is used only when no existing leaf exists. |
-| 2 | Roadmap SC2: note access, H:MM:SS session/total, latest-first timer display | VERIFIED with accepted limitation | timeMath sessionMs,totalMs,formatHms,selectPrimary; TimerPaneView currentTimers,openTask,writeTimes; readPath math tests and UAT6,8,9. UAT7 discrepancy retained. Most-recent-only layout superseded as documented below. |
-| 3 | Roadmap SC3: one-click Stop reflected by pane and TaskNotes | VERIFIED | controller.test.ts Stop group asserts exact path/context, idle/remaining timer; real api.time.stop call wired; user UAT17 confirms status bar. |
-| 4 | Roadmap SC4: external actions, metadata, rename/delete reach pane | VERIFIED | task/cache subscriptions; main.ts vault delete/rename hooks; store debounce/single-flight tests; user UAT10–14. Runtime latency evidence is prior user observation, not a source timing guarantee. |
-| 5 | Roadmap SC5: availability copy, reconnect, wake correctness | VERIFIED | bridge availability/version/lifecycle tests; weak retirement set; loading watchdog; wall-clock tick/visibility/focus handlers; user UAT1,15,16. |
-| 6 | 01-01: original approval preceded package installation | UNCERTAIN (WARNING) | Current source cannot prove historical order. SUMMARY and inherited UAT23 record approval; no install rerun or new approval requested. |
-| 7 | 01-01: build/type contract/lint/test toolchain functions | VERIFIED | package scripts and tsconfig include source/tests; contract expectTypeOf assertions. Orchestrator directly observed current-source npm run check in prior Phase2 verification; only planning docs changed since. Fresh npm test: 216 tests / 10 files pass. |
-| 8 | 01-01: deploy writes all four assets only to fixed dev target | PRESENT_BEHAVIOR_UNVERIFIED (WARNING) | esbuild config hard-codes DEV_DIR and copies manifest/styles/.hotreload onStart; no environment target override. Historical UAT24/38 pass; not redeployed here. |
-| 9 | 01-01/04: ignored vault/bundle/dependencies, committed lockfile, zero runtime dependencies | VERIFIED | git ls-files dev-vault empty; git check-ignore confirms vault/main.js/node_modules; package and lockfile tracked; package has devDependencies only. Git emitted an inaccessible global-ignore warning without invalidating the explicit results. |
-| 10 | 01-01: type-only Runtime API contract and type assertions wired to build | VERIFIED | runtime-api.types.ts exports interfaces; contract.test.ts imports them and asserts types; tsc include/build script and prior current-source build evidence. |
-| 11 | 01-02: time and display edge cases, deterministic timer identity | VERIFIED | readPath.test.ts covers floors/clamps, malformed/empty dates, future start, unbounded hours, totals, tie-break, archive ranking, identity. Prior user UAT9 covers native long-clock/long-title backstops. |
-| 12 | 01-03: coalescing, single-flight dirty rerun, no stale publish, error retention, resync/cleanup | VERIFIED | TimerStore generation checks and cancellation; store.test.ts behavioral/value assertions including retired generation, errors, dispose, and resync. Fresh orchestrator suite passes. Error now notifies ownership eligibility changes under Phase2; retained snapshot remains intact. |
-| 13 | 01-03: retired API never reattaches, one early probe, watchdog, subscriptions released | VERIFIED | TaskNotesBridge evaluate/attach/detach/unloading and WeakSet; bridge.test.ts lifecycle/reconnect/dispose/watchdog multi-step assertions. |
-| 14 | 01-05: serial contextual writes, benign race, failure Notice semantics, no autonomous stops | VERIFIED at controller boundary | controller Stop/WriteQueue/no-automatic-stop tests assert exact calls, messages, ordering and remaining entries; source view finally restores busy state. Native UAT18–22 remain skipped and do not become passes. |
-| 15 | 01-04: four seeds, non-destructive ordinary copy, bounded reset, no config overwrite | PRESENT_BEHAVIOR_UNVERIFIED (WARNING) | Four tracked seed notes; copyFile COPYFILE_EXCL, fixed roots, escape/.obsidian guards, no delete path. Historical UAT36/37 pass; no wired current test. Open IN-05 remains a limitation. |
-| 16 | 01-04/02/05: documentation/checklist, state copy, layout and controls | VERIFIED with documented supersessions | README/checklist contain setup/run order/expected results; styles/state renderer substantive; UAT1–6,8,9,17 supply prior native evidence. Phase2 context authorizes current header, chips and independent cards. |
+| 1 | SC1: ribbon/command; reveal, no duplicate; restored after restart | VERIFIED | See User Flow. activateView is byte-unchanged since Phase 1. Restart restore is covered on the current build by 03-UAT 1 and 5 |
+| 2 | SC2: title opens note; H:MM:SS session every second; total incl. running; most recently started shown first | VERIFIED (UAT7 accepted limitation) | `formatHms` floors (readPath "formatHms", "sessionMs" tests); `totalMs` sums closed + open entries; `compareTimers` puts the latest `sortMs` first with ties by path (readPath "selectPrimary", "identity invariant"). Phase 3 changed the sort key to `sessionStartedAt`, which equals `startTime` for a never-paused timer, so Phase 1 ordering holds. Display is now one card per timer, newest first (Phase 2 CONTEXT supersession) |
+| 3 | SC3: one-click Stop reflected by pane and TaskNotes | VERIFIED | `TimerController.stop` (lines 375-406) is unchanged in substance: one `gateway.stop` with `{source:"tasknotes-timer-pane", reason:"user stop", correlationId}`, then refresh. Tests "one open entry: exactly one api.time.stop…", "two open entries: stopping the primary leaves the other…" pass. The `busy`/`completing` guards added in Phase 2/3 return "busy" only while another pane action is in flight |
+| 4 | SC4: external starts/stops, hand-edits, Sync, rename/delete reach the pane in about 1 s | VERIFIED | Bridge subscribes `task.updated`, `task.deleted`, `time.started`, `time.stopped`, `cache.changed`, `settings.changed` → `emitData` → store 200 ms debounce. main.ts vault `delete`/`rename` → `requestRefresh` (now also moves/removes pauses first; main.test covers order). 45 s `resync`. Store debounce/single-flight/signature tests pass. UAT10-14 passed; 03-UAT 4 and 7 on the current build |
+| 5 | SC5: missing/disabled/old message; self-reconnect; correct after sleep/wake | VERIFIED | `renderMessage` copy unchanged; `isVersionOlder` vs `MIN_TASKNOTES_VERSION = "4.10.0"`; WeakSet `retired`, early 1 s probe, 5 s probe interval; bridge lifecycle and end-to-end reconnect tests pass. Tick recomputes from `Date.now()`; `detectWakeGap` plus visibility/focus handlers request a refresh. UAT15/16 passed |
+| 6 | 01-01: approval before install | UNCERTAIN (WARNING) | Historical chronology. Cannot be reconstructed from code |
+| 7 | 01-01: `npm run check` toolchain gate | VERIFIED | Orchestrator reports `npm run check` passed today. This verifier ran the suite once: 13 files, 361 tests passed |
+| 8 | 01-01: deploy writes all four assets to the fixed dev target only | VERIFIED (upgraded) | `esbuild.config.mjs:16` hard-codes `DEV_DIR`; `process.argv[2]` selects only the mode, and no env var is read. Read-only check: `dev-vault/.obsidian/plugins/tasknotes-timer-pane/` holds `.hotreload`, `manifest.json` and `styles.css` (both byte-identical to the current sources) and a `main.js` containing Phase 3 symbols. 03-UAT records the 2026-10-16 deploy |
+| 9 | 01-01/04: ignores, lockfile, zero runtime deps | VERIFIED | `git check-ignore -v` matches dev-vault/, main.js, node_modules/; `git ls-files dev-vault` is empty; package-lock.json is tracked; `dependencies` is `{}` |
+| 10 | 01-01: type-only contract pinned by tsc | VERIFIED | contract.test.ts expectTypeOf groups; tsconfig includes tests; `npm run check` passed |
+| 11 | 01-02: time/display edge cases, deterministic identity | VERIFIED | readPath tests: floors, future clamp, malformed dates, tie-break, archive ranked normally, identity invariant, basename fallback |
+| 12 | 01-03: store debounce, single-flight, no stale publish, error retention, resync gating | VERIFIED | `TimerStore.refreshOnce` keeps the generation guard and adds a pause-revision re-read. The error path keeps `this.snapshot` (no idle flash) and logs only the message. Store tests "rejected active() keeps the previous snapshot…", "retired generation cannot publish…", "resync() while not ready makes no call" pass |
+| 13 | 01-03: retired api never reattached; one early probe; watchdog; disposal | VERIFIED | bridge.test "lifecycle (SYNC-03)" group (unloading, new api with no duplicate handlers, disable/re-enable, dispose, watchdog once) passes on the current bridge |
+| 14 | 01-05: serial contextual writes, benign race, failure Notice, no autonomous stops | VERIFIED at controller boundary | Single `WriteQueue` constructed once in main.ts and shared by all controller actions; WriteQueue order test; "no automatic stops (D-05)" tests pass. Phase 3 `reconcile` only edits the pause ledger and never calls `gateway.stop`. Native UAT18-22 remain skipped |
+| 15 | 01-04: four seeds, non-destructive copy, bounded reset, no .obsidian writes | PRESENT_BEHAVIOR_UNVERIFIED (WARNING) | `scripts/seed-dev-vault.mjs` unchanged since Phase 1: COPYFILE_EXCL without --reset, .obsidian refusal, no delete. No wired test; historical UAT36/37 only |
+| 16 | 01-04/02/05: README/checklist, state copy, layout, controls | VERIFIED with documented supersessions | README and checklist present. Message copy unchanged. Phase 2 header/cards/chips and Phase 3 Pause/Resume/Complete buttons are added beside Stop without removing Phase 1 controls |
 
-**Score:** 13/16 consolidated truths verified; 2 present but behavior-unverified; 1 historical chronology uncertain. Additional test-tier enforcement flags below also prevent a passed verdict. No missing implementation artifact, disconnected data path, or newly established implementation blocker was found.
+**Score:** 14/16 verified, 1 present but behavior-unverified (seed), 1 historical uncertainty.
 
-### Intentional Supersessions
+### Intentional Supersessions (still valid in current code)
 
-The accepted Phase2 CONTEXT explicitly supersedes Phase1's single primary card, +N-more indicator, old Tracking row and plain title presentation. Current cards render [primary, ...others] newest first and task chips with safe fallback. The old E6 tooltip permutations are therefore historical display contracts, not missing current features. Time model primary/others ordering helpers remain tested.
-
-Phase1 D-05 left completion auto-stop to TaskNotes. Phase2 D-14 explicitly adds the user-invoked status-then-stop Complete action, with time.start and tasks.complete capability-gated calls. These authorized Runtime API operations supersede the old literal “only api.time.stop anywhere in src” wording. Direct frontmatter writes and autonomous stops remain prohibited. Pomodoro label/pause remain Phase3 scope and are not Phase1 gaps.
+- Phase 2 CONTEXT replaced the single primary card, `+N more running` and the Tracking row with one card per timer, newest first. `moreRunningLabel` and `othersTooltip` remain as tested helpers but are not rendered.
+- 01-05 wording "only api.time.stop anywhere in src/" is superseded by authorized Runtime API writes: `time.start` (Phase 2 Start, Phase 3 Resume) and `tasks.complete` (Phase 2 D-14 Complete). Direct frontmatter or vault writes are still absent.
+- 01-05 "no hiding of running timers" is superseded by the rewritten DISP-07 (Phase 3): only the exact Pomodoro-owned entry is hidden, and unreadable ownership hides nothing (store "Pomodoro-owned entry (DISP-07)" tests). Regular timers are never hidden.
+- Paused cards (Phase 3) make the pane state "running". This is by design, and a paused-only pane is not idle.
 
 ## Required Artifacts and Key Links
 
-CLI checks run for **every** Phase1 PLAN: 29/29 artifact declarations pass presence/content/size checks; 18/18 declared links have matching source wiring. These checks are necessary, not behavioral proof.
+`verify.artifacts` / `verify.key-links` were rerun against the current tree for every plan: 01-01 6/6, 3/3; 01-02 6/6, 5/5; 01-03 7/7, 4/4; 01-04 5/5, 2/2; 01-05 5/5, 4/4. In total, 29/29 artifacts and 18/18 links pass. The source review above confirms each link is called in production, not just present as matching text.
 
-| Plan | Artifact declarations | Key links | Substantive/wiring review |
-|---|---:|---:|---|
-| 01-01 | 6/6 | 3/3 | package/manifest/build config → src/main.ts; Runtime types → contract assertions → tsc |
-| 01-02 | 6/6 | 5/5 | Bridge → timeMath/store → real view; styles select real root-state classes |
-| 01-03 | 7/7 | 4/4 | lifecycle retirement, store debounce/generation, main resync/vault events, own-document visibility/focus |
-| 01-04 | 5/5 | 2/2 | package seed script → fixed seed/vault roots; README/checklist and tracked fixtures substantive |
-| 01-05 | 5/5 | 4/4 | view Stop → controller → shared queue → bridge api.time.stop; error classifier and tests used |
+## Data-Flow Trace (Level 4)
 
-Source modules are imported and called in production; tests are included by Vitest's --dir tests script. No declaration passed solely because a file exists.
-
-## Data-Flow Trace
-
-| Rendered value | Real source and transformation | Status |
+| Rendered value | Source chain | Status |
 |---|---|---|
-| Task title/path/card list | app.plugins.getPlugin("tasknotes").api → capability/readiness gate → time.active() → deriveSnapshot → currentTimers/reconcileCards | FLOWING |
-| Session | active entry startTime → parsed startMs → Date.now() - startMs → formatHms → clock text | FLOWING |
-| Total | task.timeEntries → parsed closed/open entries → totalMs(entries,now) → formatHms → total text | FLOWING |
-| Availability text/version | live plugin lookup/version/api lifecycle → BridgeState → derivePaneState → renderMessage | FLOWING |
-| Stopped state | click target → serialized api.time.stop → awaited store.refreshNow → new snapshot → subscriber render | FLOWING |
+| Card list / title | `app.plugins.getPlugin("tasknotes").api` → gated `time.active()` → `visibleEntries` (Pomodoro filter) → `deriveSnapshot` → `reconcileCards` | FLOWING |
+| Session | `entry.startTime` → `segmentStartMs` (+ `accumulatedMs`, 0 for a never-paused timer) → `Date.now()` diff → `formatHms` | FLOWING |
+| Total | `task.timeEntries` → `parseEntries` → `totalMs(entries, now)` | FLOWING |
+| Availability message | bridge state → `derivePaneState` → `renderMessage` | FLOWING |
+| Post-stop state | `api.time.stop` → `store.refreshNow()` → subscriber `render()` | FLOWING |
 
-No active timer values are supplied by fixtures or hard-coded production data. Tests deliberately fake the external API; this proves local semantics, not all installed TaskNotes behavior.
+## Behavioral Spot-Checks
 
-## Behavioral Evidence and Test Quality
+| Behavior | Command | Result | Status |
+|---|---|---|---|
+| Full regression suite (run once) | `npx vitest run --dir tests` | 13 files, 361 tests passed | PASS |
+| Deployed assets match current sources | `cmp styles.css …/styles.css`; `cmp manifest.json …/manifest.json` | identical | PASS |
+| Ignore/lockfile/deps | `git check-ignore -v …`; `git ls-files dev-vault`; package.json deps | ignored; empty; `{}` | PASS |
+| User story format | `user-story.validate` | valid=true | PASS |
 
-| Evidence | Result / scope |
-|---|---|
-| Fresh orchestrator npm test | 216 tests passed in 10 files; current sources; no repeated full suite by this verifier |
-| Prior directly observed current-source npm run check | Build/typecheck, production bundle, lint zero warnings, tests passed; subsequent changes only planning documents |
-| readPath.test.ts | Value assertions for ordering, state transitions, malformed dates, elapsed/total math and wake behavior; real bridge/store with fake TaskNotes, not native DOM |
-| bridge.test.ts | Behavioral lifecycle, retired API, duplicate subscription, unload, readiness and disposal assertions |
-| store.test.ts | Debounce timing, single-flight rerun, signature suppression, generation rejection, error retention and cleanup assertions |
-| controller.test.ts | Exact stop paths/context/Notice strings; remaining timer; no-session race; serial queue and no automatic stops |
-| contract.test.ts | Type assertions meaningful under tsc, not standalone runtime Vitest proof |
+## Probe Execution
 
-No disabled requirement-linked tests or circular expected-output writers were found in src/tests scan. Match “this.pending” is a real busy counter, not a pending test. Assertions are value/behavior level; no claim that fake integration tests verify native rendering. No phase-declared executable probe script was found requiring execution. Original research probe narration is not used as current proof.
+No phase-declared `scripts/*/tests/probe-*.sh` exists. Step 7c is not applicable.
 
 ## Requirements Coverage
 
-| Requirements | Source plans | Evidence / disposition |
-|---|---|---|
-| PANE-01, PANE-02 | 01-02 | Production registration/reveal wiring; UAT3,4 pass |
-| PANE-03 | 01-01,02,04 | Stable manifest/view id, synchronous registration; UAT1,5 pass |
-| DISP-01 | 01-02 | Live title/chip/fallback/openTask; UAT6 pass; chip interaction explicitly supersedes plain title behavior |
-| DISP-02, DISP-03 | 01-02 | Clock/total functions and tests; UAT7 accepted minor discrepancy retained, not relabelled pass |
-| DISP-05 | 01-02,03 | Availability/version tests, real messages, UAT15 reconnect pass |
-| DISP-06 | 01-02 | Latest-first primary retained; independent-card design supersedes sole-primary presentation by accepted Phase2 context |
-| CTRL-01 | 01-05 | Exact api.time.stop write and refresh tests; UAT17 pass; native failure/race checks skipped |
-| SYNC-01, SYNC-02 | 01-03,04 | Data/vault event wiring and debounce; UAT10–14 pass |
-| SYNC-03, SYNC-04 | 01-03,04 | Lifecycle/wall-clock/visibility wiring and tests; UAT15,16 pass |
+| Requirement | Source plan | Status | Evidence |
+|---|---|---|---|
+| PANE-01 | 01-02 | SATISFIED | addRibbonIcon + activateView reveal/ensureSideLeaf right; UAT3/4 |
+| PANE-02 | 01-02 | SATISFIED | addCommand "Open timer pane"; UAT3 |
+| PANE-03 | 01-01, 01-02, 01-04 | SATISFIED | Synchronous registerView, stable id; UAT5; 03-UAT 1/5 |
+| DISP-01 | 01-02 | SATISFIED | Title chip/link → openLinkText; keyboard; UAT6 |
+| DISP-02 | 01-02 | SATISFIED | Wall-clock 1 s tick, formatHms floors; UAT7 accepted minor discrepancy |
+| DISP-03 | 01-02 | SATISFIED | totalMs to the second including the open entry |
+| DISP-05 | 01-02, 01-03 | SATISFIED | missing/incompatible/loading copy + version; bridge tests; UAT15 |
+| DISP-06 | 01-02 | SATISFIED | Latest start first (card order); supersession documented |
+| CTRL-01 | 01-05 | SATISFIED | Controller Stop tests; UAT17; 03-UAT 8/10 |
+| SYNC-01 | 01-03 | SATISFIED | time/task events → debounce; UAT10-12; 03-UAT 4 |
+| SYNC-02 | 01-03, 01-04 | SATISFIED | task.updated/cache.changed + vault events + 45 s resync; UAT13/14 |
+| SYNC-03 | 01-03, 01-04 | SATISFIED | Retired-api lifecycle + probes; UAT15 |
+| SYNC-04 | 01-03, 01-04 | SATISFIED | Wall-clock recompute, wake gap, visibility/focus; UAT16 |
 
-All 13 Phase1 requirement IDs are claimed by plans and mapped above. No orphaned Phase1 requirement was found. Historical checkboxes are traceability, not independent proof.
+All 13 IDs are claimed by plans and mapped to Phase 1 in REQUIREMENTS.md. No orphaned requirement. DISP-04 and DISP-07 are mapped to Phases 2 and 3.
 
-### Decision Coverage
+## Anti-Patterns Found
 
-All trackable CONTEXT.md decisions are honored by shipped artifacts.
+| File | Pattern | Severity | Impact |
+|---|---|---|---|
+| src, tests, styles.css, scripts, esbuild.config.mjs | TBD/FIXME/XXX/TODO/HACK/placeholder scan | none found | — |
+| `src/state/TimerController.ts` `stop()` | Stop is keyed by `taskPath` only; the captured `startTime` is not checked (open review finding WR-01, same-task replacement race) | WARNING (carried) | Rare: if the same task's entry is replaced between click and write, the new entry would be stopped. Still open in 01-REVIEW-DISPOSITION |
+| 01-REVIEW-DISPOSITION.md | WR-02..04, IN-01..05 still `open` | INFO (carried) | Not re-adjudicated here |
 
-CLI result: honored 8 / total 8, not_honored=[]; advisory heuristic, not independent behavioral proof.
+## Human Verification Required
 
-## Prohibitions, Review Findings and Limitations
-
-- 01-05 no-autonomous-stop/no-unrequested-other-stop prohibition has actual controller tests asserting zero spontaneous writes and a single requested path. Those pass in the refreshed suite.
-- 01-05 forbidden direct-write prohibition: source scan found no pane vault/frontmatter mutation path; the write chain uses TaskNotes Runtime API. However no wired negative enforcement test exists. **Unverified prohibition — enforcement review recommended**, never silently green.
-- 01-04 seed containment prohibition: source guards exist and historical test records remain, but no current wired enforcement test exists. **Unverified prohibition — enforcement review recommended.** The existing Windows normalization caveat IN-05 is retained.
-- Existing 01-REVIEW-DISPOSITION still has 4 warnings and 5 information findings open. This report does not accept, close or reclassify them: same-task Stop replacement race (WR-01), stale-link note creation (WR-02), compatibility message precision (WR-03), CSS watch copying (WR-04), plus helper duplication/log levels/Space activation/ready API swap/seed normalization (IN-01–05).
-- No unreferenced TBD/FIXME/XXX source/test markers, placeholder data source, empty mutation handler or console-only implementation was found in the reviewed path.
-- deferred-items.md records the historical moderate nested lint-toolchain dependency advisory. It remains historical deferred evidence, not a fresh security assessment. No force dependency update or fresh risk acceptance occurred.
-- 01-SECURITY.md is the orchestrator's scoped planned-threat report with threats_open=0; it does not erase the historical review dispositions or certify absence of all vulnerabilities.
-
-## Native Checks Left Skipped
-
-UAT18 already-stopped race; UAT19 native failure/recovery; UAT20 archive interaction; UAT21 external TaskNotes completion auto-stop; UAT22 hand-edited completion. Expected behavior and reasons are retained in 01-UAT.md and this report's frontmatter. None was rerun, counted as pass, or converted into a new request to the user.
-
-Prior user passes remain prior user evidence; the minor UAT7 timing discrepancy remains accepted unchanged. Later Phase2 desktop results are not silently substituted for unrelated skipped Phase1 scenarios.
+1. **UAT18 already-stopped race**: stop in TaskNotes, then immediately click the pane's Stop. Expected: no Notice, pane refreshes.
+2. **UAT19 Stop failure/recovery**: in dev-vault, temporarily make `api.time.stop` reject. Expected: one Notice, button recovers, and a later Stop works.
+3. **UAT20 archived running timer**: archive a running task. Expected: a normal card that stops with one click. (03-UAT 6 only covered a paused archived task.)
+4. **UAT21 TaskNotes-UI completion with auto-stop**: expected pane follows in about 1 s with no Notice. (02-UAT 3 covered the pane's own Complete, not this.)
+5. **UAT22 hand-edited done status**: expected timer keeps running and the pane adds no stop.
+6. **Seed containment**: run seed/re-seed/--reset on a disposable vault, or accept historical UAT36/37 because the script is unchanged.
+7. **Two test-tier prohibitions** (seed boundary; no direct task writes): add negative tests, or accept source-inspection evidence explicitly.
+8. **Historical approval chronology** (01-01 truth 1): user confirmation only.
 
 ## Gaps Summary
 
-The missing canonical verification report is now reconciled. Implementation/read-write dataflow and the core user flow are supported by source, passing current regression tests, and existing user observations. This is **human_needed**, not passed: native skipped checks, unverified test-tier prohibitions, unrefreshed seed/deploy behavior and unprovable historical approval chronology remain explicit. There is no newly established implementation blocker and no new fix plan. No phase.complete or implementation rerun is justified by this bookkeeping repair.
+No blocking gap. All five roadmap success criteria and all 13 requirements are supported by current code, a passing 361-test suite, and user desktop evidence. That evidence comes from 01-UAT, plus 03-UAT on the current build, which re-covers cold start, restart restore, start-elsewhere sync, rename, Stop and Stop all. Phases 2 and 3 caused no Phase 1 regression. The changes to TimerStore, TimerController, TimerPaneView and main.ts keep the Phase 1 read, stop, sync, reconnect and wake paths intact, and their own tests still pass. The status stays **human_needed** for three reasons: five native checks (UAT18-22) were only skipped and are not counted as passes; seed behavior and two test-tier prohibitions lack wired enforcement; and one historical chronology claim cannot be proven. Compared with the stale report, deploy behavior is upgraded to VERIFIED from read-only on-disk evidence.
 
-_Verified: 2026-10-16T05:07:44Z_
-_Verifier: gsd-verifier_
+---
 
+_Verified: 2026-10-16T19:30:00Z_
+_Verifier: Claude (gsd-verifier)_
