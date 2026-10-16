@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 2
+open_count: 4
 waived_count: 7
 fixed_count: 4
-total_count: 13
-last_updated: 2026-10-16T07:38:05.409Z
+total_count: 15
+last_updated: 2026-10-16T07:46:24.414Z
 ---
 
 # Broken Windows Ledger
@@ -28,6 +28,8 @@ last_updated: 2026-10-16T07:38:05.409Z
 | 11 | 3 | stub | src/state/TimerStore.ts |  | reconcile runs with completedStatuses and fileExists null; plan 03-02 adds the completed-elsewhere, deleted and Pomodoro takeover rules | fixed |  | 2026-10-16T07:13:20.287Z | 2026-10-16T07:25:50.098Z |
 | 12 | 3 | unrun-verify | src/main.ts |  | 03-02 human-checks deferred to end of phase: Pomodoro takeover, done-elsewhere and archive-only pauses; explorer rename/move/delete of a paused or resumed note; renamed pause survives restart | open |  | 2026-10-16T07:25:50.958Z |  |
 | 13 | 3 | unrun-verify | src/ui/TimerPaneView.ts |  | 03-03 human-checks deferred to end of phase: paused-card Stop and Complete leave no stray TaskNotes entry; Stop all empties the pane; Pause all and Resume all across three tasks; header disabled tooltips and four-button wrap in a narrow sidebar | open |  | 2026-10-16T07:38:05.409Z |  |
+| 14 | 3 | unrun-verify | src/state/TimerStore.ts |  | 03-04 human-checks deferred to end of phase: live Pomodoro session hides only its own entry, Pause all and Stop all leave it running, muted can't-check line with disabled Pause all/Stop all when ownership is unreadable | open |  | 2026-10-16T07:46:23.725Z |  |
+| 15 | 3 | unrun-verify | src/ui/TaskPickerModal.ts |  | 03-04 human-check deferred to end of phase: picker shows muted Pomodoro tag on the live Pomodoro's task, choosing it shows the Notice and writes nothing; tag gone after pausing the Pomodoro | open |  | 2026-10-16T07:46:24.414Z |  |
 
 ````json
 [
@@ -197,6 +199,32 @@ last_updated: 2026-10-16T07:38:05.409Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-10-16T07:38:05.409Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 14,
+    "kind": "unrun-verify",
+    "phase": "3",
+    "file": "src/state/TimerStore.ts",
+    "line": null,
+    "description": "03-04 human-checks deferred to end of phase: live Pomodoro session hides only its own entry, Pause all and Stop all leave it running, muted can't-check line with disabled Pause all/Stop all when ownership is unreadable",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-16T07:46:23.725Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 15,
+    "kind": "unrun-verify",
+    "phase": "3",
+    "file": "src/ui/TaskPickerModal.ts",
+    "line": null,
+    "description": "03-04 human-check deferred to end of phase: picker shows muted Pomodoro tag on the live Pomodoro's task, choosing it shows the Notice and writes nothing; tag gone after pausing the Pomodoro",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-16T07:46:24.414Z",
     "resolved_at": null,
     "milestone": null
   }
