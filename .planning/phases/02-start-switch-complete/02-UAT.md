@@ -3,7 +3,7 @@ status: complete
 phase: 02-start-switch-complete
 source: [02-VERIFICATION.md]
 started: 2026-10-16T02:10:00Z
-updated: 2026-10-16T02:56:41.289Z
+updated: 2026-10-16T04:54:35.635Z
 ---
 
 ## Current Test
@@ -11,6 +11,10 @@ updated: 2026-10-16T02:56:41.289Z
 [testing complete]
 
 ## Session Notes
+
+Final user clarification 2026-10-16T04:54:35.635Z: with one Pomodoro and one regular timer, Stop all stopped only the regular timer. This confirms the intended protection and resolves test 2. All six desktop groups are now accepted by user report; seven automated groups retain their test evidence. Earlier skip and ambiguity notes below are session history, superseded by these results.
+
+User follow-up 2026-10-16T04:53:07.670Z: desktop tests 1, 3, 4, 5 and 6 reported passed. For test 2, user reported: "If I start a pomo and stop it through the pane, time tracking stops and the pomo keeps going." The specific button was not stated. Card Stop intentionally calls only time.stop; Pomodoro protection belongs to Stop all. Test 2 remains unverified rather than inferred passed or failed from that observation.
 
 User instruction for this session: "I don't want to be involved in this. Skip tests that require human intervention." Existing desktop tests and the startup smoke test are skipped, not passed. Seven automated entries below come from the summaries' deterministic coverage classification and the fresh successful standard check. No user response is awaited.
 
@@ -24,33 +28,46 @@ The three plan prohibitions require explicit review in tests 1–3. The public t
 
 ### 1. Picker pointer, keyboard and lifecycle
 expected: Open Start task. Select using chip body/status area, due-date whitespace, arrows/Enter, and Escape/close/reopen. Each selection starts once alongside existing timers; nested chip controls never edit, complete or navigate. Archived tasks are excluded; completed tasks remain last. Search title, due, non-normal priority, context, project and tag. A late renderer cannot appear after close or a newer query. Explicitly resolve the picker prohibition based on observed behavior (WINDOWS 5).
-result: skipped
-reason: "User requested skipping every test that requires human intervention; native Obsidian desktop observation was not performed."
+result: pass
+source: user
+reported: "pass"
+verified_at: 2026-10-16T04:53:07.670Z
 
 ### 2. Stop all and live Pomodoro ownership
 expected: Run regular timers and a Pomodoro work timer. Stop all closes regular entries while the exact live Pomodoro entry stays open; pane and TaskNotes status bar agree. Only-Pomodoro/empty states disable Stop all with an explanation. Unreadable ownership permits no further write. Review external same-path timer replacement and record the path-only API limitation; do not assume atomicity. Explicitly resolve the Pomodoro protection prohibition (WINDOWS 8).
-result: skipped
-reason: "User requested skipping every test that requires human intervention; native Obsidian desktop observation was not performed."
+result: pass
+source: user
+reported: "If I have one pomo and one normal timer and use Stop all, only the normal timer stops; the pomo keeps going."
+verified_at: 2026-10-16T04:54:35.635Z
+observation_scope: Normal-plus-Pomodoro Stop all protection observed; no claim that external race or unreadable-ownership fault injection was exercised live.
 
 ### 3. Complete, auto-stop and error recovery
 expected: Complete a running task with TaskNotes auto-stop enabled, then disabled. The selected completed status applies first, then only the original still-open entry stops. If the status write fails, no stop occurs. If a later stop fails, the completed status remains and a partial-result notice appears. Complete sits beside Stop, controls recover, and task-chip click/right-click behavior remains usable. Explicitly resolve the no-stop-after-status-failure/no-rollback prohibition (WINDOWS 9).
-result: skipped
-reason: "User requested skipping every test that requires human intervention; native Obsidian desktop observation was not performed."
+result: pass
+source: user
+reported: "Pass"
+verified_at: 2026-10-16T04:53:07.670Z
 
 ### 4. Completion settings, persistence and catalog changes
 expected: Open plugin settings and confirm Same as TaskNotes plus current completed statuses in catalog order. Save a choice, reload Obsidian and confirm Complete uses it. Remove that status in TaskNotes and confirm visible/runtime fallback to the first completed status. With no completed status available, Complete is disabled. Reopening settings refreshes options (WINDOWS 9).
-result: skipped
-reason: "User requested skipping every test that requires human intervention; native Obsidian desktop observation was not performed."
+result: pass
+source: user
+reported: "Pass"
+verified_at: 2026-10-16T04:53:07.670Z
 
 ### 5. Header, idle state, disabled controls and notices
 expected: Header stays visible above idle/loading/missing/incompatible messages and running cards. Feature readiness disables unavailable controls with explanations. During each action and its final refresh, all pane write controls disable across pane instances. Failures show a clear notice and controls recover. Check keyboard focus and narrow sidebar presentation.
-result: skipped
-reason: "User requested skipping every test that requires human intervention; native Obsidian desktop observation was not performed."
+result: pass
+source: user
+reported: "Pass"
+verified_at: 2026-10-16T04:53:07.670Z
 
 ### 6. Cold Start Smoke Test
 expected: Restart the Obsidian development vault with saved settings and verify the plugin starts and restores its pane without errors or unintended default completion status.
-result: skipped
-reason: "User requested no human intervention; native application restart and observation skipped. Automated startup registration and persisted-settings readiness are covered separately below."
+result: pass
+source: user
+reported: "Pass"
+verified_at: 2026-10-16T04:53:07.670Z
 
 ### 7. Start alongside existing timers
 expected: CTRL-05: Start preserves existing timers, checks duplicates and shares busy state.
@@ -111,12 +128,12 @@ evidence: npm run check passed, 216 tests in 10 files, production build/typechec
 ## Summary
 
 total: 13
-passed: 7
+passed: 13
 issues: 0
 pending: 0
-skipped: 6
+skipped: 0
 blocked: 0
 
 ## Gaps
 
-No implementation blocker found by source verification or the automated checks. Six native desktop checks were explicitly skipped by the user, with no claim that native behavior was observed.
+No implementation blocker found by source verification or the automated checks. All six desktop groups passed by user report, including the clarified Stop all/Pomodoro scenario. Seven automated groups passed. No unresolved reported issue remains. The documented path-only external replacement race is an API limitation, not a claim of observed atomicity.

@@ -18,7 +18,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **DISP-01**: User sees the title of the task being timed, and clicking it opens the task note.
 - [x] **DISP-02**: User sees the current session's elapsed time (H:MM:SS), updating every second and calculated from the entry's start time.
 - [x] **DISP-03**: User sees the task's total tracked time, including the running session, to the second.
-- [ ] **DISP-04**: When nothing is being timed, user sees an idle state with a "Start a task" button.
+- [x] **DISP-04**: When nothing is being timed, user sees an idle state with a "Start a task" button.
 - [x] **DISP-05**: User sees a clear message when TaskNotes is missing, disabled, or older than 4.10.
 - [x] **DISP-06**: When several timers are running, the pane shows the most recently started one.
 - [ ] **DISP-07**: A timer controlled by an active Pomodoro is labelled as Pomodoro.
@@ -29,7 +29,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **CTRL-02**: User can pause the active timer with one click. This closes the current entry, and the pane shows the paused task.
 - [ ] **CTRL-03**: User can resume a paused task with one click. This opens a new entry on the same task.
 - [ ] **CTRL-04**: Paused state survives an Obsidian restart. It is cleared when another timer starts, or when the paused task is completed or deleted.
-- [ ] **CTRL-05**: User can start timing any task from a fuzzy task picker, opened from the pane header. The task starts alongside any running timers.
+- [x] **CTRL-05**: User can start timing any task from a fuzzy task picker, opened from the pane header. The task starts alongside any running timers.
 - [x] **CTRL-06**: User can stop every running timer, except one owned by an active Pomodoro, with one click from the pane header ("Stop all"). *(Rewritten 2026-10-15: switching was removed; see Phase 2 CONTEXT.)*
 - [x] **CTRL-07**: User can mark the active task complete from the pane, which also stops its timer.
 - [ ] **CTRL-08**: Pause is hidden for timers controlled by a Pomodoro.
@@ -86,7 +86,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DISP-01 | Phase 1 | Complete |
 | DISP-02 | Phase 1 | Complete |
 | DISP-03 | Phase 1 | Complete |
-| DISP-04 | Phase 2 | Pending |
+| DISP-04 | Phase 2 | Complete |
 | DISP-05 | Phase 1 | Complete |
 | DISP-06 | Phase 1 | Complete |
 | DISP-07 | Phase 3 | Pending |
@@ -94,7 +94,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CTRL-02 | Phase 3 | Pending |
 | CTRL-03 | Phase 3 | Pending |
 | CTRL-04 | Phase 3 | Pending |
-| CTRL-05 | Phase 2 | Pending |
+| CTRL-05 | Phase 2 | Complete |
 | CTRL-06 | Phase 2 | Complete |
 | CTRL-07 | Phase 2 | Complete |
 | CTRL-08 | Phase 3 | Pending |

@@ -12,7 +12,9 @@ With the pane open, I can always see what task is being timed and how long I've 
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ Start task from the pane with a searchable picker while preserving other running timers — Phase 2; automated checks and user desktop acceptance
+- ✓ Stop all regular timers while protecting the exact active Pomodoro-owned entry — Phase 2; user confirmed the mixed regular/Pomodoro case
+- ✓ Complete timed tasks using a live, persisted completed-status preference — Phase 2; automated checks and user desktop acceptance
 
 ### Active
 
@@ -21,10 +23,8 @@ With the pane open, I can always see what task is being timed and how long I've 
 - [ ] Total tracked time on the active task across all sessions (optionally vs. time estimate)
 - [ ] Stop the active timer from the pane
 - [ ] Pause/resume from the pane (pause = close current time entry; resume = open a new entry on the same task)
-- [ ] Start timing a different task from the pane (task picker) — switching in 1–2 clicks
-- [ ] Complete the active task from the pane
 - [ ] Stays in sync: timers started/stopped elsewhere in TaskNotes (status bar, task cards, commands), via Sync, or by hand edits reflect in the pane promptly
-- [ ] Handles multiple concurrent timers (shows most recent; switch stops all by default) and Pomodoro-controlled timers (labelled, no pause)
+- [ ] Label Pomodoro-controlled timers and protect pane-owned pause/resume behavior — Phase 3; concurrent timers already have independent cards
 
 ### Out of Scope
 
@@ -59,7 +59,8 @@ With the pane open, I can always see what task is being timed and how long I've 
 |----------|-----------|---------|
 | In-Obsidian pane instead of desktop overlay | User wants it integrated into the Obsidian window like the Pomodoro pane | — Pending |
 | In-process integration via Runtime API v1, not HTTP API or internals | No API server/token setup; documented, versioned companion-plugin surface | — Pending |
-| Switch stops all running timers by default (setting to stop only displayed) | Single-focus model; TaskNotes allows concurrent timers | — Pending |
+| Start adds a concurrent timer; Stop all skips the exact active Pomodoro-owned entry | Independent timer model chosen during Phase 2 discussion; switch action and its setting were removed | Phase 2 accepted |
+| Individual Stop closes task time tracking without stopping the Pomodoro countdown | Pane controls regular time entries; Pomodoro countdown controls remain in TaskNotes | User observed and clarified during Phase 2 UAT |
 | Pomodoro-controlled timers shown labelled, pause hidden | Pomodoro owns its entry; pane pause would orphan timers | — Pending |
 | Full control (start/stop/pause/switch), not just monitoring | Done = stop, pause, or switch in 1–2 clicks from the pane | — Pending |
 | Pause implemented as stop + new entry on resume | TaskNotes time tracking has no native pause; time entries are start/end pairs | — Pending |
@@ -84,4 +85,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-13 after requirements definition*
+*Last updated: 2026-10-16 after Phase 2 acceptance*

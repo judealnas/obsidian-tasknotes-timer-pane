@@ -19,7 +19,7 @@ When Phase 3 is done, every v1 requirement and the core value are delivered: the
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Live Timer Pane** - Sidebar pane that shows the timed task with live session and total time, stays in sync with changes anywhere, and stops the timer in one click
-- [ ] **Phase 2: Start, Switch & Complete** - Header with Start task (fuzzy picker) and Stop all, complete from each card, safe and reported actions
+- [x] **Phase 2: Start, Switch & Complete** - Header with Start task (fuzzy picker) and Stop all, complete from each card, safe and reported actions (completed 2026-10-16)
 - [ ] **Phase 3: Pause & Resume** - Pause and resume owned by the pane that survives restarts, with Pomodoro-controlled timers labelled and protected
 
 ## Phase Details
@@ -68,7 +68,7 @@ Plans:
   3. User can mark a timed task complete from its card. Its timer stops and TaskNotes shows the task with the completed status chosen in the plugin's settings (default: the same status TaskNotes' own toggle uses).
   4. While an action is in progress, the pane's controls are disabled. If an action fails, for example a task fails to start, a notice explains what happened.
 
-**Plans**: 3/3 plans executed
+**Plans**: 3/3 plans complete
 
 Plans:
 **Wave 1**
@@ -107,5 +107,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Live Timer Pane | 5/5 | In Progress | - |
-| 2. Start, Switch & Complete | 3/3 | In Progress | - |
+| 2. Start, Switch & Complete | 3/3 | Complete    | 2026-10-16 |
 | 3. Pause & Resume | 0/TBD | Not started | - |
