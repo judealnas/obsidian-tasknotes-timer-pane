@@ -95,7 +95,21 @@ Plans:
   3. Paused tasks still show as paused after restarting Obsidian, and starting another timer doesn't clear them. A pause clears when the task is resumed, stopped (including Stop all), completed, deleted, or taken over by a Pomodoro. Starting a paused task elsewhere counts as resuming it.
   4. The timer owned by an active Pomodoro doesn't appear in the pane, and the picker marks its task. If Pomodoro state can't be read, every timer is shown with a muted note, and Pause all and Stop all are disabled.
 
-**Plans**: TBD
+**Plans:** 4 plans
+
+Plans:
+**Wave 1**
+- [ ] 03-01-PLAN.md — Per-card Pause/Resume tracer with stopwatch Session, then merged versioned data.json persistence
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 03-02-PLAN.md — Pauses follow TaskNotes and Obsidian: Pomodoro takeover, completed elsewhere, delete, rename/move, race-safe reconcile
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 03-03-PLAN.md — Paused-card Stop and Complete, Stop all clears pauses, header Pause all and Resume all
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 03-04-PLAN.md — Hide the Pomodoro-owned entry, "can't check Pomodoro" line, picker Pomodoro tag and start guard
+
 **UI hint**: yes
 **Notes**: Discussed 2026-10-16 (see `03-CONTEXT.md`). TaskNotes has no record of pause, so the pane persists its own pause records, including accumulated session time, in `data.json` next to settings. Detecting rename and move needs research (`task.moved` isn't in the vendored contract). Pane control of Pomodoro is deferred to a later version. Test with a live Pomodoro session.
 
