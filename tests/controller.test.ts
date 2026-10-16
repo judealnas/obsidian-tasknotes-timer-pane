@@ -52,6 +52,13 @@ beforeEach(() => {
 	vi.useFakeTimers();
 });
 
+describe("Complete transaction", () => {
+	test("completion is available as a serialized controller action", async () => {
+		const ctx = await setup([report()]);
+		expect(ctx.controller).toHaveProperty("complete", expect.any(Function));
+	});
+});
+
 describe("Stop all", () => {
 	test("vanished targets are skipped and a queued Start waits for the whole batch", async () => {
 		const ctx = await setup([report(), email()]);
