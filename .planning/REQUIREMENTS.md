@@ -21,7 +21,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **DISP-04**: When nothing is being timed, user sees an idle state with a "Start a task" button.
 - [x] **DISP-05**: User sees a clear message when TaskNotes is missing, disabled, or older than 4.10.
 - [x] **DISP-06**: When several timers are running, the pane shows the most recently started one.
-- [ ] **DISP-07**: The timer owned by an active Pomodoro is not shown in the pane. When Pomodoro state can't be read, all timers are shown with a muted note under the header. *(Rewritten 2026-10-16: Pomodoro timers are hidden, not labelled; see Phase 3 CONTEXT.)*
+- [x] **DISP-07**: The timer owned by an active Pomodoro is not shown in the pane. When Pomodoro state can't be read, all timers are shown with a muted note under the header. *(Rewritten 2026-10-16: Pomodoro timers are hidden, not labelled; see Phase 3 CONTEXT.)*
 
 ### Controls
 
@@ -89,7 +89,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DISP-04 | Phase 2 | Complete |
 | DISP-05 | Phase 1 | Complete |
 | DISP-06 | Phase 1 | Complete |
-| DISP-07 | Phase 3 | Pending |
+| DISP-07 | Phase 3 | Complete |
 | CTRL-01 | Phase 1 | Complete |
 | CTRL-02 | Phase 3 | Complete |
 | CTRL-03 | Phase 3 | Complete |
