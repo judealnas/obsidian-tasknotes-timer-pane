@@ -21,18 +21,18 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **DISP-04**: When nothing is being timed, user sees an idle state with a "Start a task" button.
 - [x] **DISP-05**: User sees a clear message when TaskNotes is missing, disabled, or older than 4.10.
 - [x] **DISP-06**: When several timers are running, the pane shows the most recently started one.
-- [ ] **DISP-07**: A timer controlled by an active Pomodoro is labelled as Pomodoro.
+- [ ] **DISP-07**: The timer owned by an active Pomodoro is not shown in the pane. When Pomodoro state can't be read, all timers are shown with a muted note under the header. *(Rewritten 2026-10-16: Pomodoro timers are hidden, not labelled; see Phase 3 CONTEXT.)*
 
 ### Controls
 
 - [x] **CTRL-01**: User can stop the active timer with one click.
-- [ ] **CTRL-02**: User can pause the active timer with one click. This closes the current entry, and the pane shows the paused task.
-- [ ] **CTRL-03**: User can resume a paused task with one click. This opens a new entry on the same task.
-- [ ] **CTRL-04**: Paused state survives an Obsidian restart. It is cleared when another timer starts, or when the paused task is completed or deleted.
+- [ ] **CTRL-02**: User can pause any running timer with one click from its card, or every regular timer from the header ("Pause all"). This closes the entry, and the card shows the task as paused. *(Rewritten 2026-10-16.)*
+- [ ] **CTRL-03**: User can resume a paused task with one click from its card, or every paused task from the header ("Resume all"). This opens a new entry on the same task, and the card's session time continues from its paused value. *(Rewritten 2026-10-16.)*
+- [ ] **CTRL-04**: Several tasks can be paused at once, and paused state survives an Obsidian restart. Starting another timer does not clear a pause. A pause clears when its task is resumed, stopped from the pane (including Stop all), completed, deleted, or taken over by a Pomodoro, and follows the task when it is renamed or moved. *(Rewritten 2026-10-16.)*
 - [x] **CTRL-05**: User can start timing any task from a fuzzy task picker, opened from the pane header. The task starts alongside any running timers.
 - [x] **CTRL-06**: User can stop every running timer, except one owned by an active Pomodoro, with one click from the pane header ("Stop all"). *(Rewritten 2026-10-15: switching was removed; see Phase 2 CONTEXT.)*
 - [x] **CTRL-07**: User can mark the active task complete from the pane, which also stops its timer.
-- [ ] **CTRL-08**: Pause is hidden for timers controlled by a Pomodoro.
+- ~~**CTRL-08**: Pause is hidden for timers controlled by a Pomodoro.~~ *(Dropped 2026-10-16: Pomodoro timers are hidden entirely; see DISP-07.)*
 - [x] **CTRL-09**: Controls are disabled while an action is in progress, and a failed action shows a notice explaining what happened.
 - ~~**CTRL-10**: A setting controls whether switching stops all running timers (default) or only the displayed one.~~ *(Dropped 2026-10-15: switching was removed.)*
 
@@ -97,7 +97,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CTRL-05 | Phase 2 | Complete |
 | CTRL-06 | Phase 2 | Complete |
 | CTRL-07 | Phase 2 | Complete |
-| CTRL-08 | Phase 3 | Pending |
+| CTRL-08 | Phase 3 | Dropped |
 | CTRL-09 | Phase 2 | Complete |
 | CTRL-10 | Phase 2 | Dropped |
 | SYNC-01 | Phase 1 | Complete |
@@ -112,4 +112,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-10-13*
-*Last updated: 2026-10-15 after Phase 2 discussion (CTRL-06 rewritten, CTRL-10 dropped)*
+*Last updated: 2026-10-16 after Phase 3 discussion (DISP-07, CTRL-02, CTRL-03, CTRL-04 rewritten; CTRL-08 dropped)*

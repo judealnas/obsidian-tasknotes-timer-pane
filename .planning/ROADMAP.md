@@ -6,7 +6,7 @@ The roadmap is three vertical slices. Each one leaves a working pane in Obsidian
 
 - **Phase 1 is the walking skeleton.** It builds the TaskNotes Runtime API bridge and the sidebar pane. The pane shows the timed task with its live session time and total time, stays in sync with changes from anywhere, and stops the timer in one click. This proves the read path and the write path (`api.time.stop`) end to end.
 - **Phase 2 turns the pane into a launcher.** From the idle state or a fuzzy picker the user can start or switch tasks, and can complete the active task. Actions that need two writes get busy-state and failure handling.
-- **Phase 3 adds pause and resume.** The pane owns pause state, because TaskNotes has no pause of its own. It also adds Pomodoro-aware labelling.
+- **Phase 3 adds pause and resume.** The pane owns pause state, because TaskNotes has no pause of its own. It also hides Pomodoro-owned timers, so the pane covers regular time tracking only.
 
 When Phase 3 is done, every v1 requirement and the core value are delivered: the user can see the timed task and stop, pause, or switch in one to two clicks.
 
@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Live Timer Pane** - Sidebar pane that shows the timed task with live session and total time, stays in sync with changes anywhere, and stops the timer in one click
 - [x] **Phase 2: Start, Switch & Complete** - Header with Start task (fuzzy picker) and Stop all, complete from each card, safe and reported actions (completed 2026-10-16)
-- [ ] **Phase 3: Pause & Resume** - Pause and resume owned by the pane that survives restarts, with Pomodoro-controlled timers labelled and protected
+- [ ] **Phase 3: Pause & Resume** - Per-card and header pause/resume owned by the pane that survives restarts, with Pomodoro-owned timers hidden
 
 ## Phase Details
 
@@ -85,19 +85,19 @@ Plans:
 
 ### Phase 3: Pause & Resume
 
-**Goal**: User can pause and resume the current task from the pane. Paused state survives restarts, and timers controlled by Pomodoro are labelled and left alone.
+**Goal**: As a TaskNotes user, I want to pause and resume timers from the pane, one card or all at once, so that I can take a break without losing my place. Paused state survives restarts, and Pomodoro-owned timers are hidden from the pane.
 **Mode:** mvp
 **Depends on**: Phase 2
-**Requirements**: DISP-07, CTRL-02, CTRL-03, CTRL-04, CTRL-08
+**Requirements**: DISP-07, CTRL-02, CTRL-03, CTRL-04 (CTRL-08 dropped 2026-10-16)
 **Success Criteria** (what must be TRUE):
-  1. User can pause the active timer with one click. The current time entry closes and the pane shows the task as paused.
-  2. User can resume the paused task with one click. This opens a new time entry on the same task, and the pane shows it running again.
-  3. A paused task still shows as paused after restarting Obsidian. Paused state clears when another timer starts, or when the paused task is completed or deleted.
-  4. A timer controlled by an active Pomodoro is labelled as Pomodoro in the pane and has no pause button.
+  1. User can pause any running timer from its card, or all regular timers with "Pause all". Each entry closes and its card stays in place, shown as paused with its session time frozen.
+  2. User can resume a paused task from its card, or all paused tasks with "Resume all". This opens a new time entry on the same task, and the session time continues from where it paused.
+  3. Paused tasks still show as paused after restarting Obsidian, and starting another timer doesn't clear them. A pause clears when the task is resumed, stopped (including Stop all), completed, deleted, or taken over by a Pomodoro. Starting a paused task elsewhere counts as resuming it.
+  4. The timer owned by an active Pomodoro doesn't appear in the pane, and the picker marks its task. If Pomodoro state can't be read, every timer is shown with a muted note, and Pause all and Stop all are disabled.
 
 **Plans**: TBD
 **UI hint**: yes
-**Notes**: TaskNotes has no record of pause, so the pane saves `{pausedTaskPath, pausedAt}` itself and follows `task.moved`. How Pomodoro-owned timers behave with the pane's controls is unverified. Test with a live Pomodoro session.
+**Notes**: Discussed 2026-10-16 (see `03-CONTEXT.md`). TaskNotes has no record of pause, so the pane persists its own pause records, including accumulated session time, in `data.json` next to settings. Detecting rename and move needs research (`task.moved` isn't in the vendored contract). Pane control of Pomodoro is deferred to a later version. Test with a live Pomodoro session.
 
 ## Progress
 

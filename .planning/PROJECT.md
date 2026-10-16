@@ -24,12 +24,12 @@ With the pane open, I can always see what task is being timed and how long I've 
 - [ ] Stop the active timer from the pane
 - [ ] Pause/resume from the pane (pause = close current time entry; resume = open a new entry on the same task)
 - [ ] Stays in sync: timers started/stopped elsewhere in TaskNotes (status bar, task cards, commands), via Sync, or by hand edits reflect in the pane promptly
-- [ ] Label Pomodoro-controlled timers and protect pane-owned pause/resume behavior — Phase 3; concurrent timers already have independent cards
+- [ ] Pause and resume per card and from the header, persisted across restarts, with Pomodoro-owned timers hidden from the pane — Phase 3; concurrent timers already have independent cards
 
 ### Out of Scope
 
 - Desktop overlay / always-on-top window outside Obsidian — that's what jane-t/TaskNotesTimer does; this project wants in-Obsidian integration
-- Pomodoro controls — TaskNotes already has a Pomodoro pane
+- Pomodoro controls — TaskNotes already has a Pomodoro pane (possible through `api.pomodoro.*`; revisit in a later version)
 - Using TaskNotes' HTTP API — in-process integration chosen instead (no API server/token needed)
 - Basing implementation on the zczs520/tasknotes 5.2.3 fork — unknown provenance; user prefers not to rely on it
 - Community plugin directory submission (for now) — personal use; manual/BRAT install is enough
@@ -61,7 +61,7 @@ With the pane open, I can always see what task is being timed and how long I've 
 | In-process integration via Runtime API v1, not HTTP API or internals | No API server/token setup; documented, versioned companion-plugin surface | — Pending |
 | Start adds a concurrent timer; Stop all skips the exact active Pomodoro-owned entry | Independent timer model chosen during Phase 2 discussion; switch action and its setting were removed | Phase 2 accepted |
 | Individual Stop closes task time tracking without stopping the Pomodoro countdown | Pane controls regular time entries; Pomodoro countdown controls remain in TaskNotes | User observed and clarified during Phase 2 UAT |
-| Pomodoro-controlled timers shown labelled, pause hidden | Pomodoro owns its entry; pane pause would orphan timers | — Pending |
+| Pomodoro-owned timers hidden from the pane; if ownership can't be read, show all timers with a note | Pomodoro owns its entry, and pane pause would orphan it. Hiding is simpler than labelling, and the pane stays focused on regular timers (replaces the earlier label-and-hide-pause plan, 2026-10-16) | — Pending |
 | Full control (start/stop/pause/switch), not just monitoring | Done = stop, pause, or switch in 1–2 clicks from the pane | — Pending |
 | Pause implemented as stop + new entry on resume | TaskNotes time tracking has no native pause; time entries are start/end pairs | — Pending |
 | Sidebar view + ribbon icon + command | Matches Pomodoro pane placement; easy to open | — Pending |
