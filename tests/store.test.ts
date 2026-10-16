@@ -3,6 +3,8 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { deriveSnapshot, snapshotSignature } from "../src/model/timeMath";
 import { REFRESH_DEBOUNCE_MS, SAFETY_RESYNC_MS, TimerStore } from "../src/state/TimerStore";
+import { PauseStore } from "../src/state/PauseStore";
+import type { PausedRecord } from "../src/model/pauseLedger";
 import type { ActiveTimeEntry } from "../src/tasknotes/runtime-api.types";
 import { createFakeGateway, type FakeGateway } from "./fakes/fakeGateway";
 import { makeActiveEntry, timerSchedule } from "./fakes/fakeTaskNotes";
@@ -267,5 +269,116 @@ describe("bridge state", () => {
 		await vi.advanceTimersByTimeAsync(1000);
 		expect(gateway.activeCalls).toBe(0);
 		expect(vi.getTimerCount()).toBe(0);
+	});
+});
+
+// ---- plan 03-02: the pause ledger inside refresh (D-12, Pitfall 1) ----
+
+const A_PATH = "TaskNotes/Tasks/A.md";
+
+function pausedA(overrides: Partial<PausedRecord> = {}): PausedRecord {
+	return {
+		state: "paused",
+		taskPath: A_PATH,
+		title: "A",
+		sessionStartedAt: A_START,
+		accumulatedMs: 60_000,
+		pausedAt: "2026-10-14T09:01:00.000Z",
+		lastEntryStart: A_START,
+		...overrides,
+	};
+}
+
+function withPauses(fileCheck?: () => ((path: string) => boolean) | null) {
+	const gateway = createFakeGateway();
+	const log = vi.fn<(message: string) => void>();
+	const pauses = new PauseStore({ log });
+	pauses.load([]);
+	const store = new TimerStore({ gateway, log, schedule: timerSchedule, pauses, ...(fileCheck ? { fileCheck } : {}) });
+	return { gateway, log, pauses, store };
+}
+
+const statusCatalog = [
+	{ value: "open", isCompleted: false },
+	{ value: "done", isCompleted: true },
+];
+
+describe("pause ledger in refresh", () => {
+	test("a pause-record change while a refresh awaits its reads causes a re-read and no stale publish", async () => {
+		const ctx = withPauses();
+		ctx.gateway.setActive([entryA()]);
+		const published: Array<string | undefined> = [];
+		ctx.store.subscribe(() => published.push(ctx.store.getSnapshot()?.primary?.state));
+		const original = ctx.gateway.active.bind(ctx.gateway);
+		let release: () => void = () => undefined;
+		const active = vi.spyOn(ctx.gateway, "active").mockImplementationOnce(
+			() => new Promise(resolve => {
+				const stale = original();
+				release = () => resolve(stale);
+			}),
+		);
+		const refresh = ctx.store.refreshNow();
+		// The pane pauses A while the first read is in flight.
+		ctx.pauses.set(pausedA());
+		ctx.gateway.setActive([]);
+		release();
+		await refresh;
+		expect(active).toHaveBeenCalledTimes(2);
+		expect(published).toEqual(["paused"]);
+		expect(ctx.pauses.records()).toEqual([pausedA()]);
+	});
+
+	test("completed statuses are read only while at least one paused record exists", async () => {
+		const ctx = withPauses();
+		const statuses = vi.spyOn(ctx.gateway, "statuses").mockResolvedValue(statusCatalog);
+		await ctx.store.refreshNow();
+		expect(statuses).not.toHaveBeenCalled();
+		ctx.pauses.set(pausedA());
+		await ctx.store.refreshNow();
+		expect(statuses).toHaveBeenCalledTimes(1);
+	});
+
+	test("a paused task with a completed-type status loses its pause on refresh", async () => {
+		const ctx = withPauses();
+		vi.spyOn(ctx.gateway, "statuses").mockResolvedValue(statusCatalog);
+		ctx.pauses.set(pausedA());
+		ctx.gateway.setTask(A_PATH, { title: "A", status: "done", path: A_PATH, archived: false });
+		await ctx.store.refreshNow();
+		expect(ctx.pauses.records()).toEqual([]);
+		expect(ctx.store.getSnapshot()?.primary).toBeNull();
+	});
+
+	test("a statuses() failure skips the completed rule and is not an error state", async () => {
+		const ctx = withPauses();
+		vi.spyOn(ctx.gateway, "statuses").mockRejectedValue(new Error("catalog down"));
+		ctx.pauses.set(pausedA());
+		ctx.gateway.setTask(A_PATH, { title: "A", status: "done", path: A_PATH, archived: false });
+		await ctx.store.refreshNow();
+		expect(ctx.pauses.records()).toEqual([pausedA()]);
+		expect(ctx.store.getSnapshot()?.primary?.state).toBe("paused");
+		expect(ctx.log).not.toHaveBeenCalled();
+	});
+
+	test("fileCheck reporting the note missing clears the pause", async () => {
+		const ctx = withPauses(() => () => false);
+		ctx.pauses.set(pausedA());
+		await ctx.store.refreshNow();
+		expect(ctx.pauses.records()).toEqual([]);
+	});
+
+	test("fileCheck returning null (layout not ready) keeps the pause", async () => {
+		const ctx = withPauses(() => null);
+		ctx.pauses.set(pausedA());
+		await ctx.store.refreshNow();
+		expect(ctx.pauses.records()).toEqual([pausedA()]);
+	});
+
+	test("a readable Pomodoro owner on a paused task clears the pause on refresh", async () => {
+		const ctx = withPauses();
+		ctx.pauses.set(pausedA());
+		ctx.gateway.setActive([entryA({ startTime: B_START })]);
+		ctx.gateway.setOwnership({ readable: true, owner: { taskPath: A_PATH, startTime: B_START } });
+		await ctx.store.refreshNow();
+		expect(ctx.pauses.records()).toEqual([]);
 	});
 });
