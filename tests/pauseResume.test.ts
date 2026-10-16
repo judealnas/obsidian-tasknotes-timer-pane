@@ -444,7 +444,7 @@ function traceCalls(ctx: Awaited<ReturnType<typeof setup>>): string[] {
 	const active = time.active.bind(time);
 	const stop = time.stop.bind(time);
 	const start = time.start!.bind(time);
-	const status = pomodoro.status!.bind(pomodoro);
+	const status = pomodoro.status.bind(pomodoro);
 	vi.spyOn(time, "active").mockImplementation(() => { order.push("active"); return active(); });
 	vi.spyOn(time, "stop").mockImplementation((path, context) => { order.push("stop:" + path); return stop(path, context); });
 	vi.spyOn(time, "start").mockImplementation((path, options, context) => { order.push("start:" + path); return start(path, options, context); });

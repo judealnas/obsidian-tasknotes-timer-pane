@@ -6,8 +6,8 @@
  */
 import { isNoActiveSessionError, stopFailedNotice } from "../model/errors";
 import { normalizeTimerPath, sameEntry, selectRegularStopTargets, type Ownership } from "../model/pomodoroOwnership";
-import { pausedFromStop } from "../model/pauseLedger";
-import { parseMs } from "../model/timeMath";
+import { pausedFromStop, type PausedRecord } from "../model/pauseLedger";
+import { displayTitle, parseMs } from "../model/timeMath";
 import { MUTATION_SOURCE, type TaskNotesGateway } from "../tasknotes/TaskNotesBridge";
 import { PauseStore } from "./PauseStore";
 import type { TimerStore } from "./TimerStore";
@@ -28,6 +28,18 @@ export type ResumeTarget = { taskPath: string; title: string };
  */
 export type PauseOutcome = "paused" | "already-stopped" | "pomodoro" | "failed" | "busy";
 export type ResumeOutcome = "resumed" | "already-running" | "pomodoro" | "failed" | "busy";
+export type PauseAllOutcome = { paused: number; skipped: number; failed: number; ownershipUnreadable: boolean };
+export type ResumeAllOutcome = { resumed: number; skipped: number; pomodoro: number; failed: number };
+
+/** Pane display order (D-06): latest session start first, normalized path ascending on ties. */
+function byDisplayOrder(a: PausedRecord, b: PausedRecord): number {
+	const aMs = parseMs(a.sessionStartedAt) ?? 0;
+	const bMs = parseMs(b.sessionStartedAt) ?? 0;
+	if (aMs !== bMs) return bMs - aMs;
+	const aPath = normalizeTimerPath(a.taskPath);
+	const bPath = normalizeTimerPath(b.taskPath);
+	return aPath < bPath ? -1 : aPath > bPath ? 1 : 0;
+}
 
 /** The reason part of a write-failed Notice: trimmed, no trailing periods, never empty. */
 function noticeReason(message: string): string {
@@ -163,8 +175,7 @@ export class TimerController {
 	 */
 	async pause(target: StopTarget): Promise<PauseOutcome> {
 		if (this.completing) return "busy";
-		const { gateway, queue, store, newCorrelationId, log } = this.deps;
-		const pauses = this.pauses;
+		const { gateway, queue, store, log } = this.deps;
 		this.busy(1);
 		let outcome: PauseOutcome = "failed";
 		try {
@@ -175,20 +186,7 @@ export class TimerController {
 				try { ownership = await gateway.pomodoroOwnership(); }
 				catch { ownership = { readable: false }; }
 				if (ownership.readable && ownership.owner && sameEntry(ownership.owner, target)) return "pomodoro";
-				const path = normalizeTimerPath(target.taskPath);
-				const prior = pauses.get(path);
-				pauses.beginPending(path);
-				try {
-					const task = await gateway.stop(target.taskPath, { source: MUTATION_SOURCE, reason: "user pause", correlationId: newCorrelationId() });
-					const entries: unknown = task?.timeEntries;
-					const closed = Array.isArray(entries)
-						? (entries as Array<{ startTime?: unknown; endTime?: unknown } | null>).find(entry => entry?.startTime === target.startTime && typeof entry.endTime === "string" && entry.endTime !== "")
-						: undefined;
-					const endMs = parseMs(closed?.endTime) ?? Date.now();
-					pauses.set(pausedFromStop({ prior, taskPath: target.taskPath, title: target.title, entryStart: target.startTime, endMs }));
-				} finally {
-					pauses.endPending(path);
-				}
+				await this.pauseInQueue(target, "user pause");
 				return "paused";
 			});
 		} catch (error) {
@@ -214,21 +212,11 @@ export class TimerController {
 	 */
 	async resume(target: ResumeTarget): Promise<ResumeOutcome> {
 		if (this.completing) return "busy";
-		const { gateway, queue, store, newCorrelationId, log } = this.deps;
+		const { gateway, queue, store, log } = this.deps;
 		this.busy(1);
 		let outcome: ResumeOutcome = "failed";
 		try {
-			outcome = await queue.run(async (): Promise<ResumeOutcome> => {
-				const path = normalizeTimerPath(target.taskPath);
-				let ownership: Ownership;
-				try { ownership = await gateway.pomodoroOwnership(); }
-				catch { ownership = { readable: false }; }
-				// D-17 race: the Pomodoro is timing this task.
-				if (ownership.readable && ownership.owner && normalizeTimerPath(ownership.owner.taskPath) === path) return "pomodoro";
-				if ((await gateway.active()).some(item => !item.entry.endTime && normalizeTimerPath(item.taskPath) === path)) return "already-running";
-				await gateway.start(target.taskPath, {}, { source: MUTATION_SOURCE, reason: "user resume", correlationId: newCorrelationId() });
-				return "resumed";
-			});
+			outcome = await queue.run(() => this.resumeInQueue(target, "user resume"));
 		} catch (error) {
 			const { message } = gateway.normalizeError(error);
 			if (/already.*(track|tim|active)/i.test(message)) outcome = "already-running";
@@ -241,6 +229,136 @@ export class TimerController {
 			try { await store.refreshNow(); } finally { this.busy(-1); }
 		}
 		if (outcome === "pomodoro") this.notice(`${target.title} is being timed by Pomodoro.`);
+		return outcome;
+	}
+
+	/**
+	 * The shared in-queue body of Pause and Pause all: api.time.stop, then a paused
+	 * record built from the entry TaskNotes actually closed, with the path marked
+	 * pending meanwhile. The caller has checked the target. Must run inside queue.run;
+	 * never calls another queued method. Rejects with TaskNotes' error.
+	 */
+	private async pauseInQueue(target: StopTarget, reason: string): Promise<void> {
+		const { gateway, newCorrelationId } = this.deps;
+		const pauses = this.pauses;
+		const path = normalizeTimerPath(target.taskPath);
+		const prior = pauses.get(path);
+		pauses.beginPending(path);
+		try {
+			const task = await gateway.stop(target.taskPath, { source: MUTATION_SOURCE, reason, correlationId: newCorrelationId() });
+			const entries: unknown = task?.timeEntries;
+			const closed = Array.isArray(entries)
+				? (entries as Array<{ startTime?: unknown; endTime?: unknown } | null>).find(entry => entry?.startTime === target.startTime && typeof entry.endTime === "string" && entry.endTime !== "")
+				: undefined;
+			const endMs = parseMs(closed?.endTime) ?? Date.now();
+			pauses.set(pausedFromStop({ prior, taskPath: target.taskPath, title: target.title, entryStart: target.startTime, endMs }));
+		} finally {
+			pauses.endPending(path);
+		}
+	}
+
+	/**
+	 * The shared in-queue body of Resume and Resume all: fresh ownership and active
+	 * reads, then api.time.start. Readable ownership is not required, because a start
+	 * cannot close the Pomodoro's entry. Must run inside queue.run. Rejects with
+	 * TaskNotes' error.
+	 */
+	private async resumeInQueue(target: ResumeTarget, reason: string): Promise<"resumed" | "already-running" | "pomodoro"> {
+		const { gateway, newCorrelationId } = this.deps;
+		const path = normalizeTimerPath(target.taskPath);
+		let ownership: Ownership;
+		try { ownership = await gateway.pomodoroOwnership(); }
+		catch { ownership = { readable: false }; }
+		// D-17 race: the Pomodoro is timing this task.
+		if (ownership.readable && ownership.owner && normalizeTimerPath(ownership.owner.taskPath) === path) return "pomodoro";
+		if ((await gateway.active()).some(item => !item.entry.endTime && normalizeTimerPath(item.taskPath) === path)) return "already-running";
+		await gateway.start(target.taskPath, {}, { source: MUTATION_SOURCE, reason, correlationId: newCorrelationId() });
+		return "resumed";
+	}
+
+	/**
+	 * Pause all (CTRL-02, D-04, D-05): one queued action that pauses every eligible
+	 * regular timer one at a time, in captured active order, re-reading active timers
+	 * and Pomodoro ownership before every write. Never guesses ownership: unreadable
+	 * at the start writes nothing, and mid-batch halts (T-03-11). Never rejects.
+	 */
+	async pauseAll(): Promise<PauseAllOutcome> {
+		const outcome: PauseAllOutcome = { paused: 0, skipped: 0, failed: 0, ownershipUnreadable: false };
+		if (this.completing) return outcome;
+		const { gateway, queue, store, log } = this.deps;
+		this.busy(1);
+		try {
+			await queue.run(async () => {
+				const ownership = await gateway.pomodoroOwnership();
+				if (!ownership.readable) { outcome.ownershipUnreadable = true; return; }
+				const targets = selectRegularStopTargets(await gateway.active(), ownership);
+				for (const target of targets) {
+					const active = await gateway.active();
+					const current = await gateway.pomodoroOwnership();
+					if (!current.readable) { outcome.ownershipUnreadable = true; break; }
+					if (!selectRegularStopTargets(active, current).some(id => sameEntry(id, target))) { outcome.skipped++; continue; }
+					const item = active.find(candidate => !candidate.entry.endTime && sameEntry({ taskPath: candidate.taskPath, startTime: candidate.entry.startTime }, target));
+					const title = displayTitle(item?.task?.title, target.taskPath);
+					try {
+						// Path-only public stop: an external replacement after this read can still race it.
+						await this.pauseInQueue({ taskPath: target.taskPath, startTime: target.startTime, title }, "user pause all");
+						outcome.paused++;
+					} catch (error) {
+						if (isNoActiveSessionError(gateway.normalizeError(error).message)) outcome.skipped++;
+						else outcome.failed++;
+					}
+				}
+			});
+		} catch {
+			outcome.failed++;
+			log("Pausing all timers could not finish safely.");
+		} finally {
+			try { await store.refreshNow(); } finally { this.busy(-1); }
+		}
+		// Count-only Notices (T-03-14).
+		if (outcome.ownershipUnreadable) this.notice("Couldn't verify Pomodoro ownership. Pause all has stopped; try again when TaskNotes is ready.");
+		else if (outcome.failed) this.notice(`Paused ${outcome.paused} timers. ${outcome.failed} timers could not be paused. Try again.`);
+		return outcome;
+	}
+
+	/**
+	 * Resume all (CTRL-03, D-05): one queued action that resumes every paused record
+	 * in pane display order, one start at a time, re-reading ownership and active
+	 * timers before every write. Skips a record that is no longer paused, the readable
+	 * Pomodoro owner's task and a task that already has an open entry. Never rejects.
+	 */
+	async resumeAll(): Promise<ResumeAllOutcome> {
+		const outcome: ResumeAllOutcome = { resumed: 0, skipped: 0, pomodoro: 0, failed: 0 };
+		if (this.completing) return outcome;
+		const { gateway, queue, store, log } = this.deps;
+		const pauses = this.pauses;
+		this.busy(1);
+		try {
+			await queue.run(async () => {
+				const captured = pauses.records().filter((record): record is PausedRecord => record.state === "paused").sort(byDisplayOrder);
+				for (const record of captured) {
+					const current = pauses.get(record.taskPath);
+					if (current?.state !== "paused" || current.sessionStartedAt !== record.sessionStartedAt) { outcome.skipped++; continue; }
+					try {
+						const result = await this.resumeInQueue({ taskPath: record.taskPath, title: record.title }, "user resume all");
+						if (result === "resumed") outcome.resumed++;
+						else if (result === "pomodoro") outcome.pomodoro++;
+						else outcome.skipped++;
+					} catch (error) {
+						if (/already.*(track|tim|active)/i.test(gateway.normalizeError(error).message)) outcome.skipped++;
+						else outcome.failed++;
+					}
+				}
+			});
+		} catch {
+			outcome.failed++;
+			log("Resuming all timers could not finish safely.");
+		} finally {
+			try { await store.refreshNow(); } finally { this.busy(-1); }
+		}
+		// Count-only Notices (T-03-14).
+		if (outcome.failed) this.notice(`Resumed ${outcome.resumed} timers. ${outcome.failed} timers could not be resumed. Try again.`);
+		else if (outcome.pomodoro) this.notice(`Resumed ${outcome.resumed} timers. ${outcome.pomodoro} timers are being timed by Pomodoro.`);
 		return outcome;
 	}
 

@@ -35,7 +35,7 @@ export const VIEW_TYPE_TIMER_PANE = "tasknotes-timer-pane";
 export interface TimerPaneServices {
 	gateway: TaskNotesGateway;
 	store: TimerStore;
-	controller: Pick<TimerController, "stop" | "start" | "stopAll" | "complete" | "pause" | "resume" | "stopPaused" | "completionAvailable" | "isBusy" | "subscribeBusy">;
+	controller: Pick<TimerController, "stop" | "start" | "stopAll" | "complete" | "pause" | "resume" | "stopPaused" | "pauseAll" | "resumeAll" | "completionAvailable" | "isBusy" | "subscribeBusy">;
 }
 
 const STOP_LABEL = "Stop timer";
@@ -46,6 +46,8 @@ const PANE_STATES: readonly PaneState[] = ["running", "idle", "loading", "missin
 interface PaneElements {
 	root: HTMLElement;
 	start: HTMLButtonElement;
+	pauseAll: HTMLButtonElement;
+	resumeAll: HTMLButtonElement;
 	stopAll: HTMLButtonElement;
 	cards: HTMLElement;
 	heading: HTMLElement;
@@ -145,9 +147,18 @@ export class TimerPaneView extends ItemView {
 		this.cards = new Map();
 		const root = this.contentEl.createDiv({ cls: ["tntp-pane", "tntp-pane--loading"] });
 		const header = root.createDiv({ cls: "tntp-header" });
+		// D-02: Start task, Pause all, Resume all, Stop all; text labels in a wrapping row.
 		const start = header.createEl("button", { text: "Start task", cls: "tntp-start" });
+		const pauseAll = header.createEl("button", { text: "Pause all", cls: "tntp-pause-all" });
+		const resumeAll = header.createEl("button", { text: "Resume all", cls: "tntp-resume-all" });
 		const stopAll = header.createEl("button", { text: "Stop all", cls: "tntp-stop-all" });
 		this.registerDomEvent(start, "click", () => void this.openPicker());
+		this.registerDomEvent(pauseAll, "click", () => {
+			if (!this.services.controller.isBusy() && !pauseAll.disabled) void this.services.controller.pauseAll();
+		});
+		this.registerDomEvent(resumeAll, "click", () => {
+			if (!this.services.controller.isBusy() && !resumeAll.disabled) void this.services.controller.resumeAll();
+		});
 		this.registerDomEvent(stopAll, "click", () => {
 			if (!this.services.controller.isBusy() && !stopAll.disabled) void this.services.controller.stopAll();
 		});
@@ -160,7 +171,7 @@ export class TimerPaneView extends ItemView {
 		const retry = message.createEl("button", { cls: "tntp-message__retry", text: "Check for TaskNotes" });
 		this.registerDomEvent(retry, "click", () => gateway.probe());
 
-		this.els = { root, start, stopAll, cards, heading, body, meta };
+		this.els = { root, start, pauseAll, resumeAll, stopAll, cards, heading, body, meta };
 
 		this.register(store.subscribe(() => { this.render(); void this.refreshCompletion(); }));
 		this.register(gateway.onState(() => { this.render(); void this.refreshCompletion(); }));
@@ -488,6 +499,11 @@ export class TimerPaneView extends ItemView {
 		setTooltip(els.start, gate.reason);
 		const header = this.services.store.getHeaderState();
 		const busy = this.services.controller.isBusy();
+		const busyTip = "A timer action is in progress";
+		els.pauseAll.disabled = busy || !header.readable || header.eligibleCount === 0;
+		setTooltip(els.pauseAll, busy ? busyTip : !header.readable ? "Cannot verify Pomodoro ownership" : header.eligibleCount === 0 ? "No running timers to pause" : "Pause all running timers");
+		els.resumeAll.disabled = busy || header.pausedCount === 0;
+		setTooltip(els.resumeAll, busy ? busyTip : header.pausedCount === 0 ? "No paused timers to resume" : "Resume all paused timers");
 		const nothingToStop = header.eligibleCount === 0 && header.pausedCount === 0;
 		els.stopAll.disabled = busy || !header.readable || nothingToStop;
 		setTooltip(els.stopAll, busy ? "A timer action is in progress" : !header.readable ? "Cannot verify Pomodoro ownership" : nothingToStop ? "No timers to stop" : "Stop all timers and clear paused ones");
