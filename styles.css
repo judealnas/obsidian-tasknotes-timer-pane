@@ -166,12 +166,6 @@
 	display: none;
 }
 
-/* Stop and Complete on a paused card arrive with plan 03-03. */
-.tntp-card--paused .tntp-stop,
-.tntp-card--paused .tntp-complete {
-	display: none;
-}
-
 /* Message states (idle, loading, missing, incompatible) */
 .tntp-message {
 	padding-top: var(--size-4-6);

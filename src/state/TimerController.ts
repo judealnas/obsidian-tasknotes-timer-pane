@@ -55,10 +55,17 @@ export interface TimerControllerDeps {
 }
 
 export class TimerController {
-	async stopAll(): Promise<{ stopped: number; skipped: number; failed: number; ownershipUnreadable: boolean }> {
-		const outcome = { stopped: 0, skipped: 0, failed: 0, ownershipUnreadable: false };
+	/**
+	 * Stops every eligible regular timer, then clears every paused record (D-10), so the
+	 * pane ends empty. Pauses are kept when the batch halted on unreadable Pomodoro
+	 * ownership (T-03-13). Running records are never removed here: reconcile rule 3
+	 * clears those whose entries stopped.
+	 */
+	async stopAll(): Promise<{ stopped: number; skipped: number; failed: number; cleared: number; ownershipUnreadable: boolean }> {
+		const outcome = { stopped: 0, skipped: 0, failed: 0, cleared: 0, ownershipUnreadable: false };
 		if (this.completing) return outcome;
 		const { gateway, queue, store, newCorrelationId, log } = this.deps;
+		const pauses = this.pauses;
 		this.busy(1);
 		try {
 			await queue.run(async () => {
@@ -80,6 +87,11 @@ export class TimerController {
 						else outcome.failed++;
 					}
 				}
+				if (outcome.ownershipUnreadable) return;
+				const records = pauses.records();
+				const kept = records.filter(record => record.state !== "paused");
+				outcome.cleared = records.length - kept.length;
+				if (outcome.cleared > 0) pauses.applyReconcile(kept);
 			});
 		} catch {
 			outcome.failed++;
@@ -269,6 +281,31 @@ export class TimerController {
 		return outcome;
 	}
 
+	/**
+	 * Stop on a paused card (D-09): nothing is running, so it only forgets the pause.
+	 * Never calls TaskNotes. "not-paused" when the record is gone or running again
+	 * (an external start landed first). Never rejects.
+	 */
+	async stopPaused(target: ResumeTarget): Promise<"cleared" | "not-paused" | "busy"> {
+		if (this.completing) return "busy";
+		const { queue, store, log } = this.deps;
+		const pauses = this.pauses;
+		this.busy(1);
+		let outcome: "cleared" | "not-paused" = "not-paused";
+		try {
+			outcome = await queue.run((): Promise<"cleared" | "not-paused"> => {
+				if (pauses.get(target.taskPath)?.state !== "paused") return Promise.resolve("not-paused");
+				pauses.remove(target.taskPath);
+				return Promise.resolve("cleared");
+			});
+		} catch {
+			log("Clearing a paused timer failed.");
+		} finally {
+			try { await store.refreshNow(); } finally { this.busy(-1); }
+		}
+		return outcome;
+	}
+
 	async completionAvailable(): Promise<boolean> {
 		try {
 			await this.deps.settingsReady?.();
@@ -292,6 +329,9 @@ export class TimerController {
 				const context = { source: MUTATION_SOURCE, reason: "user complete", correlationId: newCorrelationId() };
 				await gateway.completeTask(target.taskPath, status.value, context);
 				statusWritten = true;
+				// D-09: a completed paused task leaves the pane. Its card's startTime is the
+				// closed lastEntryStart, so the still-open check below makes no stop call.
+				if (this.pauses.get(target.taskPath)?.state === "paused") this.pauses.remove(target.taskPath);
 				const active = await gateway.active();
 				if (active.some(item => !item.entry.endTime && sameEntry({ taskPath: item.taskPath, startTime: item.entry.startTime }, target))) {
 					// External replacement can race this path-only public stop after the final read.

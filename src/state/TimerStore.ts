@@ -40,8 +40,13 @@ export class TimerStore {
 	getStopAllState(): { eligibleCount: number; readable: boolean } {
 		return { eligibleCount: this.eligibleCount, readable: this.ownership.readable };
 	}
+	/** Drives every header button (D-02): ownership readability, eligible regular timers, paused cards. */
+	getHeaderState(): { readable: boolean; eligibleCount: number; pausedCount: number } {
+		return { readable: this.ownership.readable, eligibleCount: this.eligibleCount, pausedCount: this.pausedCount };
+	}
 	private ownership: Ownership = { readable: false };
 	private eligibleCount = 0;
+	private pausedCount = 0;
 	private generation = 0;
 	private readonly gateway: TaskNotesGateway;
 	private readonly log: (message: string) => void;
@@ -192,12 +197,14 @@ export class TimerStore {
 			this.snapshot = snapshot;
 			this.ownership = ownership;
 			this.eligibleCount = selectRegularStopTargets(active, ownership).length;
+			this.pausedCount = [snapshot.primary, ...snapshot.others].filter(timer => timer?.state === "paused").length;
 			this.signature = signature;
 			if (changed) this.notify();
 		} catch (error) {
 			if (this.disposed || generation !== this.generation) return;
 			this.ownership = { readable: false };
 			this.eligibleCount = 0;
+			this.pausedCount = 0;
 			this.signature = null;
 			this.notify();
 			this.log("Refreshing timers failed: " + errorMessage(error));
@@ -220,6 +227,7 @@ export class TimerStore {
 		this.snapshot = null;
 		this.ownership = { readable: false };
 		this.eligibleCount = 0;
+		this.pausedCount = 0;
 		this.signature = null;
 		this.notify();
 	}

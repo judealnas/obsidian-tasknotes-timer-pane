@@ -35,7 +35,7 @@ export const VIEW_TYPE_TIMER_PANE = "tasknotes-timer-pane";
 export interface TimerPaneServices {
 	gateway: TaskNotesGateway;
 	store: TimerStore;
-	controller: Pick<TimerController, "stop" | "start" | "stopAll" | "complete" | "pause" | "resume" | "completionAvailable" | "isBusy" | "subscribeBusy">;
+	controller: Pick<TimerController, "stop" | "start" | "stopAll" | "complete" | "pause" | "resume" | "stopPaused" | "completionAvailable" | "isBusy" | "subscribeBusy">;
 }
 
 const STOP_LABEL = "Stop timer";
@@ -454,17 +454,19 @@ export class TimerPaneView extends ItemView {
 
 	/**
 	 * Stops that card's timer only. The target is captured at click time, so a
-	 * refresh landing mid-stop cannot redirect the write to another task.
+	 * refresh landing mid-stop cannot redirect the write to another task. On a paused
+	 * card nothing is running: Stop only forgets the pause (D-09).
 	 */
 	private async stopTask(key: string): Promise<void> {
 		const card = this.cards.get(key);
 		if (this.services.controller.isBusy() || this.stopping.has(key) || !card) return;
-		const { taskPath, startTime, title } = card.timer;
+		const { taskPath, startTime, title, state } = card.timer;
 		this.stopping.add(key);
 		card.stop.disabled = true;
 		setTextIfChanged(card.stopLabel, STOPPING_LABEL);
 		try {
-			await this.services.controller.stop({ taskPath, startTime, title });
+			if (state === "paused") await this.services.controller.stopPaused({ taskPath, title });
+			else await this.services.controller.stop({ taskPath, startTime, title });
 		} finally {
 			this.stopping.delete(key);
 			// The card, or the whole view, may be gone once the stop settles.
@@ -484,10 +486,11 @@ export class TimerPaneView extends ItemView {
 		const gate = this.services.gateway.startAvailability();
 		els.start.disabled = !gate.available || this.services.controller.isBusy();
 		setTooltip(els.start, gate.reason);
-		const stopAllState = this.services.store.getStopAllState();
+		const header = this.services.store.getHeaderState();
 		const busy = this.services.controller.isBusy();
-		els.stopAll.disabled = busy || !stopAllState.readable || stopAllState.eligibleCount === 0;
-		setTooltip(els.stopAll, busy ? "A timer action is in progress" : !stopAllState.readable ? "Cannot verify Pomodoro ownership" : stopAllState.eligibleCount === 0 ? "No regular timers to stop" : "Stop all regular timers; keep the active Pomodoro timer");
+		const nothingToStop = header.eligibleCount === 0 && header.pausedCount === 0;
+		els.stopAll.disabled = busy || !header.readable || nothingToStop;
+		setTooltip(els.stopAll, busy ? "A timer action is in progress" : !header.readable ? "Cannot verify Pomodoro ownership" : nothingToStop ? "No timers to stop" : "Stop all timers and clear paused ones");
 		for (const candidate of PANE_STATES) els.root.toggleClass(`tntp-pane--${candidate}`, candidate === state);
 		this.reconcileCards(els, timers);
 		if (timers.length > 0) {
