@@ -3,7 +3,7 @@ gsd_state_version: "1.0"
 current_phase: 2
 current_phase_name: Start, Switch & Complete
 status: verifying
-stopped_at: Phase 2 implementation and source verification complete; desktop UAT pending
+stopped_at: Phase 2 verification session closed; automated checks pass and human-intervention tests skipped by user
 last_updated: "2026-10-16T01:58:27.584Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 01 execution started
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-10-13)
 
 ## Current Position
 
-Phase: 2 (Start, Switch & Complete) — AWAITING DESKTOP VERIFICATION
+Phase: 2 (Start, Switch & Complete) — VERIFICATION SESSION CLOSED WITH SKIPS
 Plan: 3 of 3
-Status: All 3 plans implemented; 216 tests pass; 5 desktop UAT groups pending
-Last activity: 2026-10-15 - Completed all Phase 2 plans, passed 216 tests and deployed to dev-vault; verification is human_needed
+Status: 216 tests pass; 7 automated UAT checks pass; 6 desktop checks skipped by user; no response awaited
+Last activity: 2026-10-15 - Completed Phase 2 verification session with explicit manual-test skips; native behavior remains unverified
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -70,6 +70,8 @@ Progress: [░░░░░░░░░░] 0%
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+
+- [Verification policy 2026-10-15]: User requested no human intervention. Skip manual Phase 2 tests with reasons, preserve automated evidence, and never count skipped checks as observed passes. Canonical phase verification remains human_needed because the installed completion predicate blocks ordinary skips; no user test response is awaited.
 
 - [Init]: Integrate in-process through TaskNotes Runtime API v1 only (TaskNotes >= 4.10.0), behind one bridge. Write only through `api.time.start`/`stop`. Never use internals.
 - [Init]: Switch stops all running timers by default. A setting can make it stop only the displayed timer.
@@ -124,5 +126,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-10-16T01:58:27.538Z
-Stopped at: Phase 2 source verification complete; five desktop test groups pending
+Stopped at: Phase 2 verification session complete with explicit skips; no manual testing requested from user
 Resume file: .planning/phases/02-start-switch-complete/02-UAT.md
