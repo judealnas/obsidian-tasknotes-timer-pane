@@ -56,10 +56,10 @@ test("Complete is capability/callable gated and keeps the tasks receiver", async
 	const tn = createFakeTaskNotes();
 	const ctx = setup(tn.plugin); ctx.bridge.probe();
 	expect(ctx.bridge.completionAvailable()).toBe(true);
-	let receiver: unknown;
-	tn.api.tasks!.complete = function () { receiver = this; return Promise.resolve({ path: "A.md", title: "A", status: "done", archived: false }); };
+	let receiverChecked = false;
+	tn.api.tasks!.complete = function () { expect(this).toBe(tn.api.tasks); receiverChecked = true; return Promise.resolve({ path: "A.md", title: "A", status: "done", archived: false }); };
 	await ctx.bridge.completeTask("A.md", "done", { source: "test" });
-	expect(receiver).toBe(tn.api.tasks);
+	expect(receiverChecked).toBe(true);
 	const methodMissing = createFakeTaskNotes({ omitMethods: ["tasks.complete"] });
 	const missing = setup(methodMissing.plugin); missing.bridge.probe();
 	expect(missing.bridge.completionAvailable()).toBe(false);
