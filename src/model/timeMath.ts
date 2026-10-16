@@ -3,8 +3,10 @@
  * everything here is computed from the plain data returned by `time.active()` and
  * the wall clock passed in by the caller.
  */
-import type { ActiveTimeEntry } from "../tasknotes/runtime-api.types";
+import type { ActiveTimeEntry, TaskInfo } from "../tasknotes/runtime-api.types";
 import type { BridgeState } from "../tasknotes/TaskNotesBridge";
+import type { PauseRecord } from "./pauseLedger";
+import { normalizeTimerPath } from "./pomodoroOwnership";
 
 /** One of a task's time entries, parsed. An open entry has `endMs === null`. */
 export interface ParsedEntry {
@@ -12,12 +14,29 @@ export interface ParsedEntry {
 	endMs: number | null;
 }
 
-/** One open time entry, keyed by `(taskPath, startTime)`. */
+/**
+ * One card: an open time entry, keyed by `(taskPath, startTime)` for writes, or a
+ * paused session from the pane's ledger. The card key is `sessionKey`.
+ */
 export interface OpenTimer {
 	taskPath: string;
 	title: string;
+	/** The open entry's start; for a paused card, the start of the entry the pause closed. */
 	startTime: string;
 	startMs: number;
+	state: "running" | "paused";
+	/** Start of the session's first entry (D-06); equals startTime for a never-paused timer. */
+	sessionStartedAt: string;
+	/** Normalized path, U+0000, sessionStartedAt: stable across pause and resume. */
+	sessionKey: string;
+	/** Sort key: sessionStartedAt in ms. */
+	sortMs: number;
+	/** Closed segments of this session, in ms. */
+	accumulatedMs: number;
+	/** Start of the running segment; null while paused. */
+	segmentStartMs: number | null;
+	/** False while TaskNotes cannot return a paused card's task: Total shows a dash. */
+	totalKnown: boolean;
 	/** The task's own time entries, used for the total. */
 	entries: ParsedEntry[];
 	/**
@@ -45,6 +64,11 @@ export function parseMs(iso: unknown): number | null {
 /** Elapsed time of a running session; a future start clamps to 0. */
 export function sessionMs(startMs: number, nowMs: number): number {
 	return Math.max(0, nowMs - startMs);
+}
+
+/** A card's Session value: frozen while paused, otherwise closed segments plus the running one (D-08). */
+export function timerSessionMs(timer: Pick<OpenTimer, "accumulatedMs" | "segmentStartMs">, nowMs: number): number {
+	return timer.segmentStartMs === null ? timer.accumulatedMs : timer.accumulatedMs + sessionMs(timer.segmentStartMs, nowMs);
 }
 
 function pad2(n: number): string {
@@ -133,15 +157,22 @@ export function snapshotSignature(snapshot: TimerSnapshot): string {
 					timer.title,
 					String(closedMs(timer.entries)),
 					timer.displayKey,
+					timer.state,
+					timer.sessionStartedAt,
+					String(timer.accumulatedMs),
+					String(timer.totalKnown),
 				].join(FIELD_SEPARATOR),
 			)
 			.join(TIMER_SEPARATOR)
 	);
 }
 
-/** Latest start first; equal starts ordered by task path ascending (plain `<`, locale-independent). */
+/**
+ * Latest session start first (D-06: pausing or resuming never moves a card); equal
+ * starts ordered by task path ascending (plain `<`, locale-independent).
+ */
 function compareTimers(a: OpenTimer, b: OpenTimer): number {
-	if (a.startMs !== b.startMs) return b.startMs - a.startMs;
+	if (a.sortMs !== b.sortMs) return b.sortMs - a.sortMs;
 	if (a.taskPath < b.taskPath) return -1;
 	if (a.taskPath > b.taskPath) return 1;
 	return 0;
@@ -156,12 +187,25 @@ export function selectPrimary(timers: readonly OpenTimer[]): OpenTimer | null {
 	return best;
 }
 
+/** The pane's session ledger and the tasks read for its paused records. */
+export interface SnapshotLedger {
+	records: readonly PauseRecord[];
+	tasks: ReadonlyMap<string, TaskInfo | null>;
+}
+
+function sessionKeyOf(taskPath: string, sessionStartedAt: string): string {
+	return normalizeTimerPath(taskPath) + FIELD_SEPARATOR + sessionStartedAt;
+}
+
 /**
- * Builds the snapshot from `time.active()`. Every field is treated as untrusted.
- * Entries with a missing or unparseable startTime are dropped (as TaskNotes' status
- * bar does). The archive flag is never read: such timers display like any other.
+ * Builds the snapshot from `time.active()` plus the pane's paused sessions. Every
+ * field is treated as untrusted. Entries with a missing or unparseable startTime are
+ * dropped (as TaskNotes' status bar does). The archive flag is never read: such
+ * timers display like any other. An active entry matched by a running record
+ * continues that record's session; a paused record becomes a paused card.
  */
-export function deriveSnapshot(active: readonly ActiveTimeEntry[]): TimerSnapshot {
+export function deriveSnapshot(active: readonly ActiveTimeEntry[], ledger?: SnapshotLedger): TimerSnapshot {
+	const records = ledger?.records ?? [];
 	const timers: OpenTimer[] = [];
 	const items: readonly (ActiveTimeEntry | null | undefined)[] = Array.isArray(active) ? active : [];
 	for (const item of items) {
@@ -170,18 +214,49 @@ export function deriveSnapshot(active: readonly ActiveTimeEntry[]): TimerSnapsho
 		if (startMs === null || typeof startTime !== "string") continue;
 		const taskPath = pathOf(item);
 		if (taskPath === null) continue;
+		const path = normalizeTimerPath(taskPath);
+		// A stale read can still show the entry a pause just closed: the paused card stands for it.
+		if (records.some(record => record.state === "paused" && record.taskPath === path && record.lastEntryStart === startTime)) continue;
+		const session = records.find(record => record.state === "running" && record.taskPath === path && record.entryStart === startTime);
+		const sessionStartedAt = session?.sessionStartedAt ?? startTime;
 		timers.push({
 			taskPath,
 			title: displayTitle(item?.task?.title, taskPath),
 			startTime,
 			startMs,
+			state: "running",
+			sessionStartedAt,
+			sessionKey: sessionKeyOf(taskPath, sessionStartedAt),
+			sortMs: parseMs(sessionStartedAt) ?? startMs,
+			accumulatedMs: session?.accumulatedMs ?? 0,
+			segmentStartMs: startMs,
+			totalKnown: true,
 			entries: parseEntries(item?.task?.timeEntries),
 			displayKey: taskDisplayKey(item?.task),
 		});
 	}
-	const primary = selectPrimary(timers);
-	const others = timers.filter((timer) => timer !== primary).sort(compareTimers);
-	return { primary, others };
+	for (const record of records) {
+		if (record.state !== "paused") continue;
+		const task = ledger?.tasks.get(record.taskPath) ?? null;
+		const startMs = parseMs(record.lastEntryStart) ?? 0;
+		timers.push({
+			taskPath: record.taskPath,
+			title: displayTitle(task?.title ?? record.title, record.taskPath),
+			startTime: record.lastEntryStart,
+			startMs,
+			state: "paused",
+			sessionStartedAt: record.sessionStartedAt,
+			sessionKey: sessionKeyOf(record.taskPath, record.sessionStartedAt),
+			sortMs: parseMs(record.sessionStartedAt) ?? startMs,
+			accumulatedMs: record.accumulatedMs,
+			segmentStartMs: null,
+			totalKnown: task !== null,
+			entries: parseEntries(task?.timeEntries),
+			displayKey: taskDisplayKey(task),
+		});
+	}
+	const sorted = [...timers].sort(compareTimers);
+	return { primary: sorted[0] ?? null, others: sorted.slice(1) };
 }
 
 /**
@@ -215,7 +290,10 @@ function pathOf(item: ActiveTimeEntry | null | undefined): string | null {
 	return null;
 }
 
-/** What the pane shows, from the bridge state and the store snapshot. */
+/**
+ * What the pane shows, from the bridge state and the store snapshot. "running" means
+ * the pane has at least one card, running or paused (a paused-only pane is not idle).
+ */
 export function derivePaneState(bridge: BridgeState, snapshot: TimerSnapshot | null): PaneState {
 	switch (bridge.kind) {
 		case "missing":

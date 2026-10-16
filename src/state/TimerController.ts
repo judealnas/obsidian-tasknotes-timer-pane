@@ -5,8 +5,11 @@
  * Runtime Obsidian-free so Vitest can load it; Notices arrive through `notify`.
  */
 import { isNoActiveSessionError, stopFailedNotice } from "../model/errors";
-import { sameEntry, selectRegularStopTargets } from "../model/pomodoroOwnership";
+import { normalizeTimerPath, sameEntry, selectRegularStopTargets, type Ownership } from "../model/pomodoroOwnership";
+import { pausedFromStop } from "../model/pauseLedger";
+import { parseMs } from "../model/timeMath";
 import { MUTATION_SOURCE, type TaskNotesGateway } from "../tasknotes/TaskNotesBridge";
+import { PauseStore } from "./PauseStore";
 import type { TimerStore } from "./TimerStore";
 import type { WriteQueue } from "./WriteQueue";
 import { resolveCompletionStatus, type TimerPaneSettings } from "../settings";
@@ -16,6 +19,20 @@ export type StopTarget = { taskPath: string; startTime: string; title: string };
 export type StartTarget = { taskPath: string; title: string };
 export type StartOutcome = "started" | "already-running" | "failed" | "busy";
 export type CompleteOutcome = "completed" | "partial" | "unavailable" | "failed" | "busy";
+/** A paused card, captured by the view at click time. */
+export type ResumeTarget = { taskPath: string; title: string };
+/**
+ * - "paused": TaskNotes closed the entry and the pane remembers the session.
+ * - "already-stopped": no such open entry (a benign race, no Notice, no record).
+ * - "pomodoro": the entry belongs to the active Pomodoro; nothing written.
+ */
+export type PauseOutcome = "paused" | "already-stopped" | "pomodoro" | "failed" | "busy";
+export type ResumeOutcome = "resumed" | "already-running" | "pomodoro" | "failed" | "busy";
+
+/** The reason part of a write-failed Notice: trimmed, no trailing periods, never empty. */
+function noticeReason(message: string): string {
+	return message.trim().replace(/\.+$/, "").trim() || "TaskNotes reported an error";
+}
 
 /**
  * - "stopped": TaskNotes closed the entry.
@@ -33,6 +50,8 @@ export interface TimerControllerDeps {
 	notify: (message: string) => void;
 	newCorrelationId: () => string;
 	log: (message: string) => void;
+	/** The plugin's one pause store, shared with the store. Default: an empty, loaded store. */
+	pauses?: PauseStore;
 }
 
 export class TimerController {
@@ -73,6 +92,7 @@ export class TimerController {
 		return outcome;
 	}
 	private readonly deps: TimerControllerDeps;
+	private readonly pauses: PauseStore;
 	private pending = 0;
 	private completing = false;
 	private readonly busyListeners = new Set<() => void>();
@@ -117,6 +137,99 @@ export class TimerController {
 
 	constructor(deps: TimerControllerDeps) {
 		this.deps = deps;
+		if (deps.pauses) this.pauses = deps.pauses;
+		else {
+			this.pauses = new PauseStore({ log: deps.log });
+			this.pauses.load([]);
+		}
+	}
+
+	/**
+	 * Pauses exactly the target entry (CTRL-02, D-05): api.time.stop, then a paused
+	 * record built from the entry TaskNotes actually closed. Allowed while Pomodoro
+	 * ownership is unreadable (D-04), but never onto the readable owner. Never rejects.
+	 */
+	async pause(target: StopTarget): Promise<PauseOutcome> {
+		if (this.completing) return "busy";
+		const { gateway, queue, store, newCorrelationId, log } = this.deps;
+		const pauses = this.pauses;
+		this.busy(1);
+		let outcome: PauseOutcome = "failed";
+		try {
+			outcome = await queue.run(async (): Promise<PauseOutcome> => {
+				const active = await gateway.active();
+				if (!active.some(item => !item.entry.endTime && sameEntry({ taskPath: item.taskPath, startTime: item.entry.startTime }, target))) return "already-stopped";
+				let ownership: Ownership;
+				try { ownership = await gateway.pomodoroOwnership(); }
+				catch { ownership = { readable: false }; }
+				if (ownership.readable && ownership.owner && sameEntry(ownership.owner, target)) return "pomodoro";
+				const path = normalizeTimerPath(target.taskPath);
+				const prior = pauses.get(path);
+				pauses.beginPending(path);
+				try {
+					const task = await gateway.stop(target.taskPath, { source: MUTATION_SOURCE, reason: "user pause", correlationId: newCorrelationId() });
+					const entries: unknown = task?.timeEntries;
+					const closed = Array.isArray(entries)
+						? (entries as Array<{ startTime?: unknown; endTime?: unknown } | null>).find(entry => entry?.startTime === target.startTime && typeof entry.endTime === "string" && entry.endTime !== "")
+						: undefined;
+					const endMs = parseMs(closed?.endTime) ?? Date.now();
+					pauses.set(pausedFromStop({ prior, taskPath: target.taskPath, title: target.title, entryStart: target.startTime, endMs }));
+				} finally {
+					pauses.endPending(path);
+				}
+				return "paused";
+			});
+		} catch (error) {
+			const { message } = gateway.normalizeError(error);
+			if (isNoActiveSessionError(message)) outcome = "already-stopped";
+			else {
+				// No task path or TaskNotes text in the console (T-03-05).
+				log("Pausing a timer failed.");
+				this.notice(`Couldn't pause the timer for "${target.title}": ${noticeReason(message)}. Try again.`);
+				outcome = "failed";
+			}
+		} finally {
+			try { await store.refreshNow(); } finally { this.busy(-1); }
+		}
+		if (outcome === "pomodoro") this.notice(`${target.title} is being timed by Pomodoro.`);
+		return outcome;
+	}
+
+	/**
+	 * Resumes a paused task (CTRL-03): a new entry through api.time.start. The record is
+	 * left alone here: the refresh turns it back to running (D-11 rule), so a pane
+	 * Resume and an external start land the same way. Never rejects.
+	 */
+	async resume(target: ResumeTarget): Promise<ResumeOutcome> {
+		if (this.completing) return "busy";
+		const { gateway, queue, store, newCorrelationId, log } = this.deps;
+		this.busy(1);
+		let outcome: ResumeOutcome = "failed";
+		try {
+			outcome = await queue.run(async (): Promise<ResumeOutcome> => {
+				const path = normalizeTimerPath(target.taskPath);
+				let ownership: Ownership;
+				try { ownership = await gateway.pomodoroOwnership(); }
+				catch { ownership = { readable: false }; }
+				// D-17 race: the Pomodoro is timing this task.
+				if (ownership.readable && ownership.owner && normalizeTimerPath(ownership.owner.taskPath) === path) return "pomodoro";
+				if ((await gateway.active()).some(item => !item.entry.endTime && normalizeTimerPath(item.taskPath) === path)) return "already-running";
+				await gateway.start(target.taskPath, {}, { source: MUTATION_SOURCE, reason: "user resume", correlationId: newCorrelationId() });
+				return "resumed";
+			});
+		} catch (error) {
+			const { message } = gateway.normalizeError(error);
+			if (/already.*(track|tim|active)/i.test(message)) outcome = "already-running";
+			else {
+				log("Resuming a timer failed.");
+				this.notice(`Couldn't resume the timer for "${target.title}": ${noticeReason(message)}. Try again.`);
+				outcome = "failed";
+			}
+		} finally {
+			try { await store.refreshNow(); } finally { this.busy(-1); }
+		}
+		if (outcome === "pomodoro") this.notice(`${target.title} is being timed by Pomodoro.`);
+		return outcome;
 	}
 
 	/**

@@ -1,4 +1,5 @@
 import { Notice, Plugin } from "obsidian";
+import { PauseStore } from "./state/PauseStore";
 import { TimerController } from "./state/TimerController";
 import { SAFETY_RESYNC_MS, TimerStore } from "./state/TimerStore";
 import { WriteQueue } from "./state/WriteQueue";
@@ -29,7 +30,9 @@ export default class TaskNotesTimerPanePlugin extends Plugin {
 			log,
 			schedule,
 		});
-		const store = new TimerStore({ gateway: bridge, log, schedule });
+		// The one pause store: plugin-scoped so pauses outlive the pane, shared by store and controller.
+		const pauses = new PauseStore({ log });
+		const store = new TimerStore({ gateway: bridge, log, schedule, pauses });
 		// The one serial queue every pane write goes through.
 		const queue = new WriteQueue();
 		// The only place the plugin creates Notices; state and model code receive this function.
@@ -37,7 +40,7 @@ export default class TaskNotesTimerPanePlugin extends Plugin {
 			new Notice(message);
 		};
 		const newCorrelationId = () => crypto.randomUUID();
-		const controller = new TimerController({ gateway: bridge, store, queue, notify, newCorrelationId, log,
+		const controller = new TimerController({ gateway: bridge, store, queue, notify, newCorrelationId, log, pauses,
 			getSettings: () => this.paneSettings, settingsReady: () => this.settingsReady });
 		this.register(() => {
 			store.dispose();
@@ -46,8 +49,8 @@ export default class TaskNotesTimerPanePlugin extends Plugin {
 
 		// Registered synchronously so Obsidian can restore a saved pane leaf (PANE-03).
 		this.registerView(VIEW_TYPE_TIMER_PANE, (leaf) => new TimerPaneView(leaf, { gateway: bridge, store, controller }));
-		this.settingsReady = this.loadData().then((data: unknown) => { this.paneSettings = loadSettings(data); })
-			.catch(() => { log("Loading timer pane settings failed; using defaults."); });
+		this.settingsReady = this.loadData().then((data: unknown) => { this.paneSettings = loadSettings(data); pauses.load([]); })
+			.catch(() => { log("Loading timer pane settings failed; using defaults."); pauses.load([]); });
 		this.addSettingTab(new TimerPaneSettingTab(this.app, this, {
 			gateway: bridge,
 			getSettings: () => this.paneSettings,

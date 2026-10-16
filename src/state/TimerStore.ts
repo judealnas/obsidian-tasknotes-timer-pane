@@ -5,7 +5,10 @@
  */
 import { deriveSnapshot, snapshotSignature, type TimerSnapshot } from "../model/timeMath";
 import { selectRegularStopTargets, type Ownership } from "../model/pomodoroOwnership";
+import { reconcile } from "../model/pauseLedger";
 import type { BridgeState, Schedule, TaskNotesGateway } from "../tasknotes/TaskNotesBridge";
+import type { TaskInfo } from "../tasknotes/runtime-api.types";
+import { PauseStore } from "./PauseStore";
 
 /**
  * Trailing debounce for data hints. TaskNotes emits task-updated once from
@@ -24,6 +27,8 @@ export interface TimerStoreDeps {
 	gateway: TaskNotesGateway;
 	log: (message: string) => void;
 	schedule: Schedule;
+	/** The plugin's one pause store, shared with the controller. Default: an empty, loaded store. */
+	pauses?: PauseStore;
 }
 
 export class TimerStore {
@@ -36,6 +41,7 @@ export class TimerStore {
 	private readonly gateway: TaskNotesGateway;
 	private readonly log: (message: string) => void;
 	private readonly schedule: Schedule;
+	private readonly pauses: PauseStore;
 	/** Null until the first successful refresh after the bridge reaches ready. */
 	private snapshot: TimerSnapshot | null = null;
 	private signature: string | null = null;
@@ -50,6 +56,11 @@ export class TimerStore {
 		this.gateway = deps.gateway;
 		this.log = deps.log;
 		this.schedule = deps.schedule;
+		if (deps.pauses) this.pauses = deps.pauses;
+		else {
+			this.pauses = new PauseStore({ log: deps.log });
+			this.pauses.load([]);
+		}
 		this.unsubscribes = [
 			this.gateway.onState((state) => this.handleState(state)),
 			this.gateway.onData(() => this.requestRefresh()),
@@ -119,15 +130,45 @@ export class TimerStore {
 
 	private async refreshOnce(): Promise<void> {
 		if (this.disposed || this.gateway.getState().kind !== "ready") return;
+		// Stored pauses must be in memory before any reconcile, or a later load would resurrect stale ones.
+		// Awaited only while the load is pending, so a loaded store reads TaskNotes in the same turn.
+		if (!this.pauses.isLoaded()) {
+			await this.pauses.ready();
+			if (this.disposed || this.gateway.getState().kind !== "ready") return;
+		}
 		const generation = this.generation;
+		const revision = this.pauses.revision;
 		try {
 			const active = await this.gateway.active();
 			let ownership: Ownership;
 			try { ownership = await this.gateway.pomodoroOwnership(); }
 			catch { ownership = { readable: false }; }
+			// Paused tasks are not in active(). Sequential, small N; a failed read is null, never a deletion.
+			const tasks = new Map<string, TaskInfo | null>();
+			for (const record of this.pauses.records()) {
+				if (record.state !== "paused") continue;
+				let task: TaskInfo | null = null;
+				try { task = await this.gateway.getTask(record.taskPath); }
+				catch { task = null; }
+				tasks.set(record.taskPath, task);
+			}
 			// The bridge may have left ready while the read was in flight.
 			if (this.disposed || generation !== this.generation || this.gateway.getState().kind !== "ready") return;
-			const snapshot = deriveSnapshot(active);
+			// A pane pause or resume changed the ledger after these reads began: read again.
+			if (this.pauses.revision !== revision) {
+				this.dirty = true;
+				return;
+			}
+			const result = reconcile(this.pauses.records(), {
+				active,
+				ownership,
+				tasks,
+				completedStatuses: null,
+				fileExists: null,
+				pending: this.pauses.pendingPaths(),
+			});
+			if (result.changed) this.pauses.applyReconcile(result.next);
+			const snapshot = deriveSnapshot(active, { records: this.pauses.records(), tasks });
 			const signature = snapshotSignature(snapshot) + JSON.stringify(ownership);
 			const changed = this.snapshot === null || signature !== this.signature;
 			this.snapshot = snapshot;

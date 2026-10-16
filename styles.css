@@ -148,10 +148,28 @@
 	gap: var(--size-4-2);
 }
 
+.tntp-pause-resume,
 .tntp-stop,
 .tntp-complete {
 	flex: 1;
 	min-height: var(--input-height);
+}
+
+/* Paused cards keep their place and only change style (D-06): muted, with a "Paused" label. */
+.tntp-card--paused .tntp-title,
+.tntp-card--paused .tntp-clock,
+.tntp-card--paused .tntp-total {
+	color: var(--text-muted);
+}
+
+.tntp-card:not(.tntp-card--paused) .tntp-card__paused {
+	display: none;
+}
+
+/* Stop and Complete on a paused card arrive with plan 03-03. */
+.tntp-card--paused .tntp-stop,
+.tntp-card--paused .tntp-complete {
+	display: none;
 }
 
 /* Message states (idle, loading, missing, incompatible) */

@@ -1,6 +1,7 @@
 /*
  * The sidebar pane. Builds its frame once in onOpen and updates it in place from the
- * bridge state and the store snapshot: one card per open timer, reconciled by key.
+ * bridge state and the store snapshot: one card per timer session (running or
+ * paused), reconciled by session key.
  * Visibility of the card list and message area is driven only by the root
  * `tntp-pane--{state}` modifier class (styles.css).
  */
@@ -19,7 +20,7 @@ import {
 	derivePaneState,
 	detectWakeGap,
 	formatHms,
-	sessionMs,
+	timerSessionMs,
 	totalMs,
 	type OpenTimer,
 	type PaneState,
@@ -34,7 +35,7 @@ export const VIEW_TYPE_TIMER_PANE = "tasknotes-timer-pane";
 export interface TimerPaneServices {
 	gateway: TaskNotesGateway;
 	store: TimerStore;
-	controller: Pick<TimerController, "stop" | "start" | "stopAll" | "complete" | "completionAvailable" | "isBusy" | "subscribeBusy">;
+	controller: Pick<TimerController, "stop" | "start" | "stopAll" | "complete" | "pause" | "resume" | "completionAvailable" | "isBusy" | "subscribeBusy">;
 }
 
 const STOP_LABEL = "Stop timer";
@@ -52,7 +53,10 @@ interface PaneElements {
 	meta: HTMLElement;
 }
 
-/** One running-timer card. `timer` is replaced on every render with the latest data. */
+/** Shown in Total while TaskNotes cannot return a paused card's task. */
+const UNKNOWN_TOTAL = "—";
+
+/** One card (running or paused). `timer` is replaced on every render with the latest data. */
 interface CardElements {
 	timer: OpenTimer;
 	card: HTMLElement;
@@ -70,14 +74,15 @@ interface CardElements {
 	titleComponent: Component | null;
 	clock: HTMLElement;
 	total: HTMLElement;
+	/** Pause on a running card, Resume on a paused one (D-01, D-09). */
+	pauseResume: HTMLButtonElement;
+	pauseResumeIcon: HTMLElement;
+	pauseResumeLabel: HTMLElement;
+	/** The state the pause/resume button last showed; null before the first render. */
+	shownState: OpenTimer["state"] | null;
 	stop: HTMLButtonElement;
 	stopLabel: HTMLElement;
 	complete: HTMLButtonElement;
-}
-
-/** An open entry is identified by `(taskPath, startTime)`. */
-function timerKey(timer: Pick<OpenTimer, "taskPath" | "startTime">): string {
-	return `${timer.taskPath}\u0000${timer.startTime}`;
 }
 
 /**
@@ -232,6 +237,7 @@ export class TimerPaneView extends ItemView {
 		const session = card.createDiv({ cls: ["tntp-stat", "tntp-stat--session"] });
 		session.createSpan({ cls: "tntp-label", text: "Session" });
 		const clock = session.createSpan({ cls: "tntp-clock", attr: { role: "timer", "aria-live": "off" } });
+		session.createSpan({ cls: ["tntp-label", "tntp-card__paused"], text: "Paused" });
 		const totalRow = card.createDiv({ cls: ["tntp-stat", "tntp-stat--total"] });
 		totalRow.createSpan({ cls: "tntp-label", text: "Total" });
 		const total = totalRow.createSpan({ cls: "tntp-total" });
@@ -239,6 +245,17 @@ export class TimerPaneView extends ItemView {
 		// One click, no confirmation: stopping closes the entry and keeps it (CTRL-01).
 		// Card listeners live on the card itself and go away with it when it is detached.
 		const actions = card.createDiv({ cls: "tntp-actions" });
+		const pauseResume = actions.createEl("button", { cls: "tntp-pause-resume" });
+		const pauseResumeIcon = pauseResume.createSpan({ cls: "tntp-pause-resume__icon" });
+		const pauseResumeLabel = pauseResume.createSpan({ cls: "tntp-pause-resume__label" });
+		// The target is read from the card at click time, so a refresh cannot redirect the write.
+		pauseResume.addEventListener("click", () => {
+			const current = this.cards.get(key);
+			if (!current || pauseResume.disabled || this.services.controller.isBusy()) return;
+			const { taskPath, startTime, title, state } = current.timer;
+			if (state === "paused") void this.services.controller.resume({ taskPath, title });
+			else void this.services.controller.pause({ taskPath, startTime, title });
+		});
 		const stop = actions.createEl("button", { cls: ["mod-cta", "tntp-stop"] });
 		setIcon(stop.createSpan({ cls: "tntp-stop__icon" }), "square");
 		const stopLabel = stop.createSpan({ cls: "tntp-stop__label", text: STOP_LABEL });
@@ -263,6 +280,10 @@ export class TimerPaneView extends ItemView {
 			titleComponent: null,
 			clock,
 			total,
+			pauseResume,
+			pauseResumeIcon,
+			pauseResumeLabel,
+			shownState: null,
 			stop,
 			stopLabel,
 			complete,
@@ -486,16 +507,21 @@ export class TimerPaneView extends ItemView {
 		this.render();
 	}
 
-	/** Keeps exactly one card per open timer, in display order, reusing existing cards. */
+	/**
+	 * Keeps exactly one card per session, in display order, reusing existing cards. The
+	 * key is the session (path plus first start), so pause and resume keep the card.
+	 */
 	private reconcileCards(els: PaneElements, timers: readonly OpenTimer[]): void {
 		const next = new Map<string, CardElements>();
 		for (const timer of timers) {
-			const key = timerKey(timer);
+			const key = timer.sessionKey;
+			if (next.has(key)) continue;
 			const card = this.cards.get(key) ?? this.buildCard(els.cards, key, timer);
 			card.timer = timer;
 			next.set(key, card);
 			this.updateTitle(key, card);
 			setTextIfChanged(card.titleLabel, `Open ${timer.title}`);
+			this.updatePauseResume(card);
 			card.complete.disabled = this.services.controller.isBusy() || !this.completionReady;
 			setTooltip(card.complete, this.services.controller.isBusy() ? "A timer action is in progress" : this.completionReady ? "Complete this task and stop its timer" : "No completed status is available from TaskNotes");
 			// Never overwrite the busy state of a stop in flight.
@@ -512,6 +538,22 @@ export class TimerPaneView extends ItemView {
 			i++;
 		}
 		this.cards = next;
+	}
+
+	/** Pause on running cards; Resume (primary) on paused cards, where Stop loses mod-cta (D-09). */
+	private updatePauseResume(card: CardElements): void {
+		const paused = card.timer.state === "paused";
+		if (card.shownState !== card.timer.state) {
+			card.shownState = card.timer.state;
+			card.card.toggleClass("tntp-card--paused", paused);
+			setIcon(card.pauseResumeIcon, paused ? "play" : "pause");
+			setTextIfChanged(card.pauseResumeLabel, paused ? "Resume" : "Pause");
+			card.pauseResume.toggleClass("mod-cta", paused);
+			card.stop.toggleClass("mod-cta", !paused);
+		}
+		const busy = this.services.controller.isBusy();
+		card.pauseResume.disabled = busy;
+		setTooltip(card.pauseResume, busy ? "A timer action is in progress" : paused ? "Resume this timer" : "Pause this timer");
 	}
 
 	private renderMessage(els: PaneElements, state: PaneState): void {
@@ -550,8 +592,9 @@ export class TimerPaneView extends ItemView {
 
 	private writeTimes(nowMs: number): void {
 		for (const { timer, clock, total } of this.cards.values()) {
-			setTextIfChanged(clock, formatHms(sessionMs(timer.startMs, nowMs)));
-			setTextIfChanged(total, formatHms(totalMs(timer.entries, nowMs)));
+			// From stored timestamps: frozen while paused, continuing after a resume (D-07, D-08).
+			setTextIfChanged(clock, formatHms(timerSessionMs(timer, nowMs)));
+			setTextIfChanged(total, timer.totalKnown ? formatHms(totalMs(timer.entries, nowMs)) : UNKNOWN_TOTAL);
 		}
 	}
 

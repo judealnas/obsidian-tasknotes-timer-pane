@@ -382,6 +382,27 @@ describe("end-to-end reconnect through the real TimerStore", () => {
 	});
 });
 
+describe("getTask (Phase 3 paused cards)", () => {
+	const PATH = "TaskNotes/Tasks/A.md";
+	test("resolves the task, or null for a path TaskNotes has not cached", async () => {
+		const tn = createFakeTaskNotes({ active: [makeActiveEntry({ taskPath: PATH, startTime: "2026-10-14T09:00:00.000Z", title: "A" })] });
+		const { bridge } = setup(tn.plugin);
+		bridge.probe();
+		await expect(bridge.getTask(PATH)).resolves.toMatchObject({ path: PATH, title: "A" });
+		await expect(bridge.getTask("TaskNotes/Tasks/Missing.md")).resolves.toBeNull();
+	});
+	test("rejects when tasks.get is missing or TaskNotes is not connected", async () => {
+		const missing = createFakeTaskNotes({ omitMethods: ["tasks.get"] });
+		const first = setup(missing.plugin);
+		first.bridge.probe();
+		await expect(first.bridge.getTask(PATH)).rejects.toThrow("TaskNotes does not provide tasks.get");
+		const offline = createFakeTaskNotes({ ready: false });
+		const second = setup(offline.plugin);
+		second.bridge.probe();
+		await expect(second.bridge.getTask(PATH)).rejects.toThrow("TaskNotes is not connected");
+	});
+});
+
 describe("write facade (CTRL-01)", () => {
 	const context = { source: "tasknotes-timer-pane", reason: "user stop", correlationId: "corr-1" };
 
@@ -391,7 +412,7 @@ describe("write facade (CTRL-01)", () => {
 		});
 		const { bridge } = setup(tn.plugin);
 		bridge.probe();
-		await expect(bridge.stop("TaskNotes/Tasks/A.md", context)).resolves.toBeUndefined();
+		await expect(bridge.stop("TaskNotes/Tasks/A.md", context)).resolves.toMatchObject({ path: "TaskNotes/Tasks/A.md" });
 		expect(tn.stopCalls).toEqual([{ path: "TaskNotes/Tasks/A.md", context }]);
 	});
 

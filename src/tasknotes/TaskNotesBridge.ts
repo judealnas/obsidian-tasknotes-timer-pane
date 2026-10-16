@@ -51,12 +51,14 @@ export interface TaskNotesGateway {
 	pomodoroOwnership(): Promise<Ownership>;
 	startAvailability(): { available: boolean; reason: string };
 	listTasks(): Promise<TaskInfo[]>;
+	/** One task through api.tasks.get; null when TaskNotes has no such cached task (including while its cache warms). */
+	getTask(path: string): Promise<TaskInfo | null>;
 	statuses(): Promise<TaskStatus[]>;
 	completionAvailable(): boolean;
 	completeTask(path: string, status: string, context: TaskNotesMutationContext): Promise<void>;
 	start(path: string, options: Record<string, never>, context: TaskNotesMutationContext): Promise<void>;
-	/** Stops the task's open entry through TaskNotes' own api.time.stop. The only pane write. */
-	stop(taskPath: string, context: TaskNotesMutationContext): Promise<void>;
+	/** Stops the task's open entry through TaskNotes' own api.time.stop; resolves the task as TaskNotes saved it. */
+	stop(taskPath: string, context: TaskNotesMutationContext): Promise<TaskInfo>;
 	/** A TaskNotes error as `{ code, message }`; code is null when TaskNotes cannot classify it. */
 	normalizeError(error: unknown): { code: string | null; message: string };
 	/**
@@ -190,9 +192,9 @@ export class TaskNotesBridge implements TaskNotesGateway {
 	 * pane. TaskNotes applies its per-path lock and field mapping; the pane never
 	 * writes frontmatter itself.
 	 */
-	async stop(taskPath: string, context: TaskNotesMutationContext): Promise<void> {
+	async stop(taskPath: string, context: TaskNotesMutationContext): Promise<TaskInfo> {
 		const api = this.featureApi("time.write", "time.stop", api => typeof api.time?.stop === "function");
-		await api.time.stop(taskPath, context);
+		return await api.time.stop(taskPath, context);
 	}
 
 	startAvailability(): { available: boolean; reason: string } {
@@ -229,6 +231,14 @@ export class TaskNotesBridge implements TaskNotesGateway {
   const tasks = await api.tasks!.list();
   if (readApi() !== api) throw new Error("TaskNotes changed while loading tasks");
   return tasks;
+ }
+
+ async getTask(path: string): Promise<TaskInfo | null> {
+  const readApi = () => this.featureApi("tasks.read", "tasks.get", api => typeof api.tasks?.get === "function");
+  const api = readApi();
+  const task = await api.tasks!.get!(path);
+  if (readApi() !== api) throw new Error("TaskNotes changed while loading a task");
+  return task ?? null;
  }
 
  async statuses(): Promise<TaskStatus[]> {
