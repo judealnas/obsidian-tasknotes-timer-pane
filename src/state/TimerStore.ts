@@ -29,6 +29,11 @@ export interface TimerStoreDeps {
 	schedule: Schedule;
 	/** The plugin's one pause store, shared with the controller. Default: an empty, loaded store. */
 	pauses?: PauseStore;
+	/**
+	 * Whether a note still exists, or null while that can't be told yet (before
+	 * Obsidian's layout is ready). Null skips the missing-file rule. Default: null.
+	 */
+	fileCheck?: () => ((path: string) => boolean) | null;
 }
 
 export class TimerStore {
@@ -42,6 +47,7 @@ export class TimerStore {
 	private readonly log: (message: string) => void;
 	private readonly schedule: Schedule;
 	private readonly pauses: PauseStore;
+	private readonly fileCheck: () => ((path: string) => boolean) | null;
 	/** Null until the first successful refresh after the bridge reaches ready. */
 	private snapshot: TimerSnapshot | null = null;
 	private signature: string | null = null;
@@ -56,6 +62,7 @@ export class TimerStore {
 		this.gateway = deps.gateway;
 		this.log = deps.log;
 		this.schedule = deps.schedule;
+		this.fileCheck = deps.fileCheck ?? (() => null);
 		if (deps.pauses) this.pauses = deps.pauses;
 		else {
 			this.pauses = new PauseStore({ log: deps.log });
@@ -152,6 +159,17 @@ export class TimerStore {
 				catch { task = null; }
 				tasks.set(record.taskPath, task);
 			}
+			// Completed-type statuses from TaskNotes' catalog, only while something is paused.
+			// A failed read skips the completed rule; it is not an error state.
+			let completedStatuses: ReadonlySet<string> | null = null;
+			if (tasks.size > 0) {
+				try {
+					const statuses = await this.gateway.statuses();
+					completedStatuses = new Set(statuses.filter(status => status.isCompleted === true && typeof status.value === "string").map(status => status.value));
+				} catch {
+					completedStatuses = null;
+				}
+			}
 			// The bridge may have left ready while the read was in flight.
 			if (this.disposed || generation !== this.generation || this.gateway.getState().kind !== "ready") return;
 			// A pane pause or resume changed the ledger after these reads began: read again.
@@ -163,8 +181,8 @@ export class TimerStore {
 				active,
 				ownership,
 				tasks,
-				completedStatuses: null,
-				fileExists: null,
+				completedStatuses,
+				fileExists: this.fileCheck(),
 				pending: this.pauses.pendingPaths(),
 			});
 			if (result.changed) this.pauses.applyReconcile(result.next);

@@ -150,62 +150,108 @@ export function sessionValueMs(record: PauseRecord, nowMs: number): number {
 	return record.accumulatedMs + sessionMs(parseMs(record.entryStart) ?? nowMs, nowMs);
 }
 
-function openEntriesOn(active: readonly ActiveTimeEntry[], path: string): string[] {
-	const starts: string[] = [];
+/** Starts of every well-formed open entry, keyed by normalized path. */
+function openStartsByPath(active: readonly ActiveTimeEntry[]): Map<string, string[]> {
+	const byPath = new Map<string, string[]>();
 	const items: readonly (ActiveTimeEntry | null | undefined)[] = Array.isArray(active) ? active : [];
 	for (const item of items) {
 		const startTime: unknown = item?.entry?.startTime;
 		if (item?.entry?.endTime || typeof startTime !== "string" || parseMs(startTime) === null) continue;
 		const taskPath: unknown = item?.taskPath;
-		if (typeof taskPath !== "string" || normalizeTimerPath(taskPath) !== path) continue;
+		if (typeof taskPath !== "string") continue;
+		const path = normalizeTimerPath(taskPath);
+		if (path === "") continue;
+		const starts = byPath.get(path) ?? [];
 		starts.push(startTime);
+		byPath.set(path, starts);
 	}
-	return starts;
+	return byPath;
 }
 
 /**
  * Brings records in line with what TaskNotes reports. Pure: returns new arrays.
  * Rules, per record, in order:
- * - D-11: a paused record with an open entry on its path that is not the entry it
- *   closed and not the readable Pomodoro owner becomes running on that entry (the
- *   latest one if several). This is also how the pane's own Resume lands.
- * - A running record whose entry is no longer open is deleted (stopped elsewhere,
- *   by the pane's Stop, or by auto-stop), unless a pane pause is writing that path.
- * Records never expire by age (D-13), and a null task never deletes one.
+ * 1. D-16: when Pomodoro ownership is readable and the owner is on the record's path,
+ *    a paused record is deleted (the Pomodoro took the task over), and so is a running
+ *    record whose entry is the owner's (Pitfall 6: it resumed while ownership was unreadable).
+ * 2. D-11: a paused record with an open entry on its path that is not the entry it
+ *    closed and not the readable Pomodoro owner becomes running on that entry (the
+ *    latest one if several). This is also how the pane's own Resume lands.
+ * 3. A running record whose entry is no longer open is deleted (stopped elsewhere,
+ *    by the pane's Stop, or by auto-stop). Kept while its entry is still reported
+ *    open under a path that holds no record: TaskNotes re-indexing after a rename.
+ * 4. D-12 completed: a paused record whose task has a completed-type status is deleted.
+ *    Only the status counts, never the archive flag.
+ * 5. D-12 deleted: a record whose note the vault reports missing is deleted.
+ * Rules 3 to 5 skip a path a pane pause is writing. Records never expire by age
+ * (D-13), and a null task never deletes one (the cache may be warming).
  */
 export function reconcile(records: readonly PauseRecord[], obs: PauseObservations): { next: PauseRecord[]; changed: boolean } {
 	const next: PauseRecord[] = [];
 	let changed = false;
 	const owner = obs.ownership.readable ? obs.ownership.owner : null;
+	const ownerPath = owner ? normalizeTimerPath(owner.taskPath) : null;
+	const openByPath = openStartsByPath(obs.active);
+	const recordPaths = new Set(records.map(record => record.taskPath));
 	for (const record of records) {
-		const open = openEntriesOn(obs.active, record.taskPath);
+		const open = openByPath.get(record.taskPath) ?? [];
+		// Rule 1 (D-16), before rule 2: a Pomodoro start would otherwise read as an external start.
+		if (owner && ownerPath === record.taskPath && (record.state === "paused" || record.entryStart === owner.startTime)) {
+			changed = true;
+			continue;
+		}
+		let current: PauseRecord = record;
 		if (record.state === "paused") {
+			// Rule 2 (D-11).
 			let latest: string | null = null;
 			for (const startTime of open) {
 				if (startTime === record.lastEntryStart) continue;
 				if (owner && sameEntry({ taskPath: record.taskPath, startTime }, owner)) continue;
 				if (latest === null || (parseMs(startTime) ?? 0) > (parseMs(latest) ?? 0)) latest = startTime;
 			}
-			if (latest === null) {
-				next.push(record);
-				continue;
+			if (latest !== null) {
+				current = {
+					state: "running",
+					taskPath: record.taskPath,
+					title: record.title,
+					sessionStartedAt: record.sessionStartedAt,
+					accumulatedMs: record.accumulatedMs,
+					entryStart: latest,
+				};
+				changed = true;
 			}
-			next.push({
-				state: "running",
-				taskPath: record.taskPath,
-				title: record.title,
-				sessionStartedAt: record.sessionStartedAt,
-				accumulatedMs: record.accumulatedMs,
-				entryStart: latest,
-			});
+		}
+		if (obs.pending.has(record.taskPath)) {
+			next.push(current);
+			continue;
+		}
+		// Rule 3: a running record (one that was running before this pass) whose entry is gone.
+		if (record.state === "running" && !open.includes(record.entryStart) && !openUnderUnrecordedPath(openByPath, recordPaths, record.entryStart)) {
 			changed = true;
 			continue;
 		}
-		if (obs.pending.has(record.taskPath) || open.includes(record.entryStart)) {
-			next.push(record);
+		// Rule 4 (D-12 completed): paused records only; the task's status, never its archive flag.
+		if (current.state === "paused" && obs.completedStatuses !== null) {
+			const task = obs.tasks.get(current.taskPath);
+			if (task && typeof task.status === "string" && obs.completedStatuses.has(task.status)) {
+				changed = true;
+				continue;
+			}
+		}
+		// Rule 5 (D-12 deleted).
+		if (obs.fileExists !== null && !obs.fileExists(current.taskPath)) {
+			changed = true;
 			continue;
 		}
-		changed = true;
+		next.push(current);
 	}
 	return { next, changed };
+}
+
+/** True when an open entry with this start sits on a path no record holds (rename lag). */
+function openUnderUnrecordedPath(openByPath: ReadonlyMap<string, readonly string[]>, recordPaths: ReadonlySet<string>, entryStart: string): boolean {
+	for (const [path, starts] of openByPath) {
+		if (!recordPaths.has(path) && starts.includes(entryStart)) return true;
+	}
+	return false;
 }
