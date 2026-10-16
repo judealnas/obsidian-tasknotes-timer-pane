@@ -429,3 +429,306 @@ describe("Header state (D-02)", () => {
 		expect(ctx.store.getHeaderState()).toEqual({ readable: false, eligibleCount: 0, pausedCount: 0 });
 	});
 });
+
+const UNREADABLE_NOTICE = "Couldn't verify Pomodoro ownership. Pause all has stopped; try again when TaskNotes is ready.";
+
+function pomodoroOn(taskPath: string, startTime: string) {
+	return { isRunning: true, timeRemaining: 1500, currentSession: { taskPath, startTime, timeTrackingStartTime: startTime, type: "work" as const, completed: false } };
+}
+
+/** Logs every TaskNotes read and write the controller makes, in call order. */
+function traceCalls(ctx: Awaited<ReturnType<typeof setup>>): string[] {
+	const order: string[] = [];
+	const time = ctx.tn.api.time;
+	const pomodoro = ctx.tn.api.pomodoro!;
+	const active = time.active.bind(time);
+	const stop = time.stop.bind(time);
+	const start = time.start!.bind(time);
+	const status = pomodoro.status!.bind(pomodoro);
+	vi.spyOn(time, "active").mockImplementation(() => { order.push("active"); return active(); });
+	vi.spyOn(time, "stop").mockImplementation((path, context) => { order.push("stop:" + path); return stop(path, context); });
+	vi.spyOn(time, "start").mockImplementation((path, options, context) => { order.push("start:" + path); return start(path, options, context); });
+	vi.spyOn(pomodoro, "status").mockImplementation(() => { order.push("ownership"); return status(); });
+	return order;
+}
+
+/** The reads between each write and the one before it. */
+function readsBeforeEachWrite(order: readonly string[]): string[][] {
+	const groups: string[][] = [];
+	let current: string[] = [];
+	for (const call of order) {
+		if (call.startsWith("stop:") || call.startsWith("start:")) {
+			groups.push(current);
+			current = [];
+		} else current.push(call);
+	}
+	return groups;
+}
+
+describe("Pause all (CTRL-02, D-04, D-05)", () => {
+	test("pauses A then B in active order, each after fresh active and ownership reads", async () => {
+		const ctx = await setup([report(), email()]);
+		const order = traceCalls(ctx);
+
+		expect(await ctx.controller.pauseAll()).toEqual({ paused: 2, skipped: 0, failed: 0, ownershipUnreadable: false });
+
+		expect(ctx.tn.stopCalls.map(call => call.path)).toEqual([REPORT_PATH, EMAIL_PATH]);
+		expect(ctx.tn.stopCalls.map(call => call.context?.reason)).toEqual(["user pause all", "user pause all"]);
+		expect(ctx.tn.stopCalls.every(call => call.context?.source === MUTATION_SOURCE)).toBe(true);
+		for (const reads of readsBeforeEachWrite(order)) expect(reads).toEqual(expect.arrayContaining(["active", "ownership"]));
+		expect(order.filter(call => call.startsWith("stop:"))).toEqual(["stop:" + REPORT_PATH, "stop:" + EMAIL_PATH]);
+		expect(ctx.card(REPORT_PATH).state).toBe("paused");
+		expect(ctx.card(EMAIL_PATH).state).toBe("paused");
+		expect(ctx.card(REPORT_PATH).title).toBe("Write quarterly report");
+		expect(ctx.notify).not.toHaveBeenCalled();
+	});
+
+	test("targets are deduplicated (path, startTime) entries in captured active order", async () => {
+		const ctx = await setup([email(), report(), email()]);
+
+		expect(await ctx.controller.pauseAll()).toMatchObject({ paused: 2, skipped: 0 });
+
+		expect(ctx.tn.stopCalls.map(call => call.path)).toEqual([EMAIL_PATH, REPORT_PATH]);
+	});
+
+	test("skips a target that vanished before its turn and one that became Pomodoro-owned", async () => {
+		const ctx = await setup([report(), email(), next()]);
+		const stop = ctx.tn.api.time.stop.bind(ctx.tn.api.time);
+		vi.spyOn(ctx.tn.api.time, "stop").mockImplementation(async (path, context) => {
+			const result = await stop(path, context);
+			if (path === REPORT_PATH) {
+				// Answer email was stopped elsewhere; the Pomodoro took over Plan next week.
+				ctx.tn.setActive([next()]);
+				ctx.tn.setPomodoro(pomodoroOn(NEXT_PATH, START));
+			}
+			return result;
+		});
+
+		expect(await ctx.controller.pauseAll()).toEqual({ paused: 1, skipped: 2, failed: 0, ownershipUnreadable: false });
+
+		expect(ctx.tn.stopCalls.map(call => call.path)).toEqual([REPORT_PATH]);
+		expect(ctx.notify).not.toHaveBeenCalled();
+	});
+
+	test("ownership unreadable at the start: zero writes and the halt notice", async () => {
+		const ctx = await setup([report(), email()]);
+		vi.spyOn(ctx.tn.api.pomodoro!, "status").mockRejectedValue(new Error("private/path.md"));
+
+		expect(await ctx.controller.pauseAll()).toEqual({ paused: 0, skipped: 0, failed: 0, ownershipUnreadable: true });
+
+		expect(ctx.tn.stopCalls).toEqual([]);
+		expect(ctx.notify).toHaveBeenCalledTimes(1);
+		expect(ctx.notify).toHaveBeenCalledWith(UNREADABLE_NOTICE);
+		expect(ctx.pauses.records()).toEqual([]);
+		expect(ctx.controller.isBusy()).toBe(false);
+	});
+
+	test("ownership becoming unreadable after the first target: exactly one write, then halt", async () => {
+		const ctx = await setup([report(), email()]);
+		const stop = ctx.tn.api.time.stop.bind(ctx.tn.api.time);
+		vi.spyOn(ctx.tn.api.time, "stop").mockImplementation(async (path, context) => {
+			const result = await stop(path, context);
+			vi.spyOn(ctx.tn.api.pomodoro!, "status").mockRejectedValue(new Error("unreadable"));
+			return result;
+		});
+
+		expect(await ctx.controller.pauseAll()).toEqual({ paused: 1, skipped: 0, failed: 0, ownershipUnreadable: true });
+
+		expect(ctx.tn.stopCalls.map(call => call.path)).toEqual([REPORT_PATH]);
+		expect(ctx.notify).toHaveBeenCalledWith(UNREADABLE_NOTICE);
+		expect(ctx.card(REPORT_PATH).state).toBe("paused");
+		expect(ctx.card(EMAIL_PATH).state).toBe("running");
+	});
+
+	test("a failing stop is counted failed, later targets continue, and one count-only notice shows", async () => {
+		const ctx = await setup([report(), email(), next()]);
+		const stop = ctx.tn.api.time.stop.bind(ctx.tn.api.time);
+		const calls: string[] = [];
+		let inFlight = 0;
+		let maximum = 0;
+		vi.spyOn(ctx.tn.api.time, "stop").mockImplementation(async (path, context) => {
+			calls.push(path);
+			maximum = Math.max(maximum, ++inFlight);
+			try {
+				await Promise.resolve();
+				if (path === EMAIL_PATH) throw new Error("secret/Answer email.md is locked");
+				return await stop(path, context);
+			} finally { inFlight--; }
+		});
+
+		expect(await ctx.controller.pauseAll()).toEqual({ paused: 2, skipped: 0, failed: 1, ownershipUnreadable: false });
+
+		expect(calls).toEqual([REPORT_PATH, EMAIL_PATH, NEXT_PATH]);
+		expect(maximum).toBe(1);
+		expect(ctx.notify).toHaveBeenCalledTimes(1);
+		expect(ctx.notify).toHaveBeenCalledWith("Paused 2 timers. 1 timers could not be paused. Try again.");
+		expect(JSON.stringify(ctx.notify.mock.calls)).not.toContain("secret");
+		expect(JSON.stringify(ctx.notify.mock.calls)).not.toContain("Answer email");
+		expect(ctx.card(EMAIL_PATH).state).toBe("running");
+	});
+
+	test("a resumed target carries its accumulated Session into the new pause", async () => {
+		const ctx = await setup([report()]);
+		await ctx.pauseCard(REPORT_PATH);
+		vi.setSystemTime(START_MS + 30 * MINUTE);
+		await ctx.resumeCard(REPORT_PATH);
+		vi.setSystemTime(START_MS + 33 * MINUTE);
+
+		expect(await ctx.controller.pauseAll()).toMatchObject({ paused: 1 });
+
+		const paused = ctx.card(REPORT_PATH);
+		expect(paused.state).toBe("paused");
+		expect(paused.accumulatedMs).toBe(13 * MINUTE);
+		expect(paused.sessionStartedAt).toBe(START);
+	});
+
+	test("edge: zero eligible timers makes zero writes and no notice; exactly one makes one write", async () => {
+		const empty = await setup([]);
+		expect(empty.store.getHeaderState().eligibleCount).toBe(0);
+		expect(await empty.controller.pauseAll()).toEqual({ paused: 0, skipped: 0, failed: 0, ownershipUnreadable: false });
+		expect(empty.tn.stopCalls).toEqual([]);
+		expect(empty.notify).not.toHaveBeenCalled();
+
+		const one = await setup([report()]);
+		expect(await one.controller.pauseAll()).toMatchObject({ paused: 1 });
+		expect(one.tn.stopCalls).toHaveLength(1);
+	});
+});
+
+describe("Resume all (CTRL-03, D-05)", () => {
+	test("resumes in display order (latest session first, path ascending on ties), one start at a time", async () => {
+		const later = new Date(START_MS + MINUTE).toISOString();
+		const ctx = await setup([report(), makeActiveEntry({ taskPath: EMAIL_PATH, startTime: later, title: "Answer email" }), next()]);
+		await ctx.pauseCard(REPORT_PATH);
+		await ctx.pauseCard(NEXT_PATH);
+		await ctx.pauseCard(EMAIL_PATH);
+		const before = new Map(ctx.timers().map(timer => [timer.taskPath, { key: timer.sessionKey, accumulatedMs: timer.accumulatedMs }]));
+		vi.setSystemTime(START_MS + 20 * MINUTE);
+		const order = traceCalls(ctx);
+
+		expect(await ctx.controller.resumeAll()).toEqual({ resumed: 3, skipped: 0, pomodoro: 0, failed: 0 });
+
+		expect(ctx.tn.startCalls.map(call => call.path)).toEqual([EMAIL_PATH, NEXT_PATH, REPORT_PATH]);
+		expect(ctx.tn.startCalls.map(call => call.context?.reason)).toEqual(["user resume all", "user resume all", "user resume all"]);
+		for (const reads of readsBeforeEachWrite(order)) expect(reads).toEqual(expect.arrayContaining(["active", "ownership"]));
+		for (const path of [EMAIL_PATH, NEXT_PATH, REPORT_PATH]) {
+			const card = ctx.card(path);
+			expect(card.state).toBe("running");
+			expect(card.sessionKey).toBe(before.get(path)?.key);
+			expect(card.accumulatedMs).toBe(before.get(path)?.accumulatedMs);
+		}
+		expect(ctx.notify).not.toHaveBeenCalled();
+	});
+
+	test("skips the readable Pomodoro owner's task (pomodoro) and a task that already has an open entry (skipped)", async () => {
+		const ctx = await setup([report(), email(), next()]);
+		await ctx.pauseCard(REPORT_PATH);
+		await ctx.pauseCard(EMAIL_PATH);
+		await ctx.pauseCard(NEXT_PATH);
+		vi.setSystemTime(START_MS + 20 * MINUTE);
+		const now = new Date().toISOString();
+		await ctx.tn.api.time.start!(REPORT_PATH, {});
+		await ctx.tn.api.time.start!(EMAIL_PATH, {});
+		ctx.tn.setPomodoro(pomodoroOn(EMAIL_PATH, now));
+		const starts = ctx.tn.startCalls.length;
+
+		expect(await ctx.controller.resumeAll()).toEqual({ resumed: 1, skipped: 1, pomodoro: 1, failed: 0 });
+
+		expect(ctx.tn.startCalls.slice(starts).map(call => call.path)).toEqual([NEXT_PATH]);
+		expect(ctx.notify).toHaveBeenCalledTimes(1);
+		expect(ctx.notify).toHaveBeenCalledWith("Resumed 1 timers. 1 timers are being timed by Pomodoro.");
+	});
+
+	test("a failed start is counted failed with one count-only notice; later records continue", async () => {
+		const ctx = await setup([report(), email()]);
+		await ctx.pauseCard(REPORT_PATH);
+		await ctx.pauseCard(EMAIL_PATH);
+		const start = ctx.tn.api.time.start!.bind(ctx.tn.api.time);
+		vi.spyOn(ctx.tn.api.time, "start").mockImplementation((path, options, context) =>
+			path === EMAIL_PATH ? Promise.reject(new Error("secret/Answer email.md is locked")) : start(path, options, context));
+
+		expect(await ctx.controller.resumeAll()).toEqual({ resumed: 1, skipped: 0, pomodoro: 0, failed: 1 });
+
+		expect(ctx.notify).toHaveBeenCalledTimes(1);
+		expect(ctx.notify).toHaveBeenCalledWith("Resumed 1 timers. 1 timers could not be resumed. Try again.");
+		expect(JSON.stringify(ctx.notify.mock.calls)).not.toContain("secret");
+		expect(ctx.card(EMAIL_PATH).state).toBe("paused");
+		expect(ctx.card(REPORT_PATH).state).toBe("running");
+	});
+
+	test("edge: zero paused records makes zero writes and no notice", async () => {
+		const ctx = await setup([report()]);
+		expect(ctx.store.getHeaderState().pausedCount).toBe(0);
+
+		expect(await ctx.controller.resumeAll()).toEqual({ resumed: 0, skipped: 0, pomodoro: 0, failed: 0 });
+
+		expect(ctx.tn.startCalls).toEqual([]);
+		expect(ctx.notify).not.toHaveBeenCalled();
+	});
+});
+
+describe("Batches hold the write queue (D-05)", () => {
+	test("while Pause all runs the controller is busy and a queued Start waits for the whole batch", async () => {
+		const ctx = await setup([report(), email()]);
+		const order: string[] = [];
+		const time = ctx.tn.api.time;
+		const stop = time.stop.bind(time);
+		const start = time.start!.bind(time);
+		let release!: () => void;
+		const barrier = new Promise<void>(resolve => { release = resolve; });
+		let entered!: () => void;
+		const started = new Promise<void>(resolve => { entered = resolve; });
+		vi.spyOn(time, "start").mockImplementation((path, options, context) => { order.push("start:" + path); return start(path, options, context); });
+		vi.spyOn(time, "stop").mockImplementation(async (path, context) => {
+			order.push("stop:" + path);
+			entered();
+			await barrier;
+			return stop(path, context);
+		});
+
+		const batch = ctx.controller.pauseAll();
+		expect(ctx.controller.isBusy()).toBe(true);
+		await started;
+		const queued = ctx.controller.start({ taskPath: NEXT_PATH, title: "Plan next week" });
+		expect(ctx.controller.isBusy()).toBe(true);
+		release();
+		expect(await batch).toMatchObject({ paused: 2 });
+		await queued;
+
+		expect(order.filter(call => call.startsWith("stop:") || call.startsWith("start:"))).toEqual(["stop:" + REPORT_PATH, "stop:" + EMAIL_PATH, "start:" + NEXT_PATH]);
+		expect(ctx.controller.isBusy()).toBe(false);
+	});
+
+	test("while Resume all runs the controller is busy and a queued Start waits for the whole batch", async () => {
+		const ctx = await setup([report(), email()]);
+		await ctx.pauseCard(REPORT_PATH);
+		await ctx.pauseCard(EMAIL_PATH);
+		const order: string[] = [];
+		const time = ctx.tn.api.time;
+		const start = time.start!.bind(time);
+		let release!: () => void;
+		const barrier = new Promise<void>(resolve => { release = resolve; });
+		let entered!: () => void;
+		const started = new Promise<void>(resolve => { entered = resolve; });
+		vi.spyOn(time, "start").mockImplementation(async (path, options, context) => {
+			order.push("start:" + path);
+			entered();
+			await barrier;
+			return start(path, options, context);
+		});
+
+		const batch = ctx.controller.resumeAll();
+		expect(ctx.controller.isBusy()).toBe(true);
+		await started;
+		const queued = ctx.controller.start({ taskPath: NEXT_PATH, title: "Plan next week" });
+		expect(ctx.controller.isBusy()).toBe(true);
+		release();
+		expect(await batch).toMatchObject({ resumed: 2 });
+		await queued;
+
+		const writes = order.filter(call => call.startsWith("start:"));
+		expect(writes).toHaveLength(3);
+		expect(writes[2]).toBe("start:" + NEXT_PATH);
+		expect(ctx.controller.isBusy()).toBe(false);
+	});
+});
