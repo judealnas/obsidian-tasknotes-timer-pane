@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Pause & Resume
 status: executing
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-10-16T07:26:56.801Z"
+stopped_at: Completed 03-03-PLAN.md
+last_updated: "2026-10-16T07:39:10.456Z"
 last_activity: 2026-10-16
 last_activity_desc: Phase 03 execution started
-state_head: 3fa62d72a97a87d528344067235c88c0b8fa4156
+state_head: 0c2a6a673fd21fbc480af66842574cd4a99e885f
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 12
-  completed_plans: 10
+  completed_plans: 11
   percent: 33
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-13)
 ## Current Position
 
 Phase: 03 (Pause & Resume) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-10-16 — Phase 03 execution started
 
@@ -65,6 +65,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 02 P03 | 14min | 2 tasks | 17 files |
 | Phase 03 P01 | 16 min | 2 tasks | 18 files |
 | Phase 03 P02 | 8 min | 2 tasks | 9 files |
+| Phase 03 P03 | 8 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -105,6 +106,9 @@ Recent decisions affecting current work:
 - [Phase 03]: Resume never edits the pause record; the refresh's D-11 reconcile rule converts it, the same path an external TaskNotes start takes
 - [Phase 03]: Phase 03 P02: Rule 1 (Pomodoro takeover) runs before D-11; deletes a paused record on the owner's path and a running record whose entry is the owner's
 - [Phase 03]: Phase 03 P02: rename collisions keep the newer record (newnessMs, shared with loadPauseRecords); a rename while Obsidian is closed clears via rule 5 (accepted)
+- [Phase 03]: 03-03: pauseInQueue/resumeInQueue hold only the write and bookkeeping; callers check targets
+- [Phase 03]: 03-03: Pause all Notices only on failure or unreadable-ownership halt; Resume all also on Pomodoro skips; counts only
+- [Phase 03]: 03-03: Stop all clears paused records only when not halted on unreadable ownership; running records left to reconcile rule 3
 
 ### Pending Todos
 
@@ -134,6 +138,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-16T07:26:56.682Z
-Stopped at: Completed 03-02-PLAN.md
+Last session: 2026-10-16T07:39:10.313Z
+Stopped at: Completed 03-03-PLAN.md
 Resume file: None

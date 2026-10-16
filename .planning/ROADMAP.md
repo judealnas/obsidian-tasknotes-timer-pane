@@ -95,7 +95,7 @@ Plans:
   3. Paused tasks still show as paused after restarting Obsidian, and starting another timer doesn't clear them. A pause clears when the task is resumed, stopped (including Stop all), completed, deleted, or taken over by a Pomodoro. Starting a paused task elsewhere counts as resuming it.
   4. The timer owned by an active Pomodoro doesn't appear in the pane, and the picker marks its task. If Pomodoro state can't be read, every timer is shown with a muted note, and Pause all and Stop all are disabled.
 
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 **Wave 1**
@@ -105,7 +105,7 @@ Plans:
 - [x] 03-02-PLAN.md — Pauses follow TaskNotes and Obsidian: Pomodoro takeover, completed elsewhere, delete, rename/move, race-safe reconcile
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 03-03-PLAN.md — Paused-card Stop and Complete, Stop all clears pauses, header Pause all and Resume all
+- [x] 03-03-PLAN.md — Paused-card Stop and Complete, Stop all clears pauses, header Pause all and Resume all
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 03-04-PLAN.md — Hide the Pomodoro-owned entry, "can't check Pomodoro" line, picker Pomodoro tag and start guard
@@ -122,4 +122,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|----------------|--------|-----------|
 | 1. Live Timer Pane | 5/5 | In Progress | - |
 | 2. Start, Switch & Complete | 3/3 | Complete    | 2026-10-16 |
-| 3. Pause & Resume | 2/4 | In Progress | - |
+| 3. Pause & Resume | 3/4 | In Progress | - |
