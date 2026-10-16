@@ -27,6 +27,7 @@ export type StopOutcome = "stopped" | "already-stopped" | "failed" | "busy";
 export interface TimerControllerDeps {
 	gateway: Pick<TaskNotesGateway, "stop" | "normalizeError" | "active" | "start" | "pomodoroOwnership" | "statuses" | "completeTask" | "completionAvailable">;
 	getSettings?: () => TimerPaneSettings;
+	settingsReady?: () => Promise<void>;
 	store: Pick<TimerStore, "refreshNow">;
 	queue: WriteQueue;
 	notify: (message: string) => void;
@@ -157,6 +158,7 @@ export class TimerController {
 
 	async completionAvailable(): Promise<boolean> {
 		try {
+			await this.deps.settingsReady?.();
 			return this.deps.gateway.completionAvailable() && resolveCompletionStatus(await this.deps.gateway.statuses(), this.deps.getSettings?.().completionStatus ?? null) !== null;
 		} catch { return false; }
 	}
@@ -170,6 +172,7 @@ export class TimerController {
 		let outcome: CompleteOutcome = "failed";
 		try {
 			outcome = await queue.run(async (): Promise<CompleteOutcome> => {
+				await this.deps.settingsReady?.();
 				if (!gateway.completionAvailable()) return "unavailable";
 				const status = resolveCompletionStatus(await gateway.statuses(), this.deps.getSettings?.().completionStatus ?? null);
 				if (!status) return "unavailable";

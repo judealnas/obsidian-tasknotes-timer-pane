@@ -14,8 +14,12 @@ An Obsidian plugin that adds a dockable pane for monitoring and controlling Task
 - Open it with the ribbon icon "Open TaskNotes timer" or the command "Open timer pane". It opens in the right sidebar. If the pane is already open, it is revealed where it is instead of opening a second copy, and it stays in place across restarts.
 - While a timer runs, the card shows the task title (click it to open the note; Ctrl/Cmd-click opens it in a new tab), the current session as H:MM:SS ticking every second, and the task's total tracked time including the running session.
 - "Stop timer" stops only the timer the card displays.
-- Several timers at once: the pane shows the most recently started timer, plus "+N more running". Hover it to see the other titles.
-- The pane never stops a timer on its own. Stopping a timer when its task is completed is left to TaskNotes' own "auto-stop time tracking" setting. If you archive tasks by moving them to a status that TaskNotes treats as completed, that setting covers archiving too. A task archived with TaskNotes' Archive action keeps its timer running, and the pane shows that timer like any other.
+- Several timers at once: the pane shows one card per timer, most recently started first.
+- "Start task" opens a searchable picker and starts a timer alongside existing timers. Completed tasks remain selectable at the end of the list.
+- "Stop all" stops regular timers sequentially and preserves the timer owned by an active Pomodoro. It is disabled when ownership cannot be verified or there is nothing eligible to stop.
+- "Complete" beside Stop sets the task's completed status, then stops its same still-open timer. If the status write fails, the timer keeps running. If stopping later fails, the task stays completed and a Notice explains that its timer needs checking.
+- Settings → TaskNotes Timer Pane → Completion status offers "Same as TaskNotes" (the first completed status) and TaskNotes' live completed statuses. A removed saved status falls back to the first completed status. No completed statuses means Complete is disabled.
+- The pane never stops a timer without a click. TaskNotes' own completion and archive settings still govern actions made elsewhere. All pane write controls are disabled while an action runs.
 
 Differences from TaskNotes' own displays, all expected:
 

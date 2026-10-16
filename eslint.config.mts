@@ -29,6 +29,16 @@ export default defineConfig(
 	},
 	...obsidianmd.configs.recommended,
 	{
+		// The classic settings API supports manifest.minAppVersion 1.12.2.
+		// Declarative settings/search were introduced in Obsidian 1.13.
+		files: ["src/ui/TimerPaneSettingTab.ts", "tests/settings.test.ts", "tests/main.test.ts"],
+		rules: { "@typescript-eslint/no-deprecated": "off" },
+	},
+	{
+		files: ["src/ui/TimerPaneSettingTab.ts"],
+		rules: { "obsidianmd/settings-tab/prefer-setting-definitions": "off" },
+	},
+	{
 		// The recommended config only matches JS/TS files, so without this block ESLint
 		// skips manifest.json and obsidianmd/validate-manifest never runs.
 		files: ["manifest.json"],

@@ -52,6 +52,25 @@ function expectOneHandlerEach(tn: FakeTaskNotes): void {
 	expect(tn.totalHandlers()).toBe(SUBSCRIBED.length);
 }
 
+test("Complete is capability/callable gated and keeps the tasks receiver", async () => {
+	const tn = createFakeTaskNotes();
+	const ctx = setup(tn.plugin); ctx.bridge.probe();
+	expect(ctx.bridge.completionAvailable()).toBe(true);
+	let receiver: unknown;
+	tn.api.tasks!.complete = function () { receiver = this; return Promise.resolve({ path: "A.md", title: "A", status: "done", archived: false }); };
+	await ctx.bridge.completeTask("A.md", "done", { source: "test" });
+	expect(receiver).toBe(tn.api.tasks);
+	const methodMissing = createFakeTaskNotes({ omitMethods: ["tasks.complete"] });
+	const missing = setup(methodMissing.plugin); missing.bridge.probe();
+	expect(missing.bridge.completionAvailable()).toBe(false);
+	await expect(missing.bridge.completeTask("A.md", "done", { source: "test" })).rejects.toThrow("tasks.complete");
+	const capabilities = tn.api.capabilities.filter(cap => cap !== "tasks.write");
+	const denied = createFakeTaskNotes({ capabilities });
+	const gate = setup(denied.plugin); gate.bridge.probe();
+	expect(gate.bridge.completionAvailable()).toBe(false);
+	await expect(gate.bridge.completeTask("A.md", "done", { source: "test" })).rejects.toThrow("tasks.write");
+});
+
 test("Pomodoro and time events coalesce refreshes and release every listener on unload", async () => {
 	const tn = createFakeTaskNotes({ active: [makeActiveEntry({ taskPath: "A.md", title: "A", startTime: "2026-10-15T10:00:00Z" })] });
 	const ctx = setup(tn.plugin);

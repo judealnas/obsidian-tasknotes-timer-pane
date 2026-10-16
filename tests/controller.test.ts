@@ -117,6 +117,48 @@ describe("Complete transaction", () => {
 		expect(resolveCompletionStatus([...statuses].reverse(), null)?.value).toBe("first");
 		expect(resolveCompletionStatus([], "stale")).toBeNull();
 	});
+	test("waits for saved preferences, then resolves the current live catalog", async () => {
+		const ctx = await setup([report()]);
+		let release!: () => void;
+		const ready = new Promise<void>(resolve => { release = resolve; });
+		let preference: string | null = null;
+		const controller = new TimerController({ gateway: ctx.bridge, store: ctx.store, queue: new WriteQueue(),
+			notify: ctx.notify, log: ctx.log, newCorrelationId: () => "saved-choice", getSettings: () => ({ completionStatus: preference }), settingsReady: () => ready });
+		const pending = controller.complete(ctx.primaryTarget());
+		await Promise.resolve();
+		expect(ctx.tn.completeCalls).toEqual([]);
+		preference = "chosen";
+		ctx.tn.setStatuses([{ value: "first", isCompleted: true }, { value: "chosen", isCompleted: true }]);
+		release();
+		expect(await pending).toBe("completed");
+		expect(ctx.tn.completeCalls[0]?.status).toBe("chosen");
+	});
+	test("catalog failure never writes, post-status timer read failure is partial, refresh failure releases busy", async () => {
+		const ctx = await setup([report()]);
+		const statuses = vi.spyOn(ctx.bridge, "statuses").mockRejectedValue(new Error("private"));
+		expect(await ctx.controller.complete(ctx.primaryTarget())).toBe("failed");
+		expect(ctx.tn.completeCalls).toEqual([]);
+		statuses.mockRestore();
+		vi.spyOn(ctx.bridge, "active").mockRejectedValue(new Error("private"));
+		vi.spyOn(ctx.store, "refreshNow").mockRejectedValue(new Error("private"));
+		expect(await ctx.controller.complete(ctx.primaryTarget())).toBe("partial");
+		expect(ctx.tn.stopCalls).toEqual([]);
+		expect(ctx.controller.isBusy()).toBe(false);
+	});
+	test("Complete cannot enter while another pane action is refreshing", async () => {
+		const ctx = await setup([report()]);
+		const target = ctx.primaryTarget();
+		let release!: () => void;
+		let entered!: () => void;
+		const barrier = new Promise<void>(resolve => { release = resolve; });
+		const started = new Promise<void>(resolve => { entered = resolve; });
+		vi.spyOn(ctx.store, "refreshNow").mockImplementation(async () => { entered(); await barrier; });
+		const pending = ctx.controller.start({ taskPath: EMAIL_PATH, title: "Email" });
+		await started;
+		expect(await ctx.controller.complete(target)).toBe("busy");
+		expect(ctx.tn.completeCalls).toEqual([]);
+		release(); await pending;
+	});
 	test("busy covers catalog through final refresh and rejects every overlapping mutation", async () => {
 		const ctx = await setup([report()]);
 		let release!: () => void;
