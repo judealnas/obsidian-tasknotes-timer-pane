@@ -17,7 +17,7 @@ import { resolveCompletionStatus, type TimerPaneSettings } from "../settings";
 /** The displayed timer, captured by the view at click time. */
 export type StopTarget = { taskPath: string; startTime: string; title: string };
 export type StartTarget = { taskPath: string; title: string };
-export type StartOutcome = "started" | "already-running" | "failed" | "busy";
+export type StartOutcome = "started" | "already-running" | "pomodoro" | "failed" | "busy";
 export type CompleteOutcome = "completed" | "partial" | "unavailable" | "failed" | "busy";
 /** A paused card, captured by the view at click time. */
 export type ResumeTarget = { taskPath: string; title: string };
@@ -140,7 +140,12 @@ export class TimerController {
 		this.busy(1);
 		let outcome: StartOutcome = "failed";
 		try {
-			outcome = await queue.run(async () => {
+			outcome = await queue.run(async (): Promise<StartOutcome> => {
+				// D-17: re-read here, never trusting the picker-time tag. Unreadable falls back to Phase 2.
+				let ownership: Ownership;
+				try { ownership = await gateway.pomodoroOwnership(); }
+				catch { ownership = { readable: false }; }
+				if (ownership.readable && ownership.owner && normalizeTimerPath(ownership.owner.taskPath) === normalizeTimerPath(target.taskPath)) return "pomodoro";
 				if ((await gateway.active()).some(item => item.taskPath === target.taskPath && !item.entry.endTime)) return "already-running";
 				await gateway.start(target.taskPath, {}, { source: MUTATION_SOURCE, reason: "user start", correlationId: newCorrelationId() });
 				return "started";
@@ -156,6 +161,7 @@ export class TimerController {
 			try { await store.refreshNow(); } finally { this.busy(-1); }
 		}
 		if (outcome === "already-running") this.notice(target.title + " is already being timed.");
+		if (outcome === "pomodoro") this.notice(target.title + " is being timed by Pomodoro.");
 		return outcome;
 	}
 

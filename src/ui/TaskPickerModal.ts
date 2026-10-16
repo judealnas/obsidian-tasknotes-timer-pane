@@ -1,6 +1,7 @@
 import { Component, MarkdownRenderer, Notice, SuggestModal, type App } from "obsidian";
 import { filterAndSortTasks } from "../model/taskPicker";
 import { taskWikilink } from "../model/taskLink";
+import { normalizeTimerPath, type Ownership } from "../model/pomodoroOwnership";
 import type { TimerController } from "../state/TimerController";
 import type { TaskNotesGateway } from "../tasknotes/TaskNotesBridge";
 import type { TaskInfo } from "../tasknotes/runtime-api.types";
@@ -9,6 +10,8 @@ import type { TaskInfo } from "../tasknotes/runtime-api.types";
 export class TaskPickerModal extends SuggestModal<TaskInfo> {
  private tasks: TaskInfo[] = [];
  private completed = new Set<string>();
+ /** D-17: the normalized path the active Pomodoro is timing, read at open; informational only. */
+ private pomodoroPath: string | null = null;
  private generation = 0;
  private opening = 0;
  private opened = false;
@@ -37,10 +40,13 @@ export class TaskPickerModal extends SuggestModal<TaskInfo> {
 
  private async loadTasks(generation: number): Promise<void> {
   try {
-   const [tasks, statuses] = await Promise.all([this.gateway.listTasks(), this.gateway.statuses()]);
+   // An ownership failure never closes the picker: it only means no row is tagged.
+   const ownershipRead: Promise<Ownership> = this.gateway.pomodoroOwnership().catch((): Ownership => ({ readable: false }));
+   const [tasks, statuses, ownership] = await Promise.all([this.gateway.listTasks(), this.gateway.statuses(), ownershipRead]);
    if (!this.opened || generation !== this.opening || !this.gateway.startAvailability().available) return;
    this.tasks = tasks;
    this.completed = new Set(statuses.filter(status => status.isCompleted).map(status => status.value));
+   this.pomodoroPath = ownership.readable && ownership.owner ? normalizeTimerPath(ownership.owner.taskPath) : null;
    this.emptyStateText = "No matching tasks";
    // Public input event asks SuggestModal to refresh its list and selection.
    const host = this.inputEl.win as unknown as { Event: typeof Event };
@@ -64,6 +70,7 @@ export class TaskPickerModal extends SuggestModal<TaskInfo> {
   el.addClass("tntp-picker-row");
   const chip = el.createDiv({ cls: "tntp-picker-chip", text: task.title });
   if (task.due) el.createSpan({ cls: "tntp-picker-due", text: task.due });
+  if (this.pomodoroPath !== null && typeof task.path === "string" && normalizeTimerPath(task.path) === this.pomodoroPath) el.createSpan({ cls: "tntp-picker-pomodoro", text: "Pomodoro" });
   // Capture before TaskNotes' nested controls can open/edit/complete the task.
   chip.addEventListener("click", event => {
    if (event.button !== 0) return;
@@ -111,6 +118,7 @@ export class TaskPickerModal extends SuggestModal<TaskInfo> {
   ++this.opening;
   this.clearRows();
   this.tasks = [];
+  this.pomodoroPath = null;
   this.offState?.(); this.offState = null;
   this.didClose();
   super.onClose();
