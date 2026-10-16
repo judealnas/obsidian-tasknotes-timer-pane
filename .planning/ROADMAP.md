@@ -58,7 +58,7 @@ Plans:
 
 ### Phase 2: Start, Switch & Complete
 
-**Goal**: User can start, switch, and complete tasks from the pane in one or two clicks, without going to the status bar, task cards, or commands.
+**Goal**: As a TaskNotes user, I want to start timers, stop every non-Pomodoro timer, and complete timed tasks from the pane, so that I can control regular time tracking without leaving the pane.
 **Mode:** mvp
 **Depends on**: Phase 1
 **Requirements**: DISP-04, CTRL-05, CTRL-06, CTRL-07, CTRL-09 (CTRL-10 dropped 2026-10-15)
