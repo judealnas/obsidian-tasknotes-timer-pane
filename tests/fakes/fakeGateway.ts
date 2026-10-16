@@ -61,6 +61,7 @@ export function createFakeGateway(initial: BridgeState = { kind: "ready" }): Fak
 		listTasks: () => Promise.resolve([]),
 		statuses: () => Promise.resolve([]),
 		start: () => Promise.resolve(),
+		pomodoroOwnership: () => Promise.resolve({ readable: true, owner: null }),
 		getState: () => state,
 		onState(listener) {
 			stateListeners.add(listener);

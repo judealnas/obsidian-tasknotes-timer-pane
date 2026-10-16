@@ -4,6 +4,7 @@
 // stops a timer nobody clicked.
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { stopFailedNotice } from "../src/model/errors";
+import { getPomodoroOwnedEntryId, selectRegularStopTargets } from "../src/model/pomodoroOwnership";
 import { derivePaneState } from "../src/model/timeMath";
 import { TimerController, type StopTarget } from "../src/state/TimerController";
 import { REFRESH_DEBOUNCE_MS, TimerStore } from "../src/state/TimerStore";
@@ -52,6 +53,72 @@ beforeEach(() => {
 });
 
 describe("Stop all", () => {
+	test("zero targets makes zero writes and malformed ownership fails closed", async () => {
+		const empty = await setup([]);
+		expect(await empty.controller.stopAll()).toMatchObject({ stopped: 0, failed: 0 });
+		expect(empty.tn.stopCalls).toEqual([]);
+		const ctx = await setup([report()]);
+		vi.spyOn(ctx.tn.api.pomodoro!, "status").mockRejectedValue(new Error("private/path.md"));
+		expect(await ctx.controller.stopAll()).toMatchObject({ stopped: 0, ownershipUnreadable: true });
+		expect(ctx.tn.stopCalls).toEqual([]);
+		expect(JSON.stringify(ctx.notify.mock.calls)).not.toContain("private/path.md");
+		expect(ctx.controller.isBusy()).toBe(false);
+	});
+	test("ownership requires running unfinished uninterrupted work and exact normalized identity", () => {
+		const session = { taskPath: REPORT_PATH.replaceAll("/", "\\"), startTime: REPORT_START, timeTrackingStartTime: REPORT_START, type: "work", completed: false };
+		const owned = getPomodoroOwnedEntryId({ isRunning: true, currentSession: session });
+		expect(selectRegularStopTargets([report(), report({ startTime: EMAIL_START })], owned)).toEqual([{ taskPath: REPORT_PATH, startTime: EMAIL_START }]);
+		for (const patch of [{ type: "short-break" }, { type: "long-break" }, { completed: true }, { interrupted: true }]) {
+			expect(selectRegularStopTargets([report()], getPomodoroOwnedEntryId({ isRunning: true, currentSession: { ...session, ...patch } }))).toHaveLength(1);
+		}
+		expect(selectRegularStopTargets([report()], getPomodoroOwnedEntryId({ isRunning: false, currentSession: session }))).toHaveLength(1);
+		for (const state of [null, {}, { isRunning: true }, { isRunning: true, currentSession: {} }, { isRunning: true, currentSession: { ...session, timeTrackingStartTime: 5 } }]) expect(getPomodoroOwnedEntryId(state).readable).toBe(false);
+	});
+	test("rechecks replacements and newly acquired ownership before their turn", async () => {
+		const ctx = await setup([report(), email()]);
+		const stop = ctx.tn.api.time.stop.bind(ctx.tn.api.time);
+		vi.spyOn(ctx.tn.api.time, "stop").mockImplementation(async (path, context) => {
+			const result = await stop(path, context);
+			ctx.tn.setActive([email({ startTime: REPORT_START })]);
+			return result;
+		});
+		expect(await ctx.controller.stopAll()).toMatchObject({ stopped: 1, skipped: 1 });
+		const owned = await setup([report(), email()]);
+		const original = owned.tn.api.time.stop.bind(owned.tn.api.time);
+		vi.spyOn(owned.tn.api.time, "stop").mockImplementation(async (path, context) => {
+			const result = await original(path, context);
+			owned.tn.setPomodoro({ isRunning: true, timeRemaining: 10, currentSession: { taskPath: EMAIL_PATH, startTime: EMAIL_START, timeTrackingStartTime: EMAIL_START, type: "work", completed: false } });
+			return result;
+		});
+		expect(await owned.controller.stopAll()).toMatchObject({ stopped: 1, skipped: 1 });
+	});
+	test("ordinary failure continues sequentially, while lost ownership halts subsequent writes", async () => {
+		const ctx = await setup([report(), email()]);
+		const stop = ctx.tn.api.time.stop.bind(ctx.tn.api.time);
+		let inFlight = 0;
+		let maximum = 0;
+		const calls: string[] = [];
+		vi.spyOn(ctx.tn.api.time, "stop").mockImplementation(async (path, context) => {
+			calls.push(path); maximum = Math.max(maximum, ++inFlight);
+			try { await Promise.resolve(); if (path === REPORT_PATH) throw new Error("secret"); return await stop(path, context); }
+			finally { inFlight--; }
+		});
+		const pending = ctx.controller.stopAll();
+		expect(ctx.controller.isBusy()).toBe(true);
+		expect(await pending).toMatchObject({ stopped: 1, failed: 1 });
+		expect(calls).toEqual([REPORT_PATH, EMAIL_PATH]);
+		expect(maximum).toBe(1);
+		expect(ctx.controller.isBusy()).toBe(false);
+		const lost = await setup([report(), email()]);
+		const original = lost.tn.api.time.stop.bind(lost.tn.api.time);
+		vi.spyOn(lost.tn.api.time, "stop").mockImplementation(async (path, context) => {
+			const result = await original(path, context);
+			vi.spyOn(lost.tn.api.pomodoro!, "status").mockRejectedValue(new Error("unreadable"));
+			return result;
+		});
+		expect(await lost.controller.stopAll()).toMatchObject({ stopped: 1, ownershipUnreadable: true });
+		expect(lost.tn.stopCalls).toHaveLength(1);
+	});
 	test("stops captured regular timers once in first-seen order", async () => {
 		const ctx = await setup([report(), email(), report()]);
 		expect(await ctx.controller.stopAll()).toMatchObject({ stopped: 2, failed: 0 });

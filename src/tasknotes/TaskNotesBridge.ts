@@ -5,6 +5,7 @@
  * gateway. Runtime Obsidian-free (type-only imports) so Vitest can load it.
  */
 import { errorMessage } from "../model/errors";
+import { getPomodoroOwnedEntryId, type Ownership } from "../model/pomodoroOwnership";
 import type {
 	ActiveTimeEntry,
 	TaskInfo,
@@ -12,7 +13,7 @@ import type {
 	TaskNotesMutationContext,
 	TaskNotesRuntimeApiV1,
 	TaskNotesRuntimeLifecycleEventName,
-	TaskNotesRuntimeTaskEventName,
+	TaskNotesRuntimeEventName,
 } from "./runtime-api.types";
 
 export const TASKNOTES_PLUGIN_ID = "tasknotes";
@@ -47,6 +48,7 @@ export interface TaskNotesGateway {
 	onData(listener: () => void): () => void;
 	probe(): void;
 	active(): Promise<ActiveTimeEntry[]>;
+	pomodoroOwnership(): Promise<Ownership>;
 	startAvailability(): { available: boolean; reason: string };
 	listTasks(): Promise<TaskInfo[]>;
 	statuses(): Promise<TaskStatus[]>;
@@ -166,9 +168,19 @@ export class TaskNotesBridge implements TaskNotesGateway {
 	}
 
 	async active(): Promise<ActiveTimeEntry[]> {
-		const api = this.api;
-		if (!api || this.state.kind !== "ready") throw new Error("TaskNotes is not connected");
-		return await api.time.active();
+		const api = this.featureApi("time.read", "time.active", api => typeof api.time?.active === "function");
+		const active = await api.time.active();
+		if (this.connectedApi() !== api) throw new Error("TaskNotes changed while reading timers");
+		return active;
+	}
+
+	async pomodoroOwnership(): Promise<Ownership> {
+		try {
+			const api = this.featureApi("pomodoro.read", "pomodoro.status", api => typeof api.pomodoro?.status === "function");
+			const state = await api.pomodoro!.status();
+			if (this.connectedApi() !== api) return { readable: false };
+			return getPomodoroOwnedEntryId(state);
+		} catch { return { readable: false }; }
 	}
 
 	/**
@@ -350,7 +362,7 @@ export class TaskNotesBridge implements TaskNotesGateway {
 			const ref = api.lifecycle.on(event, handler);
 			this.offs.push(() => api.lifecycle.off(ref));
 		};
-		const onTask = (event: TaskNotesRuntimeTaskEventName, handler: () => void) => {
+		const onTask = (event: TaskNotesRuntimeEventName, handler: () => void) => {
 			const ref = api.events.on(event, handler);
 			this.offs.push(() => api.events.off(ref));
 		};

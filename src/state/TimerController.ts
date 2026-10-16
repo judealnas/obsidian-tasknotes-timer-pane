@@ -5,6 +5,7 @@
  * Runtime Obsidian-free so Vitest can load it; Notices arrive through `notify`.
  */
 import { isNoActiveSessionError, stopFailedNotice } from "../model/errors";
+import { sameEntry, selectRegularStopTargets } from "../model/pomodoroOwnership";
 import { MUTATION_SOURCE, type TaskNotesGateway } from "../tasknotes/TaskNotesBridge";
 import type { TimerStore } from "./TimerStore";
 import type { WriteQueue } from "./WriteQueue";
@@ -22,7 +23,7 @@ export type StartOutcome = "started" | "already-running" | "failed";
 export type StopOutcome = "stopped" | "already-stopped" | "failed";
 
 export interface TimerControllerDeps {
-	gateway: Pick<TaskNotesGateway, "stop" | "normalizeError" | "active" | "start">;
+	gateway: Pick<TaskNotesGateway, "stop" | "normalizeError" | "active" | "start" | "pomodoroOwnership">;
 	store: Pick<TimerStore, "refreshNow">;
 	queue: WriteQueue;
 	notify: (message: string) => void;
@@ -32,7 +33,39 @@ export interface TimerControllerDeps {
 
 export class TimerController {
 	async stopAll(): Promise<{ stopped: number; skipped: number; failed: number; ownershipUnreadable: boolean }> {
-		return { stopped: 0, skipped: 0, failed: 0, ownershipUnreadable: false };
+		const outcome = { stopped: 0, skipped: 0, failed: 0, ownershipUnreadable: false };
+		const { gateway, queue, store, newCorrelationId, log } = this.deps;
+		this.busy(1);
+		try {
+			await queue.run(async () => {
+				const ownership = await gateway.pomodoroOwnership();
+				if (!ownership.readable) { outcome.ownershipUnreadable = true; return; }
+				const targets = selectRegularStopTargets(await gateway.active(), ownership);
+				for (const target of targets) {
+					const active = await gateway.active();
+					const current = await gateway.pomodoroOwnership();
+					if (!current.readable) { outcome.ownershipUnreadable = true; break; }
+					if (!selectRegularStopTargets(active, current).some(id => sameEntry(id, target))) { outcome.skipped++; continue; }
+					try {
+						// Public stop is path-only. External replacement after this final read
+						// can still race this write; the pane queue cannot make it atomic.
+						await gateway.stop(target.taskPath, { source: MUTATION_SOURCE, reason: "user stop all", correlationId: newCorrelationId() });
+						outcome.stopped++;
+					} catch (error) {
+						if (isNoActiveSessionError(gateway.normalizeError(error).message)) outcome.skipped++;
+						else outcome.failed++;
+					}
+				}
+			});
+		} catch {
+			outcome.failed++;
+			log("Stopping all timers could not finish safely.");
+		} finally {
+			try { await store.refreshNow(); } finally { this.busy(-1); }
+		}
+		if (outcome.ownershipUnreadable) this.notice("Couldn't verify Pomodoro ownership. Stop all has stopped; try again when TaskNotes is ready.");
+		else if (outcome.failed) this.notice(`Stopped ${outcome.stopped} timers. ${outcome.failed} timers could not be stopped. Try again.`);
+		return outcome;
 	}
 	private readonly deps: TimerControllerDeps;
 	private pending = 0;

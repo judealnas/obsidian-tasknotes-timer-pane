@@ -34,7 +34,7 @@ export const VIEW_TYPE_TIMER_PANE = "tasknotes-timer-pane";
 export interface TimerPaneServices {
 	gateway: TaskNotesGateway;
 	store: TimerStore;
-	controller: Pick<TimerController, "stop" | "start" | "isBusy" | "subscribeBusy">;
+	controller: Pick<TimerController, "stop" | "start" | "stopAll" | "isBusy" | "subscribeBusy">;
 }
 
 const STOP_LABEL = "Stop timer";
@@ -138,6 +138,9 @@ export class TimerPaneView extends ItemView {
 		const start = header.createEl("button", { text: "Start task", cls: "tntp-start" });
 		const stopAll = header.createEl("button", { text: "Stop all", cls: "tntp-stop-all" });
 		this.registerDomEvent(start, "click", () => void this.openPicker());
+		this.registerDomEvent(stopAll, "click", () => {
+			if (!this.services.controller.isBusy() && !stopAll.disabled) void this.services.controller.stopAll();
+		});
 		const cards = root.createDiv({ cls: "tntp-cards" });
 
 		const message = root.createDiv({ cls: "tntp-message", attr: { "aria-live": "polite" } });
