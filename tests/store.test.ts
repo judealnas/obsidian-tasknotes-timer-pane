@@ -1,7 +1,7 @@
 // D-12 store tests: derivation and change detection by (taskPath, startTime), the
 // trailing debounce, single-flight, error retention and resync gating (SYNC-01/02).
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { deriveSnapshot, snapshotSignature } from "../src/model/timeMath";
+import { derivePaneState, deriveSnapshot, snapshotSignature } from "../src/model/timeMath";
 import { REFRESH_DEBOUNCE_MS, SAFETY_RESYNC_MS, TimerStore } from "../src/state/TimerStore";
 import { PauseStore } from "../src/state/PauseStore";
 import type { PausedRecord } from "../src/model/pauseLedger";
@@ -380,5 +380,137 @@ describe("pause ledger in refresh", () => {
 		ctx.gateway.setOwnership({ readable: true, owner: { taskPath: A_PATH, startTime: B_START } });
 		await ctx.store.refreshNow();
 		expect(ctx.pauses.records()).toEqual([]);
+	});
+});
+
+// ---- plan 03-04: the Pomodoro-owned entry is hidden from cards and counts (D-14, D-15, DISP-07) ----
+
+const C_START = "2026-10-14T11:00:00.000Z";
+const B_PATH = "TaskNotes/Tasks/B.md";
+const C_PATH = "TaskNotes/Tasks/C.md";
+
+function cardIds(store: TimerStore): string[] {
+	const snapshot = store.getSnapshot();
+	if (!snapshot) return [];
+	return [snapshot.primary, ...snapshot.others].filter(timer => timer !== null).map(timer => timer.taskPath + "@" + timer.startTime);
+}
+
+describe("Pomodoro-owned entry (DISP-07)", () => {
+	test("a readable owner hides only its exact entry (adjacency): same path at another start and another path at the same start stay", async () => {
+		const ctx = withPauses();
+		ctx.gateway.setActive([
+			entryA(),
+			entryA({ startTime: B_START }),
+			makeActiveEntry({ taskPath: B_PATH, startTime: A_START, title: "B" }),
+		]);
+		ctx.gateway.setOwnership({ readable: true, owner: { taskPath: A_PATH, startTime: A_START } });
+		await ctx.store.refreshNow();
+		expect(cardIds(ctx.store)).not.toContain(A_PATH + "@" + A_START);
+		expect(cardIds(ctx.store)).toEqual(expect.arrayContaining([A_PATH + "@" + B_START, B_PATH + "@" + A_START]));
+		expect(cardIds(ctx.store)).toHaveLength(2);
+		expect(ctx.store.getHeaderState().eligibleCount).toBe(2);
+	});
+
+	test("a readable owner path written differently (backslashes, dot segments) still hides the entry", async () => {
+		const ctx = withPauses();
+		ctx.gateway.setActive([entryA()]);
+		ctx.gateway.setOwnership({ readable: true, owner: { taskPath: "TaskNotes\Tasks\./A.md", startTime: A_START } });
+		await ctx.store.refreshNow();
+		expect(cardIds(ctx.store)).toEqual([]);
+	});
+
+	test("no active Pomodoro (owner null, empty predicate): every active entry is a card", async () => {
+		const ctx = withPauses();
+		ctx.gateway.setActive([entryA(), makeActiveEntry({ taskPath: B_PATH, startTime: B_START, title: "B" })]);
+		ctx.gateway.setOwnership({ readable: true, owner: null });
+		await ctx.store.refreshNow();
+		expect(cardIds(ctx.store)).toHaveLength(2);
+		expect(ctx.store.getHeaderState()).toEqual({ readable: true, eligibleCount: 2, pausedCount: 0 });
+	});
+
+	test("unreadable ownership: every active entry is a card and the header reports unreadable", async () => {
+		const ctx = withPauses();
+		ctx.gateway.setActive([entryA(), makeActiveEntry({ taskPath: B_PATH, startTime: B_START, title: "B" })]);
+		ctx.gateway.setOwnership({ readable: false });
+		await ctx.store.refreshNow();
+		expect(cardIds(ctx.store)).toHaveLength(2);
+		expect(ctx.store.getHeaderState().readable).toBe(false);
+		expect(ctx.store.getHeaderState().eligibleCount).toBe(0);
+	});
+
+	test("a rejected ownership read is unreadable and hides nothing", async () => {
+		const ctx = withPauses();
+		ctx.gateway.setActive([entryA()]);
+		vi.spyOn(ctx.gateway, "pomodoroOwnership").mockRejectedValue(new Error("pomodoro down"));
+		await ctx.store.refreshNow();
+		expect(cardIds(ctx.store)).toEqual([A_PATH + "@" + A_START]);
+		expect(ctx.store.getHeaderState().readable).toBe(false);
+	});
+
+	test("only the owned entry active (empty predicate): no cards, pane idle, eligibleCount 0", async () => {
+		const ctx = withPauses();
+		ctx.gateway.setActive([entryA()]);
+		ctx.gateway.setOwnership({ readable: true, owner: { taskPath: A_PATH, startTime: A_START } });
+		await ctx.store.refreshNow();
+		expect(ctx.store.getSnapshot()).toEqual({ primary: null, others: [] });
+		expect(derivePaneState({ kind: "ready" }, ctx.store.getSnapshot())).toBe("idle");
+		expect(ctx.store.getHeaderState()).toEqual({ readable: true, eligibleCount: 0, pausedCount: 0 });
+	});
+
+	test("zero active entries with unreadable ownership (empty predicate): idle and unreadable", async () => {
+		const ctx = withPauses();
+		ctx.gateway.setActive([]);
+		ctx.gateway.setOwnership({ readable: false });
+		await ctx.store.refreshNow();
+		expect(derivePaneState({ kind: "ready" }, ctx.store.getSnapshot())).toBe("idle");
+		expect(ctx.store.getHeaderState().readable).toBe(false);
+	});
+
+	test("reconcile still sees the owned entry: a paused record on the owner's task is cleared in the same refresh that hides it (D-16)", async () => {
+		const ctx = withPauses();
+		ctx.pauses.set(pausedA());
+		ctx.gateway.setActive([entryA({ startTime: B_START })]);
+		ctx.gateway.setOwnership({ readable: true, owner: { taskPath: A_PATH, startTime: B_START } });
+		await ctx.store.refreshNow();
+		expect(ctx.pauses.records()).toEqual([]);
+		expect(ctx.store.getSnapshot()).toEqual({ primary: null, others: [] });
+		expect(ctx.store.getHeaderState().pausedCount).toBe(0);
+	});
+
+	test("hiding the owned middle card keeps the others in D-06 order with unchanged sessionKeys (ordering predicate)", async () => {
+		const ctx = withPauses();
+		const entries = [
+			entryA(),
+			makeActiveEntry({ taskPath: B_PATH, startTime: B_START, title: "B" }),
+			makeActiveEntry({ taskPath: C_PATH, startTime: C_START, title: "C" }),
+		];
+		ctx.gateway.setActive(entries);
+		await ctx.store.refreshNow();
+		const all = ctx.store.getSnapshot();
+		const before = [all?.primary, ...(all?.others ?? [])].map(timer => timer?.sessionKey);
+		ctx.gateway.setOwnership({ readable: true, owner: { taskPath: B_PATH, startTime: B_START } });
+		await ctx.store.refreshNow();
+		const hidden = ctx.store.getSnapshot();
+		const after = [hidden?.primary, ...(hidden?.others ?? [])].map(timer => timer?.sessionKey);
+		expect(before).toHaveLength(3);
+		expect(after).toEqual(before.filter(key => !key?.startsWith(B_PATH)));
+		expect(hidden?.primary?.taskPath).toBe(C_PATH);
+	});
+
+	test("the owner changing with identical active entries still notifies", async () => {
+		const ctx = withPauses();
+		const notified = vi.fn();
+		ctx.store.subscribe(notified);
+		ctx.gateway.setActive([entryA(), makeActiveEntry({ taskPath: B_PATH, startTime: B_START, title: "B" })]);
+		await ctx.store.refreshNow();
+		notified.mockClear();
+		ctx.gateway.setOwnership({ readable: true, owner: { taskPath: B_PATH, startTime: B_START } });
+		await ctx.store.refreshNow();
+		expect(notified).toHaveBeenCalledTimes(1);
+		ctx.gateway.setOwnership({ readable: true, owner: null });
+		await ctx.store.refreshNow();
+		expect(notified).toHaveBeenCalledTimes(2);
+		await ctx.store.refreshNow();
+		expect(notified).toHaveBeenCalledTimes(2);
 	});
 });
