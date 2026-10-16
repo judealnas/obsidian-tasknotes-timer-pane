@@ -1,12 +1,26 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import TaskNotesTimerPanePlugin from "../src/main";
-import { host, resetHost } from "./fakes/fakeObsidian";
+import { emitVault, fireLayoutReady, host, resetHost } from "./fakes/fakeObsidian";
+import type { TimerStore, TimerStoreDeps } from "../src/state/TimerStore";
+import type { PauseStore } from "../src/state/PauseStore";
 import type { TimerPaneSettingTab } from "../src/ui/TimerPaneSettingTab";
 import type { TimerPaneSettings } from "../src/settings";
 import type { App, PluginManifest } from "obsidian";
 
 vi.mock("obsidian", () => import("./fakes/fakeObsidian"));
-beforeEach(() => { resetHost(); vi.useFakeTimers(); vi.stubGlobal("window", { setTimeout, clearTimeout, setInterval }); });
+// Captures the TimerStore main.ts builds, with its deps, so tests can reach fileCheck and requestRefresh.
+const captured = vi.hoisted(() => ({ stores: [] as Array<{ deps: unknown; store: unknown }> }));
+vi.mock("../src/state/TimerStore", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("../src/state/TimerStore")>();
+	class CapturingTimerStore extends actual.TimerStore {
+		constructor(deps: TimerStoreDeps) {
+			super(deps);
+			captured.stores.push({ deps, store: this });
+		}
+	}
+	return { ...actual, TimerStore: CapturingTimerStore };
+});
+beforeEach(() => { resetHost(); captured.stores = []; vi.useFakeTimers(); vi.stubGlobal("window", { setTimeout, clearTimeout, setInterval }); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
 
@@ -122,4 +136,54 @@ test("a pause change writes data.json with the settings last saved, never an old
 		{ extraKey: 1, completionStatus: "newer", pauseRecordsVersion: 1, pauseRecords: [] },
 		{ extraKey: 1, completionStatus: "newer", pauseRecordsVersion: 1, pauseRecords: [PAUSED] },
 	]);
+});
+
+// ---- plan 03-02: vault rename/delete follow the pause (D-12) ----
+
+function started(data: unknown) {
+	host.data = data;
+	const plugin = new TaskNotesTimerPanePlugin({} as App, {} as PluginManifest);
+	plugin.onload();
+	const pauses = (plugin as unknown as { pauses: PauseStore }).pauses;
+	const entry = captured.stores[0] as { deps: TimerStoreDeps; store: TimerStore };
+	const seen: string[][] = [];
+	vi.spyOn(entry.store, "requestRefresh").mockImplementation(() => {
+		seen.push(pauses.records().map(record => record.taskPath));
+	});
+	return { plugin, pauses, deps: entry.deps, seen };
+}
+
+test("the vault rename handler moves the pause before it requests a refresh", async () => {
+	const ctx = started({ pauseRecordsVersion: 1, pauseRecords: [PAUSED] });
+	await flush();
+	emitVault("rename", { path: "TaskNotes/Tasks/Renamed.md" }, PAUSED.taskPath);
+	expect(ctx.seen).toEqual([["TaskNotes/Tasks/Renamed.md"]]);
+	expect(ctx.pauses.get("TaskNotes/Tasks/Renamed.md")).toEqual({ ...PAUSED, taskPath: "TaskNotes/Tasks/Renamed.md" });
+});
+
+test("the vault delete handler removes the pause before it requests a refresh", async () => {
+	const ctx = started({ pauseRecordsVersion: 1, pauseRecords: [PAUSED] });
+	await flush();
+	emitVault("delete", { path: PAUSED.taskPath });
+	expect(ctx.seen).toEqual([[]]);
+});
+
+test("a folder rename moves every pause inside it", async () => {
+	const ctx = started({ pauseRecordsVersion: 1, pauseRecords: [PAUSED] });
+	await flush();
+	emitVault("rename", { path: "Archive/Tasks" }, "TaskNotes/Tasks");
+	expect(ctx.seen).toEqual([["Archive/Tasks/Write report.md"]]);
+});
+
+test("fileCheck is null before layout ready and backed by vault.getFileByPath after it", () => {
+	const ctx = started(undefined);
+	const fileCheck = ctx.deps.fileCheck;
+	expect(fileCheck).toBeTypeOf("function");
+	expect(fileCheck!()).toBeNull();
+	fireLayoutReady();
+	const exists = fileCheck!();
+	expect(exists).toBeTypeOf("function");
+	host.files.add(PAUSED.taskPath);
+	expect(exists!(PAUSED.taskPath)).toBe(true);
+	expect(exists!("TaskNotes/Tasks/Gone.md")).toBe(false);
 });
