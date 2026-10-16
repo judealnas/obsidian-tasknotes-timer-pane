@@ -5,6 +5,7 @@ import { globalIgnores, defineConfig } from "eslint/config";
 
 export default defineConfig(
 	globalIgnores([
+		".claude/worktrees/**",
 		"node_modules",
 		"dev-vault",
 		"dev-vault-seed",

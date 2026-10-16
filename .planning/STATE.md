@@ -23,13 +23,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-13)
 
 **Core value:** With the pane open, I can always see what task is being timed and how long I've spent on it, and stop, pause, or switch tasks in one to two clicks, without leaving the pane.
-**Current focus:** Phase 01 — Live Timer Pane
+**Current focus:** Phase 02 — Start, Stop all & Complete
 
 ## Current Position
 
-Phase: 2 (Start, Switch & Complete) — READY TO EXECUTE
-Plan: 5 of 5
-Status: Ready to execute
+Phase: 2 (Start, Switch & Complete) — EXECUTING
+Plan: 2 of 3
+Status: Plan 02-01 reconciled; ready for 02-02
 Last activity: 2026-10-14 - Completed quick task 261014-whq: Render card titles as wikilinks so TaskNotes' task-link chip appears; fall back to api.ui.taskMenu on right-click when no chip renders
 
 Progress: [░░░░░░░░░░] 0%
