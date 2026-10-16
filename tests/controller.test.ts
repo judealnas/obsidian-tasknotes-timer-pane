@@ -51,6 +51,20 @@ beforeEach(() => {
 	vi.useFakeTimers();
 });
 
+describe("Stop all", () => {
+	test("stops captured regular timers once in first-seen order", async () => {
+		const ctx = await setup([report(), email(), report()]);
+		expect(await ctx.controller.stopAll()).toMatchObject({ stopped: 2, failed: 0 });
+		expect(ctx.tn.stopCalls.map(c => c.path)).toEqual([REPORT_PATH, EMAIL_PATH]);
+	});
+	test("protects only exact running work ownership", async () => {
+		const ctx = await setup([report(), email()]);
+		ctx.tn.setPomodoro({ isRunning: true, timeRemaining: 40, currentSession: { taskPath: REPORT_PATH, startTime: REPORT_START, timeTrackingStartTime: REPORT_START, type: "work", completed: false } });
+		expect(await ctx.controller.stopAll()).toMatchObject({ stopped: 1 });
+		expect(ctx.tn.stopCalls.map(c => c.path)).toEqual([EMAIL_PATH]);
+	});
+});
+
 afterEach(() => {
 	vi.useRealTimers();
 });

@@ -31,6 +31,9 @@ export interface TimerControllerDeps {
 }
 
 export class TimerController {
+	async stopAll(): Promise<{ stopped: number; skipped: number; failed: number; ownershipUnreadable: boolean }> {
+		return { stopped: 0, skipped: 0, failed: 0, ownershipUnreadable: false };
+	}
 	private readonly deps: TimerControllerDeps;
 	private pending = 0;
 	private readonly busyListeners = new Set<() => void>();
