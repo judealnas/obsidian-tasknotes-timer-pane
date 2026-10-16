@@ -1,0 +1,219 @@
+TAP version 13
+1..31
+not ok 1 - tests/pauseLedger.test.ts > loadPauseRecords (CTRL-04 empty predicate) > undefined loads zero pauses without throwing # time=4.04ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:46:10"
+    ...
+not ok 2 - tests/pauseLedger.test.ts > loadPauseRecords (CTRL-04 empty predicate) > null loads zero pauses without throwing # time=0.35ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:46:10"
+    ...
+not ok 3 - tests/pauseLedger.test.ts > loadPauseRecords (CTRL-04 empty predicate) > an array loads zero pauses without throwing # time=0.28ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:46:10"
+    ...
+not ok 4 - tests/pauseLedger.test.ts > loadPauseRecords (CTRL-04 empty predicate) > a string loads zero pauses without throwing # time=0.24ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:46:10"
+    ...
+not ok 5 - tests/pauseLedger.test.ts > loadPauseRecords (CTRL-04 empty predicate) > settings only loads zero pauses without throwing # time=0.23ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:46:10"
+    ...
+not ok 6 - tests/pauseLedger.test.ts > loadPauseRecords (CTRL-04 empty predicate) > an unknown version loads zero pauses without throwing # time=0.35ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:46:10"
+    ...
+not ok 7 - tests/pauseLedger.test.ts > loadPauseRecords (CTRL-04 empty predicate) > a missing version loads zero pauses without throwing # time=0.22ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:46:10"
+    ...
+not ok 8 - tests/pauseLedger.test.ts > loadPauseRecords (CTRL-04 empty predicate) > non-array records loads zero pauses without throwing # time=0.22ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:46:10"
+    ...
+not ok 9 - tests/pauseLedger.test.ts > loadPauseRecords (CTRL-04 empty predicate) > a valid paused and a valid running record load as stored # time=0.39ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:50:10"
+    ...
+not ok 10 - tests/pauseLedger.test.ts > loadPauseRecords drops malformed records one by one > missing taskPath is dropped and its valid sibling survives # time=0.30ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:66:10"
+    ...
+not ok 11 - tests/pauseLedger.test.ts > loadPauseRecords drops malformed records one by one > empty taskPath is dropped and its valid sibling survives # time=0.20ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:66:10"
+    ...
+not ok 12 - tests/pauseLedger.test.ts > loadPauseRecords drops malformed records one by one > a taskPath of only separators is dropped and its valid sibling survives # time=0.18ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:66:10"
+    ...
+not ok 13 - tests/pauseLedger.test.ts > loadPauseRecords drops malformed records one by one > unparseable sessionStartedAt is dropped and its valid sibling survives # time=0.15ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:66:10"
+    ...
+not ok 14 - tests/pauseLedger.test.ts > loadPauseRecords drops malformed records one by one > non-finite accumulatedMs is dropped and its valid sibling survives # time=0.17ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:66:10"
+    ...
+not ok 15 - tests/pauseLedger.test.ts > loadPauseRecords drops malformed records one by one > non-number accumulatedMs is dropped and its valid sibling survives # time=0.16ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:66:10"
+    ...
+not ok 16 - tests/pauseLedger.test.ts > loadPauseRecords drops malformed records one by one > an unknown state is dropped and its valid sibling survives # time=0.14ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:66:10"
+    ...
+not ok 17 - tests/pauseLedger.test.ts > loadPauseRecords drops malformed records one by one > paused without pausedAt is dropped and its valid sibling survives # time=0.15ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:66:10"
+    ...
+not ok 18 - tests/pauseLedger.test.ts > loadPauseRecords drops malformed records one by one > paused with unparseable lastEntryStart is dropped and its valid sibling survives # time=0.14ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:66:10"
+    ...
+not ok 19 - tests/pauseLedger.test.ts > loadPauseRecords drops malformed records one by one > running without a parseable entryStart is dropped # time=0.18ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:70:10"
+    ...
+not ok 20 - tests/pauseLedger.test.ts > loadPauseRecords drops malformed records one by one > non-object items are dropped # time=0.23ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:74:10"
+    ...
+not ok 21 - tests/pauseLedger.test.ts > loadPauseRecords repairs what it safely can > a negative accumulatedMs clamps to 0 # time=0.24ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:80:10"
+    ...
+not ok 22 - tests/pauseLedger.test.ts > loadPauseRecords repairs what it safely can > a non-string title falls back to the path's basename # time=0.23ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:83:10"
+    ...
+not ok 23 - tests/pauseLedger.test.ts > loadPauseRecords repairs what it safely can > backslash paths are normalized # time=0.27ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:86:10"
+    ...
+not ok 24 - tests/pauseLedger.test.ts > loadPauseRecords repairs what it safely can > unknown fields are not carried into the record # time=0.19ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:89:10"
+    ...
+not ok 25 - tests/pauseLedger.test.ts > loadPauseRecords ordering predicate > duplicates for one normalized path keep the newest pausedAt # time=0.21ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:97:10"
+    ...
+not ok 26 - tests/pauseLedger.test.ts > loadPauseRecords ordering predicate > a running record's newness is its entryStart, compared with a paused record's pausedAt # time=0.19ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:103:10"
+    ...
+not ok 27 - tests/pauseLedger.test.ts > loadPauseRecords ordering predicate > on a tie the later array item wins # time=0.17ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:108:10"
+    ...
+not ok 28 - tests/pauseLedger.test.ts > loadPauseRecords ordering predicate > at most the first 1000 items are examined # time=0.54ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:112:18"
+    ...
+not ok 29 - tests/pauseLedger.test.ts > PauseStore persistence > every change after load persists the serialized records # time=0.73ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:119:36"
+    ...
+not ok 30 - tests/pauseLedger.test.ts > PauseStore persistence > a change before load is kept, merged over the stored records and persisted once loaded # time=0.26ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:119:36"
+    ...
+not ok 31 - tests/pauseLedger.test.ts > PauseStore persistence > a failed save is logged without any task path # time=0.34ms
+    ---
+    error:
+        name: "TypeError"
+        message: "loadPauseRecords is not a function"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:119:36"
+    ...
