@@ -30,10 +30,10 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **CTRL-03**: User can resume a paused task with one click. This opens a new entry on the same task.
 - [ ] **CTRL-04**: Paused state survives an Obsidian restart. It is cleared when another timer starts, or when the paused task is completed or deleted.
 - [ ] **CTRL-05**: User can start timing any task from a fuzzy task picker, opened from the pane header. The task starts alongside any running timers.
-- [ ] **CTRL-06**: User can stop every running timer, except one owned by an active Pomodoro, with one click from the pane header ("Stop all"). *(Rewritten 2026-10-15: switching was removed; see Phase 2 CONTEXT.)*
+- [x] **CTRL-06**: User can stop every running timer, except one owned by an active Pomodoro, with one click from the pane header ("Stop all"). *(Rewritten 2026-10-15: switching was removed; see Phase 2 CONTEXT.)*
 - [ ] **CTRL-07**: User can mark the active task complete from the pane, which also stops its timer.
 - [ ] **CTRL-08**: Pause is hidden for timers controlled by a Pomodoro.
-- [ ] **CTRL-09**: Controls are disabled while an action is in progress, and a failed action shows a notice explaining what happened.
+- [x] **CTRL-09**: Controls are disabled while an action is in progress, and a failed action shows a notice explaining what happened.
 - ~~**CTRL-10**: A setting controls whether switching stops all running timers (default) or only the displayed one.~~ *(Dropped 2026-10-15: switching was removed.)*
 
 ### Sync
@@ -95,10 +95,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CTRL-03 | Phase 3 | Pending |
 | CTRL-04 | Phase 3 | Pending |
 | CTRL-05 | Phase 2 | Pending |
-| CTRL-06 | Phase 2 | Pending |
+| CTRL-06 | Phase 2 | Complete |
 | CTRL-07 | Phase 2 | Pending |
 | CTRL-08 | Phase 3 | Pending |
-| CTRL-09 | Phase 2 | Pending |
+| CTRL-09 | Phase 2 | Complete |
 | CTRL-10 | Phase 2 | Dropped |
 | SYNC-01 | Phase 1 | Complete |
 | SYNC-02 | Phase 1 | Complete |

@@ -2,9 +2,9 @@
 schema_version: 1
 open_count: 6
 waived_count: 0
-fixed_count: 1
-total_count: 7
-last_updated: 2026-10-16T01:31:57.127Z
+fixed_count: 2
+total_count: 8
+last_updated: 2026-10-16T01:42:53.911Z
 ---
 
 # Broken Windows Ledger
@@ -21,7 +21,8 @@ last_updated: 2026-10-16T01:31:57.127Z
 | 4 | 01 | unrun-verify | src/ui/TimerPaneView.ts |  | Quick 261014-whq human-check (TaskNotes chip in card titles, chip click/right-click ownership, chip refresh after status/priority change, plain-link fallback with overlay off, no console errors on card removal or pane close) must be run by the user in Obsidian desktop | open |  | 2026-10-15T03:49:39.773Z |  |
 | 5 | 02 | unrun-verify | src/ui/TaskPickerModal.ts |  | 02-01 live picker UAT pending: chip/status/due clicks, arrows/Enter/Escape, slow render close/reopen, search fields and completed ordering. | open |  | 2026-10-15T17:50:06.915Z |  |
 | 6 | 02 | lint-warning | eslint.config.mts |  | npm run check blocked by pre-existing nested .claude/worktrees/effort-repo-local project-service errors; project lint excluding that checkout passes with zero warnings. | fixed |  | 2026-10-15T17:50:07.970Z | 2026-10-16T01:31:57.127Z |
-| 7 | 02 | stub | src/ui/TimerPaneView.ts |  | Stop all is intentionally present but disabled in 02-01; plan 02-02 implements the action. | open |  | 2026-10-15T17:50:08.907Z |  |
+| 7 | 02 | stub | src/ui/TimerPaneView.ts |  | Stop all is intentionally present but disabled in 02-01; plan 02-02 implements the action. | fixed |  | 2026-10-15T17:50:08.907Z | 2026-10-16T01:42:53.911Z |
+| 8 | 02 | unrun-verify | src/ui/TimerPaneView.ts |  | 02-02 live UAT pending: Stop all with regular plus Pomodoro timers, disabled tooltips and external replacement during public path-only stop race. | open |  | 2026-10-16T01:41:40.778Z |  |
 
 ````json
 [
@@ -110,9 +111,22 @@ last_updated: 2026-10-16T01:31:57.127Z
     "file": "src/ui/TimerPaneView.ts",
     "line": null,
     "description": "Stop all is intentionally present but disabled in 02-01; plan 02-02 implements the action.",
-    "status": "open",
+    "status": "fixed",
     "reason": "",
     "recorded_at": "2026-10-15T17:50:08.907Z",
+    "resolved_at": "2026-10-16T01:42:53.911Z",
+    "milestone": null
+  },
+  {
+    "id": 8,
+    "kind": "unrun-verify",
+    "phase": "02",
+    "file": "src/ui/TimerPaneView.ts",
+    "line": null,
+    "description": "02-02 live UAT pending: Stop all with regular plus Pomodoro timers, disabled tooltips and external replacement during public path-only stop race.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-16T01:41:40.778Z",
     "resolved_at": null,
     "milestone": null
   }

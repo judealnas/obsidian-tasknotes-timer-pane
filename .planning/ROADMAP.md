@@ -68,14 +68,14 @@ Plans:
   3. User can mark a timed task complete from its card. Its timer stops and TaskNotes shows the task with the completed status chosen in the plugin's settings (default: the same status TaskNotes' own toggle uses).
   4. While an action is in progress, the pane's controls are disabled. If an action fails, for example a task fails to start, a notice explains what happened.
 
-**Plans**: 1/3 plans executed
+**Plans**: 2/3 plans executed
 
 Plans:
 **Wave 1**
 - [x] 02-01-PLAN.md — Start-task tracer, deterministic searchable picker, and shared busy controls
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 02-02-PLAN.md — Pomodoro-safe sequential Stop all with live eligibility
+- [x] 02-02-PLAN.md — Pomodoro-safe sequential Stop all with live eligibility
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 02-03-PLAN.md — Status-first Complete action and live completion-status setting
@@ -107,5 +107,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Live Timer Pane | 5/5 | In Progress | - |
-| 2. Start, Switch & Complete | 1/3 | In Progress | - |
+| 2. Start, Switch & Complete | 2/3 | In Progress | - |
 | 3. Pause & Resume | 0/TBD | Not started | - |
