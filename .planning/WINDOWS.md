@@ -2,9 +2,9 @@
 schema_version: 1
 open_count: 2
 waived_count: 7
-fixed_count: 2
-total_count: 11
-last_updated: 2026-10-16T07:13:20.287Z
+fixed_count: 3
+total_count: 12
+last_updated: 2026-10-16T07:25:50.958Z
 ---
 
 # Broken Windows Ledger
@@ -25,7 +25,8 @@ last_updated: 2026-10-16T07:13:20.287Z
 | 8 | 02 | unrun-verify | src/ui/TimerPaneView.ts |  | 02-02 live UAT pending: Stop all with regular plus Pomodoro timers, disabled tooltips and external replacement during public path-only stop race. | waived | User explicitly requested skipping tests requiring human intervention. Native Phase 2 checks were not performed; retain skipped evidence in 02-UAT.md. | 2026-10-16T01:41:40.778Z | 2026-10-16T02:57:19.357Z |
 | 9 | 02 | unrun-verify | src/ui/TimerPaneView.ts |  | 02-03 live UAT pending: Complete beside Stop, native chip click/right-click and keyboard use, TaskNotes auto-stop on/off, live catalog refresh, preference reload and stale fallback. | waived | User explicitly requested skipping tests requiring human intervention. Native Phase 2 checks were not performed; retain skipped evidence in 02-UAT.md. | 2026-10-16T01:57:07.224Z | 2026-10-16T02:57:20.503Z |
 | 10 | 3 | stub | styles.css |  | Paused cards hide Stop and Complete until plan 03-03 wires stopPaused and complete-paused | open |  | 2026-10-16T07:13:19.538Z |  |
-| 11 | 3 | stub | src/state/TimerStore.ts |  | reconcile runs with completedStatuses and fileExists null; plan 03-02 adds the completed-elsewhere, deleted and Pomodoro takeover rules | open |  | 2026-10-16T07:13:20.287Z |  |
+| 11 | 3 | stub | src/state/TimerStore.ts |  | reconcile runs with completedStatuses and fileExists null; plan 03-02 adds the completed-elsewhere, deleted and Pomodoro takeover rules | fixed |  | 2026-10-16T07:13:20.287Z | 2026-10-16T07:25:50.098Z |
+| 12 | 3 | unrun-verify | src/main.ts |  | 03-02 human-checks deferred to end of phase: Pomodoro takeover, done-elsewhere and archive-only pauses; explorer rename/move/delete of a paused or resumed note; renamed pause survives restart | open |  | 2026-10-16T07:25:50.958Z |  |
 
 ````json
 [
@@ -166,9 +167,22 @@ last_updated: 2026-10-16T07:13:20.287Z
     "file": "src/state/TimerStore.ts",
     "line": null,
     "description": "reconcile runs with completedStatuses and fileExists null; plan 03-02 adds the completed-elsewhere, deleted and Pomodoro takeover rules",
-    "status": "open",
+    "status": "fixed",
     "reason": "",
     "recorded_at": "2026-10-16T07:13:20.287Z",
+    "resolved_at": "2026-10-16T07:25:50.098Z",
+    "milestone": null
+  },
+  {
+    "id": 12,
+    "kind": "unrun-verify",
+    "phase": "3",
+    "file": "src/main.ts",
+    "line": null,
+    "description": "03-02 human-checks deferred to end of phase: Pomodoro takeover, done-elsewhere and archive-only pauses; explorer rename/move/delete of a paused or resumed note; renamed pause survives restart",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-16T07:25:50.958Z",
     "resolved_at": null,
     "milestone": null
   }
