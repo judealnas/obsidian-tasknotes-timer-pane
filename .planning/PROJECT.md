@@ -15,6 +15,7 @@ With the pane open, I can always see what task is being timed and how long I've 
 - ✓ Start task from the pane with a searchable picker while preserving other running timers — Phase 2; automated checks and user desktop acceptance
 - ✓ Stop all regular timers while protecting the exact active Pomodoro-owned entry — Phase 2; user confirmed the mixed regular/Pomodoro case
 - ✓ Complete timed tasks using a live, persisted completed-status preference — Phase 2; automated checks and user desktop acceptance
+- ✓ Pause and resume per card and from the header, persisted across restarts, with Pomodoro-owned timers hidden from the pane — Phase 3; 361 automated tests and user desktop acceptance (the unreadable-ownership note is a deferred follow-up)
 
 ### Active
 
@@ -22,9 +23,7 @@ With the pane open, I can always see what task is being timed and how long I've 
 - [ ] Live elapsed time for the current session (active time entry)
 - [ ] Total tracked time on the active task across all sessions (optionally vs. time estimate)
 - [ ] Stop the active timer from the pane
-- [ ] Pause/resume from the pane (pause = close current time entry; resume = open a new entry on the same task)
 - [ ] Stays in sync: timers started/stopped elsewhere in TaskNotes (status bar, task cards, commands), via Sync, or by hand edits reflect in the pane promptly
-- [ ] Pause and resume per card and from the header, persisted across restarts, with Pomodoro-owned timers hidden from the pane — Phase 3; concurrent timers already have independent cards
 
 ### Out of Scope
 
@@ -61,9 +60,10 @@ With the pane open, I can always see what task is being timed and how long I've 
 | In-process integration via Runtime API v1, not HTTP API or internals | No API server/token setup; documented, versioned companion-plugin surface | — Pending |
 | Start adds a concurrent timer; Stop all skips the exact active Pomodoro-owned entry | Independent timer model chosen during Phase 2 discussion; switch action and its setting were removed | Phase 2 accepted |
 | Individual Stop closes task time tracking without stopping the Pomodoro countdown | Pane controls regular time entries; Pomodoro countdown controls remain in TaskNotes | User observed and clarified during Phase 2 UAT |
-| Pomodoro-owned timers hidden from the pane; if ownership can't be read, show all timers with a note | Pomodoro owns its entry, and pane pause would orphan it. Hiding is simpler than labelling, and the pane stays focused on regular timers (replaces the earlier label-and-hide-pause plan, 2026-10-16) | — Pending |
+| Pomodoro-owned timers hidden from the pane; if ownership can't be read, show all timers with a note | Pomodoro owns its entry, and pane pause would orphan it. Hiding is simpler than labelling, and the pane stays focused on regular timers (replaces the earlier label-and-hide-pause plan, 2026-10-16) | Phase 3 accepted; unreadable-note visual deferred |
 | Full control (start/stop/pause/switch), not just monitoring | Done = stop, pause, or switch in 1–2 clicks from the pane | — Pending |
-| Pause implemented as stop + new entry on resume | TaskNotes time tracking has no native pause; time entries are start/end pairs | — Pending |
+| Pause implemented as stop + new entry on resume | TaskNotes time tracking has no native pause; time entries are start/end pairs | Phase 3 accepted |
+| Pause records live in the plugin's data.json, keyed by session and reconciled against TaskNotes on every refresh | Survives restarts; renames follow vault events; clears only on clear signals (resume, stop, complete, delete, Pomodoro takeover), never by age or a null read | Phase 3 accepted |
 | Sidebar view + ribbon icon + command | Matches Pomodoro pane placement; easy to open | — Pending |
 | Don't base on zczs520 fork | Unknown provenance | — Pending |
 
@@ -85,4 +85,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-16 after Phase 2 acceptance*
+*Last updated: 2026-10-16 after Phase 3*
