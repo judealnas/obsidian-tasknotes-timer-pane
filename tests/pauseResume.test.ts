@@ -24,6 +24,9 @@ function report(): ActiveTimeEntry {
 function email(): ActiveTimeEntry {
 	return makeActiveEntry({ taskPath: EMAIL_PATH, startTime: START, title: "Answer email" });
 }
+function next(): ActiveTimeEntry {
+	return makeActiveEntry({ taskPath: NEXT_PATH, startTime: START, title: "Plan next week" });
+}
 
 /** Real bridge, store, queue, controller and pause store over a fake TaskNotes, primed with a first refresh. */
 async function setup(active: ActiveTimeEntry[]) {
@@ -287,5 +290,142 @@ describe("Pauses and other timers (D-03, D-11)", () => {
 
 		expect(ctx.timers()).toEqual([]);
 		expect(ctx.pauses.records()).toEqual([]);
+	});
+});
+
+describe("Stop and Complete on a paused card (D-09)", () => {
+	test("Stop on a paused card clears the pause and the card with no TaskNotes write", async () => {
+		const ctx = await setup([report()]);
+		await ctx.pauseCard(REPORT_PATH);
+		expect(ctx.tn.stopCalls).toHaveLength(1);
+
+		expect(await ctx.controller.stopPaused({ taskPath: REPORT_PATH, title: "Write quarterly report" })).toBe("cleared");
+
+		expect(ctx.tn.stopCalls).toHaveLength(1);
+		expect(ctx.tn.startCalls).toEqual([]);
+		expect(ctx.tn.completeCalls).toEqual([]);
+		expect(ctx.pauses.records()).toEqual([]);
+		expect(ctx.timers()).toEqual([]);
+		expect(ctx.paneState()).toBe("idle");
+		expect(ctx.controller.isBusy()).toBe(false);
+	});
+
+	test("Stop on a paused card that was started elsewhere meanwhile is not-paused and keeps the record", async () => {
+		const ctx = await setup([report()]);
+		await ctx.pauseCard(REPORT_PATH);
+		await ctx.tn.api.time.start!(REPORT_PATH, {});
+		await ctx.store.refreshNow();
+
+		expect(await ctx.controller.stopPaused({ taskPath: REPORT_PATH, title: "Write quarterly report" })).toBe("not-paused");
+
+		expect(ctx.pauses.records()).toHaveLength(1);
+		expect(ctx.pauses.records()[0]?.state).toBe("running");
+		expect(ctx.card(REPORT_PATH).state).toBe("running");
+		expect(ctx.tn.stopCalls).toHaveLength(1);
+	});
+
+	test("Complete on a paused card writes the completed status once, stops nothing and clears the pause", async () => {
+		const ctx = await setup([report()]);
+		await ctx.pauseCard(REPORT_PATH);
+		const { taskPath, startTime, title } = ctx.card(REPORT_PATH);
+
+		expect(await ctx.controller.complete({ taskPath, startTime, title })).toBe("completed");
+
+		expect(ctx.tn.completeCalls).toHaveLength(1);
+		expect(ctx.tn.completeCalls[0]).toMatchObject({ path: REPORT_PATH, status: "done" });
+		expect(ctx.tn.stopCalls).toHaveLength(1);
+		expect(ctx.pauses.records()).toEqual([]);
+		expect(ctx.timers()).toEqual([]);
+		expect(ctx.notify).not.toHaveBeenCalled();
+	});
+
+	test("Complete on a paused card whose status write fails keeps the pause and shows the complete notice", async () => {
+		const ctx = await setup([report()]);
+		await ctx.pauseCard(REPORT_PATH);
+		const { taskPath, startTime, title } = ctx.card(REPORT_PATH);
+		ctx.tn.failCompleteWith("Disk is read-only");
+
+		expect(await ctx.controller.complete({ taskPath, startTime, title })).toBe("failed");
+
+		expect(ctx.notify).toHaveBeenCalledWith("Couldn't complete the task. Try again in TaskNotes.");
+		expect(ctx.pauses.records()).toHaveLength(1);
+		expect(ctx.card(REPORT_PATH).state).toBe("paused");
+		expect(ctx.tn.stopCalls).toHaveLength(1);
+	});
+});
+
+describe("Stop all clears pauses (D-10, CTRL-04)", () => {
+	test("one running timer and two paused records: one stop write, both pauses cleared, pane idle", async () => {
+		const ctx = await setup([report(), email(), next()]);
+		await ctx.pauseCard(REPORT_PATH);
+		await ctx.pauseCard(EMAIL_PATH);
+		expect(ctx.tn.stopCalls).toHaveLength(2);
+
+		expect(await ctx.controller.stopAll()).toMatchObject({ stopped: 1, cleared: 2, failed: 0, ownershipUnreadable: false });
+
+		expect(ctx.tn.stopCalls.map(call => call.path)).toEqual([REPORT_PATH, EMAIL_PATH, NEXT_PATH]);
+		expect(ctx.pauses.records()).toEqual([]);
+		expect(ctx.timers()).toEqual([]);
+		expect(ctx.paneState()).toBe("idle");
+	});
+
+	test("only paused records: zero stop writes and every pause cleared", async () => {
+		const ctx = await setup([report(), email()]);
+		await ctx.pauseCard(REPORT_PATH);
+		await ctx.pauseCard(EMAIL_PATH);
+
+		expect(await ctx.controller.stopAll()).toMatchObject({ stopped: 0, cleared: 2 });
+
+		expect(ctx.tn.stopCalls).toHaveLength(2);
+		expect(ctx.pauses.records()).toEqual([]);
+		expect(ctx.paneState()).toBe("idle");
+	});
+
+	test("a Stop all that halts on unreadable Pomodoro ownership keeps paused records", async () => {
+		const ctx = await setup([report(), email(), next()]);
+		await ctx.pauseCard(REPORT_PATH);
+		const status = vi.spyOn(ctx.tn.api.pomodoro!, "status").mockRejectedValue(new Error("unreadable"));
+
+		expect(await ctx.controller.stopAll()).toMatchObject({ stopped: 0, cleared: 0, ownershipUnreadable: true });
+		expect(ctx.pauses.records()).toHaveLength(1);
+		expect(ctx.tn.stopCalls).toHaveLength(1);
+
+		// Halting mid-batch keeps them too.
+		status.mockRestore();
+		const original = ctx.tn.api.time.stop.bind(ctx.tn.api.time);
+		vi.spyOn(ctx.tn.api.time, "stop").mockImplementation(async (path, context) => {
+			const result = await original(path, context);
+			vi.spyOn(ctx.tn.api.pomodoro!, "status").mockRejectedValue(new Error("unreadable"));
+			return result;
+		});
+		expect(await ctx.controller.stopAll()).toMatchObject({ stopped: 1, cleared: 0, ownershipUnreadable: true });
+		expect(ctx.pauses.records().filter(record => record.state === "paused")).toHaveLength(1);
+	});
+
+	test("a resumed timer stopped by Stop all disappears through reconcile, not the paused clear", async () => {
+		const ctx = await setup([report()]);
+		await ctx.pauseCard(REPORT_PATH);
+		await ctx.resumeCard(REPORT_PATH);
+		expect(ctx.pauses.records()[0]?.state).toBe("running");
+
+		expect(await ctx.controller.stopAll()).toMatchObject({ stopped: 1, cleared: 0 });
+
+		expect(ctx.pauses.records()).toEqual([]);
+		expect(ctx.timers()).toEqual([]);
+	});
+});
+
+describe("Header state (D-02)", () => {
+	test("getHeaderState counts paused cards and resets when the bridge leaves ready", async () => {
+		const ctx = await setup([report(), email()]);
+		expect(ctx.store.getHeaderState()).toEqual({ readable: true, eligibleCount: 2, pausedCount: 0 });
+
+		await ctx.pauseCard(REPORT_PATH);
+		expect(ctx.store.getHeaderState()).toEqual({ readable: true, eligibleCount: 1, pausedCount: 1 });
+		await ctx.pauseCard(EMAIL_PATH);
+		expect(ctx.store.getHeaderState()).toEqual({ readable: true, eligibleCount: 0, pausedCount: 2 });
+
+		ctx.tn.emitLifecycle("unloading");
+		expect(ctx.store.getHeaderState()).toEqual({ readable: false, eligibleCount: 0, pausedCount: 0 });
 	});
 });
