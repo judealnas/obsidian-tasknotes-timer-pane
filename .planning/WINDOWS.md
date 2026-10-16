@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 6
+open_count: 7
 waived_count: 0
 fixed_count: 2
-total_count: 8
-last_updated: 2026-10-16T01:42:53.911Z
+total_count: 9
+last_updated: 2026-10-16T01:57:07.224Z
 ---
 
 # Broken Windows Ledger
@@ -23,6 +23,7 @@ last_updated: 2026-10-16T01:42:53.911Z
 | 6 | 02 | lint-warning | eslint.config.mts |  | npm run check blocked by pre-existing nested .claude/worktrees/effort-repo-local project-service errors; project lint excluding that checkout passes with zero warnings. | fixed |  | 2026-10-15T17:50:07.970Z | 2026-10-16T01:31:57.127Z |
 | 7 | 02 | stub | src/ui/TimerPaneView.ts |  | Stop all is intentionally present but disabled in 02-01; plan 02-02 implements the action. | fixed |  | 2026-10-15T17:50:08.907Z | 2026-10-16T01:42:53.911Z |
 | 8 | 02 | unrun-verify | src/ui/TimerPaneView.ts |  | 02-02 live UAT pending: Stop all with regular plus Pomodoro timers, disabled tooltips and external replacement during public path-only stop race. | open |  | 2026-10-16T01:41:40.778Z |  |
+| 9 | 02 | unrun-verify | src/ui/TimerPaneView.ts |  | 02-03 live UAT pending: Complete beside Stop, native chip click/right-click and keyboard use, TaskNotes auto-stop on/off, live catalog refresh, preference reload and stale fallback. | open |  | 2026-10-16T01:57:07.224Z |  |
 
 ````json
 [
@@ -127,6 +128,19 @@ last_updated: 2026-10-16T01:42:53.911Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-10-16T01:41:40.778Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 9,
+    "kind": "unrun-verify",
+    "phase": "02",
+    "file": "src/ui/TimerPaneView.ts",
+    "line": null,
+    "description": "02-03 live UAT pending: Complete beside Stop, native chip click/right-click and keyboard use, TaskNotes auto-stop on/off, live catalog refresh, preference reload and stale fallback.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-16T01:57:07.224Z",
     "resolved_at": null,
     "milestone": null
   }
