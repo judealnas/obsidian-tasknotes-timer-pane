@@ -199,7 +199,8 @@ describe("errors", () => {
 		gateway.rejectNextActive(new Error("cache busy"));
 		await store.refreshNow();
 		expect(store.getSnapshot()).toBe(before);
-		expect(notified).not.toHaveBeenCalled();
+		expect(notified).toHaveBeenCalledTimes(1);
+		expect(store.getStopAllState().readable).toBe(false);
 		expect(log).toHaveBeenCalledTimes(1);
 		expect(log).toHaveBeenCalledWith("Refreshing timers failed: cache busy");
 		await vi.advanceTimersByTimeAsync(10_000);
@@ -208,6 +209,22 @@ describe("errors", () => {
 });
 
 describe("bridge state", () => {
+	test("a retired generation cannot publish after a ready reconnect", async () => {
+		const { gateway, store } = setup();
+		let release!: (entries: ActiveTimeEntry[]) => void;
+		vi.spyOn(gateway, "active").mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+		const pending = store.refreshNow();
+		gateway.setState({ kind: "missing" });
+		gateway.setState({ kind: "ready" });
+		release([entryA()]);
+		await pending;
+		expect(store.getSnapshot()).toBeNull();
+		expect(store.getStopAllState().readable).toBe(false);
+		gateway.setActive([]);
+		await vi.advanceTimersByTimeAsync(REFRESH_DEBOUNCE_MS);
+		expect(store.getSnapshot()?.primary).toBeNull();
+		expect(store.getStopAllState()).toEqual({ eligibleCount: 0, readable: true });
+	});
 	test("resync() while not ready makes no call; while ready exactly one", async () => {
 		const gateway = createFakeGateway({ kind: "loading" });
 		const { store } = setup(gateway);

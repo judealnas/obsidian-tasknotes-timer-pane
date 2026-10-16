@@ -189,8 +189,7 @@ export class TaskNotesBridge implements TaskNotesGateway {
 	 * writes frontmatter itself.
 	 */
 	async stop(taskPath: string, context: TaskNotesMutationContext): Promise<void> {
-		const api = this.api;
-		if (!api || this.state.kind !== "ready") throw new Error("TaskNotes is not connected");
+		const api = this.featureApi("time.write", "time.stop", api => typeof api.time?.stop === "function");
 		await api.time.stop(taskPath, context);
 	}
 
@@ -379,6 +378,11 @@ export class TaskNotesBridge implements TaskNotesGateway {
 		onLifecycle("settings.changed", () => this.emitData());
 		onTask("task.updated", () => this.emitData());
 		onTask("task.deleted", () => this.emitData());
+		onTask("time.started", () => this.emitData());
+		onTask("time.stopped", () => this.emitData());
+		if (api.hasCapability("pomodoro.events")) {
+			for (const event of ["pomodoro.started", "pomodoro.completed", "pomodoro.interrupted"] as const) onTask(event, () => this.emitData());
+		}
 	}
 
 	/** TaskNotes is tearing this api down: retire it, release it, and look again shortly. */

@@ -446,8 +446,10 @@ export class TimerPaneView extends ItemView {
 		const gate = this.services.gateway.startAvailability();
 		els.start.disabled = !gate.available || this.services.controller.isBusy();
 		setTooltip(els.start, gate.reason);
-		els.stopAll.disabled = true;
-		setTooltip(els.stopAll, "Stop all will be available in the next slice");
+		const stopAllState = this.services.store.getStopAllState();
+		const busy = this.services.controller.isBusy();
+		els.stopAll.disabled = busy || !stopAllState.readable || stopAllState.eligibleCount === 0;
+		setTooltip(els.stopAll, busy ? "A timer action is in progress" : !stopAllState.readable ? "Cannot verify Pomodoro ownership" : stopAllState.eligibleCount === 0 ? "No regular timers to stop" : "Stop all regular timers; keep the active Pomodoro timer");
 		for (const candidate of PANE_STATES) els.root.toggleClass(`tntp-pane--${candidate}`, candidate === state);
 		this.reconcileCards(els, timers);
 		if (timers.length > 0) {

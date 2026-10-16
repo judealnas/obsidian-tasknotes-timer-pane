@@ -53,6 +53,30 @@ beforeEach(() => {
 });
 
 describe("Stop all", () => {
+	test("vanished targets are skipped and a queued Start waits for the whole batch", async () => {
+		const ctx = await setup([report(), email()]);
+		const original = ctx.tn.api.time.stop.bind(ctx.tn.api.time);
+		let release!: () => void;
+		const barrier = new Promise<void>(resolve => { release = resolve; });
+		let entered!: () => void;
+		const started = new Promise<void>(resolve => { entered = resolve; });
+		vi.spyOn(ctx.tn.api.time, "stop").mockImplementation(async (path, context) => {
+			entered(); await barrier;
+			const result = await original(path, context);
+			ctx.tn.setActive([]);
+			return result;
+		});
+		const batch = ctx.controller.stopAll();
+		await started;
+		const next = ctx.controller.start({ taskPath: "next.md", title: "Next" });
+		expect(ctx.controller.isBusy()).toBe(true);
+		expect(ctx.tn.startCalls).toHaveLength(0);
+		release();
+		expect(await batch).toMatchObject({ stopped: 1, skipped: 1 });
+		await next;
+		expect(ctx.tn.startCalls).toHaveLength(1);
+		expect(ctx.controller.isBusy()).toBe(false);
+	});
 	test("zero targets makes zero writes and malformed ownership fails closed", async () => {
 		const empty = await setup([]);
 		expect(await empty.controller.stopAll()).toMatchObject({ stopped: 0, failed: 0 });

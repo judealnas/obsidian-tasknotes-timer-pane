@@ -4,6 +4,7 @@
  * Runtime Obsidian-free so Vitest can load it.
  */
 import { deriveSnapshot, snapshotSignature, type TimerSnapshot } from "../model/timeMath";
+import { selectRegularStopTargets, type Ownership } from "../model/pomodoroOwnership";
 import type { BridgeState, Schedule, TaskNotesGateway } from "../tasknotes/TaskNotesBridge";
 
 /**
@@ -26,7 +27,12 @@ export interface TimerStoreDeps {
 }
 
 export class TimerStore {
-	getStopAllState(): { eligibleCount: number; readable: boolean } { return { eligibleCount: 0, readable: false }; }
+	getStopAllState(): { eligibleCount: number; readable: boolean } {
+		return { eligibleCount: this.eligibleCount, readable: this.ownership.readable };
+	}
+	private ownership: Ownership = { readable: false };
+	private eligibleCount = 0;
+	private generation = 0;
 	private readonly gateway: TaskNotesGateway;
 	private readonly log: (message: string) => void;
 	private readonly schedule: Schedule;
@@ -97,6 +103,7 @@ export class TimerStore {
 
 	dispose(): void {
 		this.disposed = true;
+		this.generation++;
 		this.cancelPendingRefresh();
 		for (const unsubscribe of this.unsubscribes) unsubscribe();
 		this.unsubscribes.length = 0;
@@ -112,17 +119,28 @@ export class TimerStore {
 
 	private async refreshOnce(): Promise<void> {
 		if (this.disposed || this.gateway.getState().kind !== "ready") return;
+		const generation = this.generation;
 		try {
 			const active = await this.gateway.active();
+			let ownership: Ownership;
+			try { ownership = await this.gateway.pomodoroOwnership(); }
+			catch { ownership = { readable: false }; }
 			// The bridge may have left ready while the read was in flight.
-			if (this.disposed || this.gateway.getState().kind !== "ready") return;
+			if (this.disposed || generation !== this.generation || this.gateway.getState().kind !== "ready") return;
 			const snapshot = deriveSnapshot(active);
-			const signature = snapshotSignature(snapshot);
+			const signature = snapshotSignature(snapshot) + JSON.stringify(ownership);
 			const changed = this.snapshot === null || signature !== this.signature;
 			this.snapshot = snapshot;
+			this.ownership = ownership;
+			this.eligibleCount = selectRegularStopTargets(active, ownership).length;
 			this.signature = signature;
 			if (changed) this.notify();
 		} catch (error) {
+			if (this.disposed || generation !== this.generation) return;
+			this.ownership = { readable: false };
+			this.eligibleCount = 0;
+			this.signature = null;
+			this.notify();
 			this.log("Refreshing timers failed: " + errorMessage(error));
 		}
 	}
@@ -134,12 +152,15 @@ export class TimerStore {
 	}
 
 	private handleState(state: BridgeState): void {
+		this.generation++;
 		if (state.kind === "ready") {
 			this.requestRefresh();
 			return;
 		}
 		this.cancelPendingRefresh();
 		this.snapshot = null;
+		this.ownership = { readable: false };
+		this.eligibleCount = 0;
 		this.signature = null;
 		this.notify();
 	}

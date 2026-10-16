@@ -13,11 +13,11 @@ import {
 } from "../src/tasknotes/TaskNotesBridge";
 import type {
 	TaskNotesRuntimeLifecycleEventName,
-	TaskNotesRuntimeTaskEventName,
+	TaskNotesRuntimeEventName,
 } from "../src/tasknotes/runtime-api.types";
 import { createFakeTaskNotes, makeActiveEntry, timerSchedule, type FakeTaskNotes } from "./fakes/fakeTaskNotes";
 
-const SUBSCRIBED: ReadonlyArray<TaskNotesRuntimeLifecycleEventName | TaskNotesRuntimeTaskEventName> = [
+const SUBSCRIBED: ReadonlyArray<TaskNotesRuntimeLifecycleEventName | TaskNotesRuntimeEventName> = [
 	"unloading",
 	"layout.ready",
 	"cache.changed",
@@ -25,6 +25,7 @@ const SUBSCRIBED: ReadonlyArray<TaskNotesRuntimeLifecycleEventName | TaskNotesRu
 	"settings.changed",
 	"task.updated",
 	"task.deleted",
+	"time.started", "time.stopped", "pomodoro.started", "pomodoro.completed", "pomodoro.interrupted",
 ];
 
 /** A bridge whose plugin lookup returns whatever `current` holds at call time. */
@@ -50,6 +51,46 @@ function expectOneHandlerEach(tn: FakeTaskNotes): void {
 	for (const name of SUBSCRIBED) expect(tn.handlerCount(name), name).toBe(1);
 	expect(tn.totalHandlers()).toBe(SUBSCRIBED.length);
 }
+
+test("Pomodoro and time events coalesce refreshes and release every listener on unload", async () => {
+	const tn = createFakeTaskNotes({ active: [makeActiveEntry({ taskPath: "A.md", title: "A", startTime: "2026-10-15T10:00:00Z" })] });
+	const ctx = setup(tn.plugin);
+	const store = new TimerStore({ gateway: ctx.bridge, log: ctx.log, schedule: timerSchedule });
+	ctx.bridge.probe();
+	await store.refreshNow();
+	const before = tn.activeCalls;
+	for (const name of ["pomodoro.started", "pomodoro.completed", "pomodoro.interrupted", "time.started", "time.stopped"] as const) tn.emitTaskEvent(name);
+	await vi.advanceTimersByTimeAsync(200);
+	expect(tn.activeCalls).toBe(before + 1);
+	tn.emitLifecycle("unloading");
+	expect(tn.totalHandlers()).toBe(0);
+	store.dispose(); ctx.bridge.dispose();
+});
+
+test("ownership reads fail closed for missing capability, missing method, malformed data, and retired API", async () => {
+	for (const tn of [createFakeTaskNotes({ capabilities: ["time.read", "time.write", "tasks.events", "lifecycle.events"] }), createFakeTaskNotes({ omitMethods: ["pomodoro.status"] })]) {
+		const ctx = setup(tn.plugin); ctx.bridge.probe();
+		expect(await ctx.bridge.pomodoroOwnership()).toEqual({ readable: false });
+		ctx.bridge.dispose();
+	}
+	const tn = createFakeTaskNotes(); const ctx = setup(tn.plugin); ctx.bridge.probe();
+	vi.spyOn(tn.api.pomodoro!, "status").mockResolvedValue({ isRunning: true, timeRemaining: 0 });
+	expect(await ctx.bridge.pomodoroOwnership()).toEqual({ readable: false });
+	tn.emitLifecycle("unloading");
+	expect(await ctx.bridge.pomodoroOwnership()).toEqual({ readable: false });
+	ctx.bridge.dispose();
+});
+
+test("ownership status retains its namespace receiver and rejects an API replaced during the read", async () => {
+	const tn = createFakeTaskNotes(); const ctx = setup(tn.plugin); ctx.bridge.probe();
+	vi.spyOn(tn.api.pomodoro!, "status").mockImplementation(function (this: unknown) {
+		expect(this).toBe(tn.api.pomodoro);
+		ctx.setPlugin(createFakeTaskNotes().plugin);
+		return Promise.resolve({ isRunning: false, timeRemaining: 0 });
+	});
+	expect(await ctx.bridge.pomodoroOwnership()).toEqual({ readable: false });
+	ctx.bridge.dispose();
+});
 
 beforeEach(() => {
 	vi.useFakeTimers();
