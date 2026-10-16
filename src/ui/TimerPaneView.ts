@@ -49,6 +49,7 @@ interface PaneElements {
 	pauseAll: HTMLButtonElement;
 	resumeAll: HTMLButtonElement;
 	stopAll: HTMLButtonElement;
+	pomodoroNote: HTMLElement;
 	cards: HTMLElement;
 	heading: HTMLElement;
 	body: HTMLElement;
@@ -162,6 +163,8 @@ export class TimerPaneView extends ItemView {
 		this.registerDomEvent(stopAll, "click", () => {
 			if (!this.services.controller.isBusy() && !stopAll.disabled) void this.services.controller.stopAll();
 		});
+		// D-15: shown only while TaskNotes is ready but Pomodoro ownership cannot be read.
+		const pomodoroNote = root.createDiv({ cls: ["tntp-label", "tntp-pomodoro-note"], text: "Can't check Pomodoro. Showing all timers." });
 		const cards = root.createDiv({ cls: "tntp-cards" });
 
 		const message = root.createDiv({ cls: "tntp-message", attr: { "aria-live": "polite" } });
@@ -171,7 +174,7 @@ export class TimerPaneView extends ItemView {
 		const retry = message.createEl("button", { cls: "tntp-message__retry", text: "Check for TaskNotes" });
 		this.registerDomEvent(retry, "click", () => gateway.probe());
 
-		this.els = { root, start, pauseAll, resumeAll, stopAll, cards, heading, body, meta };
+		this.els = { root, start, pauseAll, resumeAll, stopAll, pomodoroNote, cards, heading, body, meta };
 
 		this.register(store.subscribe(() => { this.render(); void this.refreshCompletion(); }));
 		this.register(gateway.onState(() => { this.render(); void this.refreshCompletion(); }));
@@ -508,6 +511,7 @@ export class TimerPaneView extends ItemView {
 		els.stopAll.disabled = busy || !header.readable || nothingToStop;
 		setTooltip(els.stopAll, busy ? "A timer action is in progress" : !header.readable ? "Cannot verify Pomodoro ownership" : nothingToStop ? "No timers to stop" : "Stop all timers and clear paused ones");
 		for (const candidate of PANE_STATES) els.root.toggleClass(`tntp-pane--${candidate}`, candidate === state);
+		els.root.toggleClass("tntp-pane--pomodoro-unknown", this.services.gateway.getState().kind === "ready" && !header.readable);
 		this.reconcileCards(els, timers);
 		if (timers.length > 0) {
 			this.writeTimes(Date.now());

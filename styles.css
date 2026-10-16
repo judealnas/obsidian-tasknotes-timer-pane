@@ -24,6 +24,11 @@
 	display: none;
 }
 
+/* D-15: the Pomodoro line shows only while ownership is unreadable and TaskNotes is ready. */
+.tntp-pane:not(.tntp-pane--pomodoro-unknown) .tntp-pomodoro-note {
+	display: none;
+}
+
 /* Accessible name for the title link (aria-labelledby); never rendered visually. */
 .tntp-visually-hidden {
 	position: absolute;
@@ -198,3 +203,5 @@
 .tntp-picker-chip { min-width: 0; overflow-wrap: anywhere; }
 .tntp-picker-chip__md > p { margin: 0; }
 .tntp-picker-due { color: var(--text-muted); font-size: var(--font-ui-small); white-space: nowrap; }
+.tntp-picker-pomodoro { color: var(--text-muted); font-size: var(--font-ui-small); white-space: nowrap; }
+.tntp-pomodoro-note { color: var(--text-muted); font-size: var(--font-ui-smaller); margin-bottom: var(--size-4-2); }

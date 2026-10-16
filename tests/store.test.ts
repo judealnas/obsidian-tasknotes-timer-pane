@@ -414,7 +414,7 @@ describe("Pomodoro-owned entry (DISP-07)", () => {
 	test("a readable owner path written differently (backslashes, dot segments) still hides the entry", async () => {
 		const ctx = withPauses();
 		ctx.gateway.setActive([entryA()]);
-		ctx.gateway.setOwnership({ readable: true, owner: { taskPath: "TaskNotes\Tasks\./A.md", startTime: A_START } });
+		ctx.gateway.setOwnership({ readable: true, owner: { taskPath: "TaskNotes\\Tasks\\./A.md", startTime: A_START } });
 		await ctx.store.refreshNow();
 		expect(cardIds(ctx.store)).toEqual([]);
 	});

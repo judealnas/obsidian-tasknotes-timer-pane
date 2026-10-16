@@ -4,10 +4,10 @@
  * Runtime Obsidian-free so Vitest can load it.
  */
 import { deriveSnapshot, snapshotSignature, type TimerSnapshot } from "../model/timeMath";
-import { selectRegularStopTargets, type Ownership } from "../model/pomodoroOwnership";
+import { sameEntry, selectRegularStopTargets, type Ownership } from "../model/pomodoroOwnership";
 import { reconcile } from "../model/pauseLedger";
 import type { BridgeState, Schedule, TaskNotesGateway } from "../tasknotes/TaskNotesBridge";
-import type { TaskInfo } from "../tasknotes/runtime-api.types";
+import type { ActiveTimeEntry, TaskInfo } from "../tasknotes/runtime-api.types";
 import { PauseStore } from "./PauseStore";
 
 /**
@@ -21,6 +21,23 @@ export const SAFETY_RESYNC_MS = 45000;
 
 function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * The active entries the pane shows: all of them, minus the one entry an exact,
+ * readable Pomodoro owner matches. Unreadable or absent ownership hides nothing.
+ */
+function visibleEntries(active: readonly ActiveTimeEntry[], ownership: Ownership): readonly ActiveTimeEntry[] {
+	if (!ownership.readable || ownership.owner === null) return active;
+	const owner = ownership.owner;
+	const items: readonly (ActiveTimeEntry | null | undefined)[] = active;
+	if (!Array.isArray(items)) return active;
+	return active.filter((item: ActiveTimeEntry | null | undefined) => {
+		const taskPath: unknown = item?.taskPath ?? item?.task?.path;
+		const startTime: unknown = item?.entry?.startTime;
+		if (typeof taskPath !== "string" || typeof startTime !== "string") return true;
+		return !sameEntry({ taskPath, startTime }, owner);
+	});
 }
 
 export interface TimerStoreDeps {
@@ -191,7 +208,8 @@ export class TimerStore {
 				pending: this.pauses.pendingPaths(),
 			});
 			if (result.changed) this.pauses.applyReconcile(result.next);
-			const snapshot = deriveSnapshot(active, { records: this.pauses.records(), tasks });
+			// D-14: reconcile saw every entry (rule 1 needs the Pomodoro's); cards never show the owned one.
+			const snapshot = deriveSnapshot(visibleEntries(active, ownership), { records: this.pauses.records(), tasks });
 			const signature = snapshotSignature(snapshot) + JSON.stringify(ownership);
 			const changed = this.snapshot === null || signature !== this.signature;
 			this.snapshot = snapshot;
