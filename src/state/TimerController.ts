@@ -1,7 +1,7 @@
 /*
  * The pane's write controller (CTRL-01). Only a user click reaches it: the pane
- * never stops a timer on its own (D-05). Stopping on completion, which also covers
- * the user's archive flow, is TaskNotes' own job through its own setting.
+ * never stops a timer on its own (D-05). Explicit Complete is D-14's exception:
+ * write the completed status, then close only the same still-open entry.
  * Runtime Obsidian-free so Vitest can load it; Notices arrive through `notify`.
  */
 import { isNoActiveSessionError, stopFailedNotice } from "../model/errors";
@@ -9,21 +9,24 @@ import { sameEntry, selectRegularStopTargets } from "../model/pomodoroOwnership"
 import { MUTATION_SOURCE, type TaskNotesGateway } from "../tasknotes/TaskNotesBridge";
 import type { TimerStore } from "./TimerStore";
 import type { WriteQueue } from "./WriteQueue";
+import { resolveCompletionStatus, type TimerPaneSettings } from "../settings";
 
 /** The displayed timer, captured by the view at click time. */
 export type StopTarget = { taskPath: string; startTime: string; title: string };
 export type StartTarget = { taskPath: string; title: string };
-export type StartOutcome = "started" | "already-running" | "failed";
+export type StartOutcome = "started" | "already-running" | "failed" | "busy";
+export type CompleteOutcome = "completed" | "partial" | "unavailable" | "failed" | "busy";
 
 /**
  * - "stopped": TaskNotes closed the entry.
  * - "already-stopped": TaskNotes had no open entry (a benign race, no Notice).
  * - "failed": any other error; the Stop-failed Notice was shown.
  */
-export type StopOutcome = "stopped" | "already-stopped" | "failed";
+export type StopOutcome = "stopped" | "already-stopped" | "failed" | "busy";
 
 export interface TimerControllerDeps {
-	gateway: Pick<TaskNotesGateway, "stop" | "normalizeError" | "active" | "start" | "pomodoroOwnership">;
+	gateway: Pick<TaskNotesGateway, "stop" | "normalizeError" | "active" | "start" | "pomodoroOwnership" | "statuses" | "completeTask" | "completionAvailable">;
+	getSettings?: () => TimerPaneSettings;
 	store: Pick<TimerStore, "refreshNow">;
 	queue: WriteQueue;
 	notify: (message: string) => void;
@@ -34,6 +37,7 @@ export interface TimerControllerDeps {
 export class TimerController {
 	async stopAll(): Promise<{ stopped: number; skipped: number; failed: number; ownershipUnreadable: boolean }> {
 		const outcome = { stopped: 0, skipped: 0, failed: 0, ownershipUnreadable: false };
+		if (this.completing) return outcome;
 		const { gateway, queue, store, newCorrelationId, log } = this.deps;
 		this.busy(1);
 		try {
@@ -69,6 +73,7 @@ export class TimerController {
 	}
 	private readonly deps: TimerControllerDeps;
 	private pending = 0;
+	private completing = false;
 	private readonly busyListeners = new Set<() => void>();
 
 	isBusy(): boolean { return this.pending > 0; }
@@ -85,6 +90,7 @@ export class TimerController {
 	}
 
 	async start(target: StartTarget): Promise<StartOutcome> {
+		if (this.completing) return "busy";
 		const { gateway, queue, store, newCorrelationId, log } = this.deps;
 		this.busy(1);
 		let outcome: StartOutcome = "failed";
@@ -117,6 +123,7 @@ export class TimerController {
 	 * the pane from TaskNotes. Never touches any other running timer. Never rejects.
 	 */
 	async stop(target: StopTarget): Promise<StopOutcome> {
+		if (this.completing) return "busy";
 		const { gateway, store, queue, notify, newCorrelationId, log } = this.deps;
 		this.busy(1);
 		let outcome: StopOutcome;
@@ -145,6 +152,49 @@ export class TimerController {
 			}
 		}
 		try { await store.refreshNow(); } finally { this.busy(-1); }
+		return outcome;
+	}
+
+	async completionAvailable(): Promise<boolean> {
+		try {
+			return this.deps.gateway.completionAvailable() && resolveCompletionStatus(await this.deps.gateway.statuses(), this.deps.getSettings?.().completionStatus ?? null) !== null;
+		} catch { return false; }
+	}
+
+	async complete(target: StopTarget): Promise<CompleteOutcome> {
+		if (this.isBusy()) return "busy";
+		this.completing = true;
+		this.busy(1);
+		const { gateway, queue, store, newCorrelationId, log } = this.deps;
+		let statusWritten = false;
+		let outcome: CompleteOutcome = "failed";
+		try {
+			outcome = await queue.run(async (): Promise<CompleteOutcome> => {
+				if (!gateway.completionAvailable()) return "unavailable";
+				const status = resolveCompletionStatus(await gateway.statuses(), this.deps.getSettings?.().completionStatus ?? null);
+				if (!status) return "unavailable";
+				const context = { source: MUTATION_SOURCE, reason: "user complete", correlationId: newCorrelationId() };
+				await gateway.completeTask(target.taskPath, status.value, context);
+				statusWritten = true;
+				const active = await gateway.active();
+				if (active.some(item => !item.entry.endTime && sameEntry({ taskPath: item.taskPath, startTime: item.entry.startTime }, target))) {
+					// External replacement can race this path-only public stop after the final read.
+					try { await gateway.stop(target.taskPath, context); }
+					catch (error) { if (!isNoActiveSessionError(gateway.normalizeError(error).message)) throw error; }
+				}
+				return "completed";
+			});
+		} catch {
+			outcome = statusWritten ? "partial" : "failed";
+			log(statusWritten ? "Task completed, but its timer could not be confirmed stopped." : "Completing the task failed.");
+		} finally {
+			try { await store.refreshNow(); }
+			catch { log("Refreshing timers after completion failed."); }
+			finally { this.completing = false; this.busy(-1); }
+		}
+		if (outcome === "partial") this.notice("Task completed, but its timer could not be confirmed stopped. Check the timer in TaskNotes.");
+		else if (outcome === "failed") this.notice("Couldn't complete the task. Try again in TaskNotes.");
+		else if (outcome === "unavailable") this.notice("Complete is unavailable. Check TaskNotes and its completed statuses.");
 		return outcome;
 	}
 }

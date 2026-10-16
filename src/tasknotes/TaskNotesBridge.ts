@@ -52,6 +52,8 @@ export interface TaskNotesGateway {
 	startAvailability(): { available: boolean; reason: string };
 	listTasks(): Promise<TaskInfo[]>;
 	statuses(): Promise<TaskStatus[]>;
+	completionAvailable(): boolean;
+	completeTask(path: string, status: string, context: TaskNotesMutationContext): Promise<void>;
 	start(path: string, options: Record<string, never>, context: TaskNotesMutationContext): Promise<void>;
 	/** Stops the task's open entry through TaskNotes' own api.time.stop. The only pane write. */
 	stop(taskPath: string, context: TaskNotesMutationContext): Promise<void>;
@@ -241,6 +243,20 @@ export class TaskNotesBridge implements TaskNotesGateway {
   const api = this.featureApi("time.write", "time.start", api => typeof api.time.start === "function");
   await api.time.start!(path, options, context);
  }
+
+	completionAvailable(): boolean {
+		try {
+			this.featureApi("catalog.read", "catalog.statuses", api => typeof api.catalog?.statuses === "function");
+			this.featureApi("tasks.write", "tasks.complete", api => typeof api.tasks?.complete === "function");
+			this.featureApi("time.write", "time.stop", api => typeof api.time?.stop === "function");
+			return true;
+		} catch { return false; }
+	}
+
+	async completeTask(path: string, status: string, context: TaskNotesMutationContext): Promise<void> {
+		const api = this.featureApi("tasks.write", "tasks.complete", api => typeof api.tasks?.complete === "function");
+		await api.tasks!.complete!(path, { status }, context);
+	}
 
 	normalizeError(error: unknown): { code: string | null; message: string } {
 		const api = this.api;

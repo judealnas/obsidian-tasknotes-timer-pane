@@ -10,6 +10,7 @@ import { TimerController, type StopTarget } from "../src/state/TimerController";
 import { REFRESH_DEBOUNCE_MS, TimerStore } from "../src/state/TimerStore";
 import { WriteQueue } from "../src/state/WriteQueue";
 import { MUTATION_SOURCE, TaskNotesBridge } from "../src/tasknotes/TaskNotesBridge";
+import { resolveCompletionStatus } from "../src/settings";
 import type { ActiveTimeEntry } from "../src/tasknotes/runtime-api.types";
 import { NO_ACTIVE_SESSION_MESSAGE, createFakeTaskNotes, makeActiveEntry, timerSchedule } from "./fakes/fakeTaskNotes";
 
@@ -56,6 +57,87 @@ describe("Complete transaction", () => {
 	test("completion is available as a serialized controller action", async () => {
 		const ctx = await setup([report()]);
 		expect(ctx.controller).toHaveProperty("complete", expect.any(Function));
+	});
+	test("writes live completed status before stopping the exact entry with context", async () => {
+		const ctx = await setup([report()]);
+		ctx.tn.setStatuses([{ value: "custom", isCompleted: true }]);
+		const complete = vi.spyOn(ctx.tn.api.tasks!, "complete");
+		const stop = vi.spyOn(ctx.tn.api.time, "stop");
+		expect(await ctx.controller.complete(ctx.primaryTarget())).toBe("completed");
+		expect(ctx.tn.completeCalls).toEqual([{ path: REPORT_PATH, status: "custom", context: { source: MUTATION_SOURCE, reason: "user complete", correlationId: "corr-1" } }]);
+		expect(complete.mock.invocationCallOrder[0]).toBeLessThan(stop.mock.invocationCallOrder[0]!);
+		expect(ctx.tn.stopCalls).toHaveLength(1);
+	});
+	test("status failure never stops and leaks no task, status or exception text", async () => {
+		const ctx = await setup([report()]);
+		ctx.tn.failCompleteWith("secret/path status");
+		expect(await ctx.controller.complete(ctx.primaryTarget())).toBe("failed");
+		expect(ctx.tn.stopCalls).toEqual([]);
+		expect(JSON.stringify([ctx.log.mock.calls, ctx.notify.mock.calls])).not.toMatch(/secret|quarterly|TaskNotes\/Tasks|done/);
+	});
+	test.each(["auto-stop", "replacement"])("skips conditional stop after %s", async mode => {
+		const ctx = await setup([report()]);
+		const target = ctx.primaryTarget();
+		const original = ctx.tn.api.tasks!.complete!.bind(ctx.tn.api.tasks);
+		vi.spyOn(ctx.tn.api.tasks!, "complete").mockImplementation(async (...args) => {
+			const result = await original(...args);
+			ctx.tn.setActive(mode === "auto-stop" ? [] : [report({ startTime: EMAIL_START })]);
+			return result;
+		});
+		expect(await ctx.controller.complete(target)).toBe("completed");
+		expect(ctx.tn.stopCalls).toEqual([]);
+	});
+	test("failed stop is partial with no rollback; benign no-session race succeeds", async () => {
+		const ctx = await setup([report()]);
+		ctx.tn.failStopWith("private failure");
+		expect(await ctx.controller.complete(ctx.primaryTarget())).toBe("partial");
+		expect(ctx.tn.completeCalls).toHaveLength(1);
+		expect((await ctx.tn.api.time.active())[0]?.task.status).toBe("done");
+		expect(ctx.notify).toHaveBeenCalledWith(expect.stringContaining("Task completed"));
+		expect(JSON.stringify([ctx.log.mock.calls, ctx.notify.mock.calls])).not.toContain("private failure");
+		ctx.tn.failStopWith(NO_ACTIVE_SESSION_MESSAGE);
+		expect(await ctx.controller.complete(ctx.primaryTarget())).toBe("completed");
+	});
+	test("no completed status or missing completion method disables and prevents writes", async () => {
+		const ctx = await setup([report()]);
+		ctx.tn.setStatuses([]);
+		expect(await ctx.controller.completionAvailable()).toBe(false);
+		expect(await ctx.controller.complete(ctx.primaryTarget())).toBe("unavailable");
+		expect(ctx.tn.completeCalls).toEqual([]);
+		ctx.tn.setStatuses([{ value: "done", isCompleted: true }]);
+		ctx.tn.api.tasks!.complete = undefined;
+		expect(await ctx.controller.completionAvailable()).toBe(false);
+		expect(await ctx.controller.complete(ctx.primaryTarget())).toBe("unavailable");
+	});
+	test("catalog resolver preserves live order and supports explicit, stale and empty choices", () => {
+		const statuses = [{ value: "open", isCompleted: false }, { value: "second", isCompleted: true }, { value: "first", isCompleted: true }];
+		expect(resolveCompletionStatus(statuses, null)?.value).toBe("second");
+		expect(resolveCompletionStatus(statuses, "first")?.value).toBe("first");
+		expect(resolveCompletionStatus(statuses, "stale")?.value).toBe("second");
+		expect(resolveCompletionStatus([...statuses].reverse(), null)?.value).toBe("first");
+		expect(resolveCompletionStatus([], "stale")).toBeNull();
+	});
+	test("busy covers catalog through final refresh and rejects every overlapping mutation", async () => {
+		const ctx = await setup([report()]);
+		let release!: () => void;
+		let entered!: () => void;
+		const barrier = new Promise<void>(resolve => { release = resolve; });
+		const started = new Promise<void>(resolve => { entered = resolve; });
+		vi.spyOn(ctx.store, "refreshNow").mockImplementation(async () => { entered(); await barrier; });
+		const target = ctx.primaryTarget();
+		const pending = ctx.controller.complete(target);
+		expect(ctx.controller.isBusy()).toBe(true);
+		await started;
+		expect(await ctx.controller.start({ taskPath: EMAIL_PATH, title: "Email" })).toBe("busy");
+		expect(await ctx.controller.stop(target)).toBe("busy");
+		expect(await ctx.controller.complete(target)).toBe("busy");
+		expect(await ctx.controller.stopAll()).toMatchObject({ stopped: 0, failed: 0 });
+		expect(ctx.tn.startCalls).toEqual([]);
+		expect(ctx.tn.completeCalls).toHaveLength(1);
+		expect(ctx.tn.stopCalls).toHaveLength(1);
+		release();
+		expect(await pending).toBe("completed");
+		expect(ctx.controller.isBusy()).toBe(false);
 	});
 });
 

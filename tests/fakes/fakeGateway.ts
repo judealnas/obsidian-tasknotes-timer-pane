@@ -60,6 +60,8 @@ export function createFakeGateway(initial: BridgeState = { kind: "ready" }): Fak
 		startAvailability: () => ({ available: state.kind === "ready", reason: "TaskNotes is not connected" }),
 		listTasks: () => Promise.resolve([]),
 		statuses: () => Promise.resolve([]),
+		completionAvailable: () => state.kind === "ready",
+		completeTask: () => Promise.resolve(),
 		start: () => Promise.resolve(),
 		pomodoroOwnership: () => Promise.resolve({ readable: true, owner: null }),
 		getState: () => state,

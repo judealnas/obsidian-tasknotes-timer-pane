@@ -144,10 +144,14 @@
 /* Stop timer: mod-cta keeps Obsidian's own colors, padding, height and focus ring. */
 .tntp-actions {
 	margin-top: var(--size-4-4);
+	display: flex;
+	gap: var(--size-4-2);
 }
 
-.tntp-stop {
-	width: 100%;
+.tntp-stop,
+.tntp-complete {
+	flex: 1;
+	min-height: var(--input-height);
 }
 
 /* Message states (idle, loading, missing, incompatible) */

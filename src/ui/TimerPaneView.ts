@@ -34,7 +34,7 @@ export const VIEW_TYPE_TIMER_PANE = "tasknotes-timer-pane";
 export interface TimerPaneServices {
 	gateway: TaskNotesGateway;
 	store: TimerStore;
-	controller: Pick<TimerController, "stop" | "start" | "stopAll" | "isBusy" | "subscribeBusy">;
+	controller: Pick<TimerController, "stop" | "start" | "stopAll" | "complete" | "completionAvailable" | "isBusy" | "subscribeBusy">;
 }
 
 const STOP_LABEL = "Stop timer";
@@ -72,6 +72,7 @@ interface CardElements {
 	total: HTMLElement;
 	stop: HTMLButtonElement;
 	stopLabel: HTMLElement;
+	complete: HTMLButtonElement;
 }
 
 /** An open entry is identified by `(taskPath, startTime)`. */
@@ -108,6 +109,9 @@ export class TimerPaneView extends ItemView {
 	/** Keys of timers from a Stop click until that stop settles; render() keeps their busy label. */
 	private readonly stopping = new Set<string>();
 	private picker: TaskPickerModal | null = null;
+	private completionReady = false;
+	private completionGeneration = 0;
+	private closed = true;
 
 	constructor(leaf: WorkspaceLeaf, services: TimerPaneServices) {
 		super(leaf);
@@ -127,6 +131,7 @@ export class TimerPaneView extends ItemView {
 	}
 
 	onOpen(): Promise<void> {
+		this.closed = false;
 		const { gateway, store } = this.services;
 		this.contentEl.empty();
 		this.lastTickMs = null;
@@ -152,8 +157,8 @@ export class TimerPaneView extends ItemView {
 
 		this.els = { root, start, stopAll, cards, heading, body, meta };
 
-		this.register(store.subscribe(() => this.render()));
-		this.register(gateway.onState(() => this.render()));
+		this.register(store.subscribe(() => { this.render(); void this.refreshCompletion(); }));
+		this.register(gateway.onState(() => { this.render(); void this.refreshCompletion(); }));
 		this.register(this.services.controller.subscribeBusy(() => this.render()));
 		this.registerInterval(window.setInterval(() => this.tick(), 1000));
 		// The pane's own document and window, so this also works in a pop-out window.
@@ -170,10 +175,14 @@ export class TimerPaneView extends ItemView {
 		});
 		gateway.probe();
 		this.render();
+		void this.refreshCompletion();
 		return Promise.resolve();
 	}
 
 	onClose(): Promise<void> {
+		this.closed = true;
+		this.completionGeneration++;
+		this.completionReady = false;
 		this.picker?.close();
 		this.picker = null;
 		for (const card of this.cards.values()) this.discardCard(card);
@@ -234,6 +243,13 @@ export class TimerPaneView extends ItemView {
 		setIcon(stop.createSpan({ cls: "tntp-stop__icon" }), "square");
 		const stopLabel = stop.createSpan({ cls: "tntp-stop__label", text: STOP_LABEL });
 		stop.addEventListener("click", () => void this.stopTask(key));
+		const complete = actions.createEl("button", { cls: "tntp-complete", text: "Complete" });
+		complete.addEventListener("click", () => {
+			const current = this.cards.get(key);
+			if (!current || complete.disabled || this.services.controller.isBusy()) return;
+			const { taskPath, startTime, title } = current.timer;
+			void this.services.controller.complete({ taskPath, startTime, title });
+		});
 
 		return {
 			timer,
@@ -249,6 +265,7 @@ export class TimerPaneView extends ItemView {
 			total,
 			stop,
 			stopLabel,
+			complete,
 		};
 	}
 
@@ -459,6 +476,16 @@ export class TimerPaneView extends ItemView {
 		this.renderMessage(els, state);
 	}
 
+	private async refreshCompletion(): Promise<void> {
+		const generation = ++this.completionGeneration;
+		this.completionReady = false;
+		this.render();
+		const ready = await this.services.controller.completionAvailable();
+		if (this.closed || generation !== this.completionGeneration) return;
+		this.completionReady = ready;
+		this.render();
+	}
+
 	/** Keeps exactly one card per open timer, in display order, reusing existing cards. */
 	private reconcileCards(els: PaneElements, timers: readonly OpenTimer[]): void {
 		const next = new Map<string, CardElements>();
@@ -469,6 +496,8 @@ export class TimerPaneView extends ItemView {
 			next.set(key, card);
 			this.updateTitle(key, card);
 			setTextIfChanged(card.titleLabel, `Open ${timer.title}`);
+			card.complete.disabled = this.services.controller.isBusy() || !this.completionReady;
+			setTooltip(card.complete, this.services.controller.isBusy() ? "A timer action is in progress" : this.completionReady ? "Complete this task and stop its timer" : "No completed status is available from TaskNotes");
 			// Never overwrite the busy state of a stop in flight.
 			if (!this.stopping.has(key)) {
 				card.stop.disabled = this.services.controller.isBusy();
