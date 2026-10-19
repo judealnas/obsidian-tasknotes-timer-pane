@@ -4,3 +4,5 @@ dev-vault/
 data.json
 *.log
 .DS_Store
+.claude/worktrees/
+dev-vault-task-backup-*/

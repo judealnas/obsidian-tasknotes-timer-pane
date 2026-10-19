@@ -21,7 +21,7 @@ export default defineConfig(
 		languageOptions: {
 			globals: { ...globals.browser },
 			parserOptions: {
-				projectService: { allowDefaultProject: ["manifest.json"] },
+				projectService: { allowDefaultProject: ["manifest.json", "version-bump.mjs"] },
 				tsconfigRootDir: import.meta.dirname,
 				extraFileExtensions: [".json"],
 			},
@@ -45,6 +45,12 @@ export default defineConfig(
 		languageOptions: { parser: tseslint.parser },
 		plugins: { obsidianmd },
 		rules: { "obsidianmd/validate-manifest": "error" },
+	},
+	{
+		// Build-time script run by `npm version`, never bundled into the plugin.
+		files: ["version-bump.mjs"],
+		languageOptions: { globals: { ...globals.node } },
+		rules: { "obsidianmd/no-nodejs-modules": "off" },
 	},
 	{
 		rules: {
