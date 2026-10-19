@@ -37,6 +37,7 @@
 | errors.normalize | INTEGRATE | |
 | errors.isApiError / errors.toResult | OPT-OUT | not needed: `normalize` covers Notice text; stop errors are plain Errors matched by message |
 | catalog.statuses | OPT-OUT | not needed yet: the Phase 2 picker and complete; Phase 1 never interprets status (D-05) |
-| ui.taskMenu.showAtElement | OPT-OUT | not needed: no v1 requirement asks for TaskNotes' context menu in the pane |
+| ui.taskMenu.show | INTEGRATE | |
+| ui.taskMenu.showAtElement / ui.taskMenu.populate | OPT-OUT | not needed: right-click passes the mouse event, so show() places the menu at the pointer |
 | pomodoro.status | OPT-OUT | not needed yet: the Pomodoro label and pause rules are Phase 3 (DISP-07, CTRL-08) |
 | HTTP API (/api/time/active etc.) | OPT-OUT | explicitly out of scope (PROJECT.md): an in-process Runtime API is used instead |

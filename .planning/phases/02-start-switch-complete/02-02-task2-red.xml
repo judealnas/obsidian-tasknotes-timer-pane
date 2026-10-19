@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="19" failures="1" errors="0" time="0.0445963">
+    <testsuite name="tests/store.test.ts" timestamp="2026-10-16T01:38:27.161Z" hostname="DESKTOP-SD9404U" tests="19" failures="1" errors="0" skipped="0" time="0.0445963">
+        <testcase classname="tests/store.test.ts" name="constants &gt; Stop all eligibility follows exact ownership and recovers from unreadable state" time="0.0205885">
+            <failure message="expected { eligibleCount: +0, readable: false } to deeply equal { eligibleCount: 1, readable: true }" type="AssertionError">
+AssertionError: expected { eligibleCount: +0, readable: false } to deeply equal { eligibleCount: 1, readable: true }
+
+- Expected
++ Received
+
+  {
+-   &quot;eligibleCount&quot;: 1,
+-   &quot;readable&quot;: true,
++   &quot;eligibleCount&quot;: 0,
++   &quot;readable&quot;: false,
+  }
+
+ ❯ tests/store.test.ts:46:39
+            </failure>
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="constants &gt; debounce 200 ms, safety resync 45 s" time="0.0014968">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="trailing debounce &gt; requestRefresh twice 150 ms apart makes exactly one active() call, 200 ms after the second" time="0.0031268">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="trailing debounce &gt; burst A then burst B 300 ms later with an unchanged result: at most 2 calls, at most 1 notification" time="0.0014933">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="trailing debounce &gt; an entry that appears with only a data hint (no time.* event) is visible after the debounce" time="0.0008187">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="single-flight &gt; refreshNow while one is in flight: exactly two active() calls, both callers resolve after the second" time="0.0010358">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="single-flight &gt; refreshNow cancels a pending debounce when it starts" time="0.000743">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="signature diff &gt; identical entries returned as new objects cause no notification" time="0.0008346">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="signature diff &gt; a changed startTime notifies once" time="0.0013312">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="signature diff &gt; a changed title notifies once" time="0.0010302">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="signature diff &gt; a newly closed entry on the task notifies once" time="0.0006679">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="signature diff &gt; a change to the task&apos;s status alone notifies once, so the title chip re-renders" time="0.0006209">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="signature diff &gt; the first successful refresh notifies even for an empty result" time="0.0005466">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="signature diff &gt; snapshotSignature is deterministic and keyed on path, start, title, closed time and display key" time="0.0008604">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="errors &gt; a rejected active() keeps the previous snapshot, logs only the message, and retries nothing" time="0.0042925">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="bridge state &gt; resync() while not ready makes no call; while ready exactly one" time="0.0010513">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="bridge state &gt; leaving ready resets the snapshot, notifies once, and cancels a pending debounce" time="0.0005732">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="bridge state &gt; after leaving and re-entering ready, an unchanged result notifies again (signature reset)" time="0.0004846">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="bridge state &gt; dispose cancels the pending debounce" time="0.0004278">
+        </testcase>
+    </testsuite>
+</testsuites>

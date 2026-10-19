@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="22" failures="16" errors="0" time="0.0459611">
+    <testsuite name="tests/main.test.ts" timestamp="2026-10-16T07:23:16.839Z" hostname="DESKTOP-SD9404U" tests="10" failures="4" errors="0" skipped="0" time="0.0327153">
+        <testcase classname="tests/main.test.ts" name="registers view synchronously before loading settings and registering tab" time="0.0074694">
+        </testcase>
+        <testcase classname="tests/main.test.ts" name="loading failures keep the plugin usable and log a safe explanation" time="0.0029583">
+        </testcase>
+        <testcase classname="tests/main.test.ts" name="stored pauses survive a restart and a settings save keeps them, the settings and unknown keys together" time="0.0009895">
+        </testcase>
+        <testcase classname="tests/main.test.ts" name="back-to-back settings saves never overlap, run in order and end with the newest setting and the pauses" time="0.0011837">
+        </testcase>
+        <testcase classname="tests/main.test.ts" name="a failed settings save rejects to the caller and does not break later saves" time="0.0017562">
+        </testcase>
+        <testcase classname="tests/main.test.ts" name="a pause change writes data.json with the settings last saved, never an older setting" time="0.0008902">
+        </testcase>
+        <testcase classname="tests/main.test.ts" name="the vault rename handler moves the pause before it requests a refresh" time="0.0087006">
+            <failure message="expected [ Array(1) ] to deeply equal [ [ &apos;TaskNotes/Tasks/Renamed.md&apos; ] ]" type="AssertionError">
+AssertionError: expected [ Array(1) ] to deeply equal [ [ &apos;TaskNotes/Tasks/Renamed.md&apos; ] ]
+
+- Expected
++ Received
+
+  [
+    [
+-     &quot;TaskNotes/Tasks/Renamed.md&quot;,
++     &quot;TaskNotes/Tasks/Write report.md&quot;,
+    ],
+  ]
+
+ ❯ tests/main.test.ts:160:19
+            </failure>
+        </testcase>
+        <testcase classname="tests/main.test.ts" name="the vault delete handler removes the pause before it requests a refresh" time="0.0031207">
+            <failure message="expected [ Array(1) ] to deeply equal [ [] ]" type="AssertionError">
+AssertionError: expected [ Array(1) ] to deeply equal [ [] ]
+
+- Expected
++ Received
+
+  [
+-   [],
++   [
++     &quot;TaskNotes/Tasks/Write report.md&quot;,
++   ],
+  ]
+
+ ❯ tests/main.test.ts:168:19
+            </failure>
+        </testcase>
+        <testcase classname="tests/main.test.ts" name="a folder rename moves every pause inside it" time="0.0012708">
+            <failure message="expected [ Array(1) ] to deeply equal [ [ &apos;Archive/Tasks/Write report.md&apos; ] ]" type="AssertionError">
+AssertionError: expected [ Array(1) ] to deeply equal [ [ &apos;Archive/Tasks/Write report.md&apos; ] ]
+
+- Expected
++ Received
+
+  [
+    [
+-     &quot;Archive/Tasks/Write report.md&quot;,
++     &quot;TaskNotes/Tasks/Write report.md&quot;,
+    ],
+  ]
+
+ ❯ tests/main.test.ts:175:19
+            </failure>
+        </testcase>
+        <testcase classname="tests/main.test.ts" name="fileCheck is null before layout ready and backed by vault.getFileByPath after it" time="0.0024986">
+            <failure message="expected undefined to be type of &apos;function&apos;" type="AssertionError">
+AssertionError: expected undefined to be type of &apos;function&apos;
+
+Expected: &quot;function&quot;
+Received: &quot;undefined&quot;
+
+ ❯ tests/main.test.ts:181:20
+            </failure>
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/pauseStore.test.ts" timestamp="2026-10-16T07:23:16.860Z" hostname="DESKTOP-SD9404U" tests="12" failures="12" errors="0" skipped="0" time="0.0132458">
+        <testcase classname="tests/pauseStore.test.ts" name="PauseStore.renamePath &gt; an exact file rename moves the record, keeps every other field, bumps revision once and persists once" time="0.0051955">
+            <failure message="store.renamePath is not a function" type="TypeError">
+TypeError: store.renamePath is not a function
+ ❯ tests/pauseStore.test.ts:44:16
+            </failure>
+        </testcase>
+        <testcase classname="tests/pauseStore.test.ts" name="PauseStore.renamePath &gt; an exact file rename matches only that path" time="0.0008387">
+            <failure message="store.renamePath is not a function" type="TypeError">
+TypeError: store.renamePath is not a function
+ ❯ tests/pauseStore.test.ts:53:16
+            </failure>
+        </testcase>
+        <testcase classname="tests/pauseStore.test.ts" name="PauseStore.renamePath &gt; a folder rename remaps children at a &apos;/&apos; boundary and leaves Projects/AB and Projects/A.md untouched" time="0.0008717">
+            <failure message="store.renamePath is not a function" type="TypeError">
+TypeError: store.renamePath is not a function
+ ❯ tests/pauseStore.test.ts:59:16
+            </failure>
+        </testcase>
+        <testcase classname="tests/pauseStore.test.ts" name="PauseStore.renamePath &gt; a rename onto a path that already has a record keeps the newer record and drops the other" time="0.0010045">
+            <failure message="store.renamePath is not a function" type="TypeError">
+TypeError: store.renamePath is not a function
+ ❯ tests/pauseStore.test.ts:67:9
+            </failure>
+        </testcase>
+        <testcase classname="tests/pauseStore.test.ts" name="PauseStore.renamePath &gt; a running record&apos;s newness is its entryStart" time="0.0004956">
+            <failure message="store.renamePath is not a function" type="TypeError">
+TypeError: store.renamePath is not a function
+ ❯ tests/pauseStore.test.ts:79:9
+            </failure>
+        </testcase>
+        <testcase classname="tests/pauseStore.test.ts" name="PauseStore.renamePath &gt; backslash and leading-slash inputs are normalized before matching" time="0.0003967">
+            <failure message="store.renamePath is not a function" type="TypeError">
+TypeError: store.renamePath is not a function
+ ❯ tests/pauseStore.test.ts:85:16
+            </failure>
+        </testcase>
+        <testcase classname="tests/pauseStore.test.ts" name="PauseStore.renamePath &gt; a rename that matches nothing changes nothing and does not persist" time="0.0004246">
+            <failure message="store.renamePath is not a function" type="TypeError">
+TypeError: store.renamePath is not a function
+ ❯ tests/pauseStore.test.ts:91:16
+            </failure>
+        </testcase>
+        <testcase classname="tests/pauseStore.test.ts" name="PauseStore.renamePath &gt; before load there are no records and a rename is a no-op" time="0.0005086">
+            <failure message="store.renamePath is not a function" type="TypeError">
+TypeError: store.renamePath is not a function
+ ❯ tests/pauseStore.test.ts:99:16
+            </failure>
+        </testcase>
+        <testcase classname="tests/pauseStore.test.ts" name="PauseStore.removePath &gt; an exact path deletes that record, bumps revision once and persists once" time="0.0004435">
+            <failure message="store.removePath is not a function" type="TypeError">
+TypeError: store.removePath is not a function
+ ❯ tests/pauseStore.test.ts:108:16
+            </failure>
+        </testcase>
+        <testcase classname="tests/pauseStore.test.ts" name="PauseStore.removePath &gt; a folder path deletes every record under it and nothing beside it" time="0.0005669">
+            <failure message="store.removePath is not a function" type="TypeError">
+TypeError: store.removePath is not a function
+ ❯ tests/pauseStore.test.ts:116:16
+            </failure>
+        </testcase>
+        <testcase classname="tests/pauseStore.test.ts" name="PauseStore.removePath &gt; an unknown path changes nothing and does not persist" time="0.0003706">
+            <failure message="store.removePath is not a function" type="TypeError">
+TypeError: store.removePath is not a function
+ ❯ tests/pauseStore.test.ts:122:16
+            </failure>
+        </testcase>
+        <testcase classname="tests/pauseStore.test.ts" name="PauseStore.removePath &gt; backslash and leading-slash inputs are normalized before matching" time="0.0002975">
+            <failure message="store.removePath is not a function" type="TypeError">
+TypeError: store.removePath is not a function
+ ❯ tests/pauseStore.test.ts:129:16
+            </failure>
+        </testcase>
+    </testsuite>
+</testsuites>

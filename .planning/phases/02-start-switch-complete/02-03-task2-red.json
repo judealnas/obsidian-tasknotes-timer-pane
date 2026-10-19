@@ -1,0 +1,10 @@
+{
+  "exitCode": 1,
+  "command": "node node_modules/vitest/vitest.mjs run --dir tests settings --reporter=tap-flat",
+  "expected": "validating loadSettings exists",
+  "targetFile": "tests/settings.test.ts",
+  "targetTest": "tests/settings.test.ts > completion settings > saved data has a narrow validating loader",
+  "actual": "loadSettings absent",
+  "semanticAssessment": "Target assertion failed because saved preference validation has not been implemented.",
+  "output": "TAP version 13\n1..1\nnot ok 1 - tests/settings.test.ts > completion settings > saved data has a narrow validating loader # time=7.27ms\n    ---\n    error:\n        name: \"AssertionError\"\n        message: \"expected { DEFAULT_SETTINGS: { …(1) }, …(1), …(1) } to have property \\\"loadSettings\\\" with value Any<Function>\"\n    at: \"C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/settings.test.ts:6:20\"\n    actual: \"undefined\"\n    expected: \"Any<Function>\"\n    ..."
+}

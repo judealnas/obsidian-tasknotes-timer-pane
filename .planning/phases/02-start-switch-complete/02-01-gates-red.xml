@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="43" failures="4" errors="0" time="0.0739857">
+    <testsuite name="tests/bridge.test.ts" timestamp="2026-10-15T17:45:24.170Z" hostname="DESKTOP-SD9404U" tests="43" failures="4" errors="0" skipped="0" time="0.0739857">
+        <testcase classname="tests/bridge.test.ts" name="availability states (RESEARCH Pattern 1, DISP-05) &gt; getPlugin returning null is missing" time="0.0068767">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="availability states (RESEARCH Pattern 1, DISP-05) &gt; a TaskNotes 4.9.3 plugin with no api is { kind: &apos;incompatible&apos;, …(1) }" time="0.0010798">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="availability states (RESEARCH Pattern 1, DISP-05) &gt; a TaskNotes 4.10.0 plugin with no api is { kind: &apos;loading&apos; }" time="0.0007332">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="availability states (RESEARCH Pattern 1, DISP-05) &gt; a TaskNotes 4.13.8 plugin with no api is { kind: &apos;loading&apos; }" time="0.00057">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="availability states (RESEARCH Pattern 1, DISP-05) &gt; a TaskNotes 4.10.0-beta.1 plugin with no api is { kind: &apos;loading&apos; }" time="0.0004552">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="availability states (RESEARCH Pattern 1, DISP-05) &gt; a TaskNotes weird plugin with no api is { kind: &apos;loading&apos; }" time="0.0004575">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="availability states (RESEARCH Pattern 1, DISP-05) &gt; apiVersion 2 is incompatible and subscribes nothing" time="0.0008467">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="availability states (RESEARCH Pattern 1, DISP-05) &gt; a missing required capability is incompatible and subscribes nothing" time="0.0005382">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="availability states (RESEARCH Pattern 1, DISP-05) &gt; an attached api that is not ready is loading; a ready one is ready" time="0.0011756">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="availability states (RESEARCH Pattern 1, DISP-05) &gt; a throwing hasCapability gives missing with one log call" time="0.0017345">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="isVersionOlder (DISP-05 encoding) &gt; compares dot-separated numeric segments, ignores suffixes, never calls an unknown version old" time="0.0006596">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="lifecycle (SYNC-03) &gt; layout.ready moves loading to ready and emits data" time="0.0060973">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="lifecycle (SYNC-03) &gt; layout.ready while already ready still emits data (Pitfall 5)" time="0.0006606">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="lifecycle (SYNC-03) &gt; task.updated emits data" time="0.0005516">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="lifecycle (SYNC-03) &gt; task.deleted emits data" time="0.0003852">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="lifecycle (SYNC-03) &gt; cache.changed emits data" time="0.000581">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="lifecycle (SYNC-03) &gt; cache.rebuilt emits data" time="0.0004369">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="lifecycle (SYNC-03) &gt; settings.changed emits data" time="0.0004544">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="lifecycle (SYNC-03) &gt; unloading sets missing, retires the api, and schedules exactly one early probe at 1000 ms" time="0.00177">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="lifecycle (SYNC-03) &gt; a new api object after unloading reaches ready through the early probe, with no duplicate handlers" time="0.0040522">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="lifecycle (SYNC-03) &gt; TaskNotes disabled (getPlugin null) then re-enabled reconnects on the 5 s probe" time="0.0012079">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="lifecycle (SYNC-03) &gt; dispose removes every handler and cancels the pending early probe" time="0.0014431">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="lifecycle (SYNC-03) &gt; the loading watchdog logs exactly once across 40 s of probes, then resets after leaving loading" time="0.0009415">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="lifecycle (SYNC-03) &gt; the watchdog re-arms after the bridge leaves loading" time="0.0006016">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="end-to-end reconnect through the real TimerStore &gt; running, unloading -&gt; missing, new api with an open entry, early probe -&gt; running again" time="0.0041311">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="write facade (CTRL-01) &gt; stop forwards the path and the mutation context to api.time.stop" time="0.0020502">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="write facade (CTRL-01) &gt; stop rejects without calling TaskNotes when the bridge is not ready" time="0.0022065">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="write facade (CTRL-01) &gt; normalizeError uses api.errors.normalize when errors.typed is present" time="0.0010948">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="write facade (CTRL-01) &gt; normalizeError falls back to the plain message without errors.typed, when detached, or when normalize throws" time="0.0038677">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="task menu (ui.taskMenu, optional ui.task-menu capability) &gt; ready with ui.task-menu: hands the task path and the same event to ui.taskMenu.show" time="0.0017591">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="task menu (ui.taskMenu, optional ui.task-menu capability) &gt; without ui.task-menu: returns false, never calls show, and the bridge is still ready" time="0.0007288">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="task menu (ui.taskMenu, optional ui.task-menu capability) &gt; capability advertised but no ui namespace (TaskNotes 4.10 shape): returns false without throwing" time="0.0007487">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="task menu (ui.taskMenu, optional ui.task-menu capability) &gt; TaskNotes missing or not ready: returns false with no menu call" time="0.0006962">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="task menu (ui.taskMenu, optional ui.task-menu capability) &gt; show rejecting: still true, and the failure is logged, not left unhandled" time="0.0007009">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="task menu (ui.taskMenu, optional ui.task-menu capability) &gt; hasCapability throwing after ready: returns false, logs once, does not throw" time="0.001021">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="Start feature gates &gt; catalog reads work independently when tasks.read is unavailable" time="0.0079323">
+            <failure message="promise rejected &quot;Error: TaskNotes is missing tasks.read&quot; instead of resolving" type="AssertionError">
+AssertionError: promise rejected &quot;Error: TaskNotes is missing tasks.read&quot; instead of resolving
+ ❯ tests/bridge.test.ts:471:34
+
+Caused by: Error: TaskNotes is missing tasks.read
+ ❯ TaskNotesBridge.startApi src/tasknotes/TaskNotesBridge.ts:197:43
+ ❯ TaskNotesBridge.statuses src/tasknotes/TaskNotesBridge.ts:209:20
+ ❯ tests/bridge.test.ts:471:23
+            </failure>
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="Start feature gates &gt; missing tasks.read disables only Start" time="0.0010281">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="Start feature gates &gt; missing catalog.read disables only Start" time="0.0005827">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="Start feature gates &gt; missing list callable disables only Start" time="0.0037679">
+            <failure message="expected &apos;TaskNotes does not provide the Start …&apos; to contain &apos;list&apos;" type="AssertionError">
+AssertionError: expected &apos;TaskNotes does not provide the Start …&apos; to contain &apos;list&apos;
+
+Expected: &quot;list&quot;
+Received: &quot;TaskNotes does not provide the Start task methods&quot;
+
+ ❯ tests/bridge.test.ts:489:45
+            </failure>
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="Start feature gates &gt; missing statuses callable disables only Start" time="0.0016446">
+            <failure message="expected &apos;TaskNotes does not provide the Start …&apos; to contain &apos;statuses&apos;" type="AssertionError">
+AssertionError: expected &apos;TaskNotes does not provide the Start …&apos; to contain &apos;statuses&apos;
+
+Expected: &quot;statuses&quot;
+Received: &quot;TaskNotes does not provide the Start task methods&quot;
+
+ ❯ tests/bridge.test.ts:489:45
+            </failure>
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="Start feature gates &gt; missing start callable disables only Start" time="0.0010422">
+            <failure message="expected &apos;TaskNotes does not provide the Start …&apos; to contain &apos;start&apos;" type="AssertionError">
+AssertionError: expected &apos;TaskNotes does not provide the Start …&apos; to contain &apos;start&apos;
+
+Expected: &quot;start&quot;
+Received: &quot;TaskNotes does not provide the Start task methods&quot;
+
+ ❯ tests/bridge.test.ts:489:45
+            </failure>
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="Start feature gates &gt; preserves namespace receivers and refuses results from a replaced API" time="0.0009618">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="Start feature gates &gt; unload during a task read cannot return stale rows" time="0.0006884">
+        </testcase>
+    </testsuite>
+</testsuites>

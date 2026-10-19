@@ -9,39 +9,39 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Pane
 
-- [ ] **PANE-01**: User can open the timer pane from a ribbon icon. It opens in the right sidebar, and if it's already open, it is revealed instead of duplicated.
-- [ ] **PANE-02**: User can open the timer pane from the command palette.
-- [ ] **PANE-03**: The pane is still there in the same place after an Obsidian restart.
+- [x] **PANE-01**: User can open the timer pane from a ribbon icon. It opens in the right sidebar, and if it's already open, it is revealed instead of duplicated.
+- [x] **PANE-02**: User can open the timer pane from the command palette.
+- [x] **PANE-03**: The pane is still there in the same place after an Obsidian restart.
 
 ### Display
 
-- [ ] **DISP-01**: User sees the title of the task being timed, and clicking it opens the task note.
-- [ ] **DISP-02**: User sees the current session's elapsed time (H:MM:SS), updating every second and calculated from the entry's start time.
-- [ ] **DISP-03**: User sees the task's total tracked time, including the running session, to the second.
-- [ ] **DISP-04**: When nothing is being timed, user sees an idle state with a "Start a task" button.
-- [ ] **DISP-05**: User sees a clear message when TaskNotes is missing, disabled, or older than 4.10.
-- [ ] **DISP-06**: When several timers are running, the pane shows the most recently started one.
-- [ ] **DISP-07**: A timer controlled by an active Pomodoro is labelled as Pomodoro.
+- [x] **DISP-01**: User sees the title of the task being timed, and clicking it opens the task note.
+- [x] **DISP-02**: User sees the current session's elapsed time (H:MM:SS), updating every second and calculated from the entry's start time.
+- [x] **DISP-03**: User sees the task's total tracked time, including the running session, to the second.
+- [x] **DISP-04**: When nothing is being timed, user sees an idle state with a "Start a task" button.
+- [x] **DISP-05**: User sees a clear message when TaskNotes is missing, disabled, or older than 4.10.
+- [x] **DISP-06**: When several timers are running, the pane shows the most recently started one.
+- [x] **DISP-07**: The timer owned by an active Pomodoro is not shown in the pane. When Pomodoro state can't be read, all timers are shown with a muted note under the header. *(Rewritten 2026-10-16: Pomodoro timers are hidden, not labelled; see Phase 3 CONTEXT.)*
 
 ### Controls
 
-- [ ] **CTRL-01**: User can stop the active timer with one click.
-- [ ] **CTRL-02**: User can pause the active timer with one click. This closes the current entry, and the pane shows the paused task.
-- [ ] **CTRL-03**: User can resume a paused task with one click. This opens a new entry on the same task.
-- [ ] **CTRL-04**: Paused state survives an Obsidian restart. It is cleared when another timer starts, or when the paused task is completed or deleted.
-- [ ] **CTRL-05**: When idle, user can start timing any task from a fuzzy task picker.
-- [ ] **CTRL-06**: User can switch tasks from the picker. All running timers are stopped and then the chosen task starts.
-- [ ] **CTRL-07**: User can mark the active task complete from the pane, which also stops its timer.
-- [ ] **CTRL-08**: Pause is hidden for timers controlled by a Pomodoro.
-- [ ] **CTRL-09**: Controls are disabled while an action is in progress, and a failed action shows a notice explaining what happened.
-- [ ] **CTRL-10**: A setting controls whether switching stops all running timers (default) or only the displayed one.
+- [x] **CTRL-01**: User can stop the active timer with one click.
+- [x] **CTRL-02**: User can pause any running timer with one click from its card, or every regular timer from the header ("Pause all"). This closes the entry, and the card shows the task as paused. *(Rewritten 2026-10-16.)*
+- [x] **CTRL-03**: User can resume a paused task with one click from its card, or every paused task from the header ("Resume all"). This opens a new entry on the same task, and the card's session time continues from its paused value. *(Rewritten 2026-10-16.)*
+- [x] **CTRL-04**: Several tasks can be paused at once, and paused state survives an Obsidian restart. Starting another timer does not clear a pause. A pause clears when its task is resumed, stopped from the pane (including Stop all), completed, deleted, or taken over by a Pomodoro, and follows the task when it is renamed or moved. *(Rewritten 2026-10-16.)*
+- [x] **CTRL-05**: User can start timing any task from a fuzzy task picker, opened from the pane header. The task starts alongside any running timers.
+- [x] **CTRL-06**: User can stop every running timer, except one owned by an active Pomodoro, with one click from the pane header ("Stop all"). *(Rewritten 2026-10-15: switching was removed; see Phase 2 CONTEXT.)*
+- [x] **CTRL-07**: User can mark the active task complete from the pane, which also stops its timer.
+- ~~**CTRL-08**: Pause is hidden for timers controlled by a Pomodoro.~~ *(Dropped 2026-10-16: Pomodoro timers are hidden entirely; see DISP-07.)*
+- [x] **CTRL-09**: Controls are disabled while an action is in progress, and a failed action shows a notice explaining what happened.
+- ~~**CTRL-10**: A setting controls whether switching stops all running timers (default) or only the displayed one.~~ *(Dropped 2026-10-15: switching was removed.)*
 
 ### Sync
 
-- [ ] **SYNC-01**: Timers started or stopped elsewhere in TaskNotes appear in the pane within about a second.
-- [ ] **SYNC-02**: Changes from Obsidian Sync or hand-edited frontmatter appear in the pane.
-- [ ] **SYNC-03**: The pane reconnects by itself after TaskNotes is disabled, re-enabled, or updated, without restarting Obsidian.
-- [ ] **SYNC-04**: Elapsed time is correct after the computer sleeps and wakes.
+- [x] **SYNC-01**: Timers started or stopped elsewhere in TaskNotes appear in the pane within about a second.
+- [x] **SYNC-02**: Changes from Obsidian Sync or hand-edited frontmatter appear in the pane.
+- [x] **SYNC-03**: The pane reconnects by itself after TaskNotes is disabled, re-enabled, or updated, without restarting Obsidian.
+- [x] **SYNC-04**: Elapsed time is correct after the computer sleeps and wakes.
 
 ## v2 Requirements
 
@@ -80,30 +80,30 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PANE-01 | Phase 1 | Pending |
-| PANE-02 | Phase 1 | Pending |
-| PANE-03 | Phase 1 | Pending |
-| DISP-01 | Phase 1 | Pending |
-| DISP-02 | Phase 1 | Pending |
-| DISP-03 | Phase 1 | Pending |
-| DISP-04 | Phase 2 | Pending |
-| DISP-05 | Phase 1 | Pending |
-| DISP-06 | Phase 1 | Pending |
-| DISP-07 | Phase 3 | Pending |
-| CTRL-01 | Phase 1 | Pending |
-| CTRL-02 | Phase 3 | Pending |
-| CTRL-03 | Phase 3 | Pending |
-| CTRL-04 | Phase 3 | Pending |
-| CTRL-05 | Phase 2 | Pending |
-| CTRL-06 | Phase 2 | Pending |
-| CTRL-07 | Phase 2 | Pending |
-| CTRL-08 | Phase 3 | Pending |
-| CTRL-09 | Phase 2 | Pending |
-| CTRL-10 | Phase 2 | Pending |
-| SYNC-01 | Phase 1 | Pending |
-| SYNC-02 | Phase 1 | Pending |
-| SYNC-03 | Phase 1 | Pending |
-| SYNC-04 | Phase 1 | Pending |
+| PANE-01 | Phase 1 | Complete |
+| PANE-02 | Phase 1 | Complete |
+| PANE-03 | Phase 1 | Complete |
+| DISP-01 | Phase 1 | Complete |
+| DISP-02 | Phase 1 | Complete |
+| DISP-03 | Phase 1 | Complete |
+| DISP-04 | Phase 2 | Complete |
+| DISP-05 | Phase 1 | Complete |
+| DISP-06 | Phase 1 | Complete |
+| DISP-07 | Phase 3 | Complete |
+| CTRL-01 | Phase 1 | Complete |
+| CTRL-02 | Phase 3 | Complete |
+| CTRL-03 | Phase 3 | Complete |
+| CTRL-04 | Phase 3 | Complete |
+| CTRL-05 | Phase 2 | Complete |
+| CTRL-06 | Phase 2 | Complete |
+| CTRL-07 | Phase 2 | Complete |
+| CTRL-08 | Phase 3 | Dropped |
+| CTRL-09 | Phase 2 | Complete |
+| CTRL-10 | Phase 2 | Dropped |
+| SYNC-01 | Phase 1 | Complete |
+| SYNC-02 | Phase 1 | Complete |
+| SYNC-03 | Phase 1 | Complete |
+| SYNC-04 | Phase 1 | Complete |
 
 **Coverage:**
 - v1 requirements: 24 total
@@ -112,4 +112,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-10-13*
-*Last updated: 2026-10-13 after roadmap creation*
+*Last updated: 2026-10-16 after Phase 3 discussion (DISP-07, CTRL-02, CTRL-03, CTRL-04 rewritten; CTRL-08 dropped)*

@@ -1,0 +1,421 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="78" failures="12" errors="0" time="0.0917604">
+    <testsuite name="tests/pauseLedger.test.ts" timestamp="2026-10-16T07:20:04.298Z" hostname="DESKTOP-SD9404U" tests="51" failures="8" errors="0" skipped="0" time="0.0395948">
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords (CTRL-04 empty predicate) &gt; undefined loads zero pauses without throwing" time="0.0024762">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords (CTRL-04 empty predicate) &gt; null loads zero pauses without throwing" time="0.0002345">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords (CTRL-04 empty predicate) &gt; an array loads zero pauses without throwing" time="0.0001768">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords (CTRL-04 empty predicate) &gt; a string loads zero pauses without throwing" time="0.0001777">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords (CTRL-04 empty predicate) &gt; settings only loads zero pauses without throwing" time="0.0001624">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords (CTRL-04 empty predicate) &gt; an unknown version loads zero pauses without throwing" time="0.0001516">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords (CTRL-04 empty predicate) &gt; a missing version loads zero pauses without throwing" time="0.0001474">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords (CTRL-04 empty predicate) &gt; non-array records loads zero pauses without throwing" time="0.0001484">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords (CTRL-04 empty predicate) &gt; a valid paused and a valid running record load as stored" time="0.000712">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords drops malformed records one by one &gt; missing taskPath is dropped and its valid sibling survives" time="0.0003104">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords drops malformed records one by one &gt; empty taskPath is dropped and its valid sibling survives" time="0.0001821">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords drops malformed records one by one &gt; a taskPath of only separators is dropped and its valid sibling survives" time="0.0001483">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords drops malformed records one by one &gt; unparseable sessionStartedAt is dropped and its valid sibling survives" time="0.0001222">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords drops malformed records one by one &gt; non-finite accumulatedMs is dropped and its valid sibling survives" time="0.0001397">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords drops malformed records one by one &gt; non-number accumulatedMs is dropped and its valid sibling survives" time="0.0001164">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords drops malformed records one by one &gt; an unknown state is dropped and its valid sibling survives" time="0.0001213">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords drops malformed records one by one &gt; paused without pausedAt is dropped and its valid sibling survives" time="0.0000988">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords drops malformed records one by one &gt; paused with unparseable lastEntryStart is dropped and its valid sibling survives" time="0.0001263">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords drops malformed records one by one &gt; running without a parseable entryStart is dropped" time="0.0001619">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords drops malformed records one by one &gt; non-object items are dropped" time="0.0001211">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords repairs what it safely can &gt; a negative accumulatedMs clamps to 0" time="0.0002253">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords repairs what it safely can &gt; a non-string title falls back to the path&apos;s basename" time="0.000166">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords repairs what it safely can &gt; backslash paths are normalized" time="0.0001178">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords repairs what it safely can &gt; unknown fields are not carried into the record" time="0.0001499">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords ordering predicate &gt; duplicates for one normalized path keep the newest pausedAt" time="0.0002644">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords ordering predicate &gt; a running record&apos;s newness is its entryStart, compared with a paused record&apos;s pausedAt" time="0.0001522">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords ordering predicate &gt; on a tie the later array item wins" time="0.0001551">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="loadPauseRecords ordering predicate &gt; at most the first 1000 items are examined" time="0.0067759">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="PauseStore persistence &gt; every change after load persists the serialized records" time="0.0014417">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="PauseStore persistence &gt; a change before load is kept, merged over the stored records and persisted once loaded" time="0.0008031">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="PauseStore persistence &gt; a failed save is logged without any task path" time="0.0006429">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="reconcile rule 1: Pomodoro takeover (D-16) &gt; a paused record whose path is the readable Pomodoro owner&apos;s path is deleted" time="0.0091263">
+            <failure message="expected { next: [ { …(7) } ], changed: false } to deeply equal { next: [], changed: true }" type="AssertionError">
+AssertionError: expected { next: [ { …(7) } ], changed: false } to deeply equal { next: [], changed: true }
+
+- Expected
++ Received
+
+  {
+-   &quot;changed&quot;: true,
+-   &quot;next&quot;: [],
++   &quot;changed&quot;: false,
++   &quot;next&quot;: [
++     {
++       &quot;accumulatedMs&quot;: 600000,
++       &quot;lastEntryStart&quot;: &quot;2026-10-14T09:00:00.000Z&quot;,
++       &quot;pausedAt&quot;: &quot;2026-10-14T09:10:00.000Z&quot;,
++       &quot;sessionStartedAt&quot;: &quot;2026-10-14T09:00:00.000Z&quot;,
++       &quot;state&quot;: &quot;paused&quot;,
++       &quot;taskPath&quot;: &quot;TaskNotes/Tasks/Write report.md&quot;,
++       &quot;title&quot;: &quot;Write report&quot;,
++     },
++   ],
+  }
+
+ ❯ tests/pauseLedger.test.ts:219:18
+            </failure>
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="reconcile rule 1: Pomodoro takeover (D-16) &gt; with ownership unreadable the same input converts the record to running instead (D-11, D-15)" time="0.0004209">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="reconcile rule 1: Pomodoro takeover (D-16) &gt; rule 1 runs before rule 2: a non-owned open entry beside the owner&apos;s does not resume the record" time="0.0021523">
+            <failure message="expected { next: [ { …(6) } ], changed: true } to deeply equal { next: [], changed: true }" type="AssertionError">
+AssertionError: expected { next: [ { …(6) } ], changed: true } to deeply equal { next: [], changed: true }
+
+- Expected
++ Received
+
+  {
+    &quot;changed&quot;: true,
+-   &quot;next&quot;: [],
++   &quot;next&quot;: [
++     {
++       &quot;accumulatedMs&quot;: 600000,
++       &quot;entryStart&quot;: &quot;2026-10-14T11:05:00.000Z&quot;,
++       &quot;sessionStartedAt&quot;: &quot;2026-10-14T09:00:00.000Z&quot;,
++       &quot;state&quot;: &quot;running&quot;,
++       &quot;taskPath&quot;: &quot;TaskNotes/Tasks/Write report.md&quot;,
++       &quot;title&quot;: &quot;Write report&quot;,
++     },
++   ],
+  }
+
+ ❯ tests/pauseLedger.test.ts:230:18
+            </failure>
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="reconcile rule 1: Pomodoro takeover (D-16) &gt; an owner matched through a backslash path still takes over" time="0.0011369">
+            <failure message="expected [ { state: &apos;paused&apos;, …(6) } ] to deeply equal []" type="AssertionError">
+AssertionError: expected [ { state: &apos;paused&apos;, …(6) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     &quot;accumulatedMs&quot;: 600000,
++     &quot;lastEntryStart&quot;: &quot;2026-10-14T09:00:00.000Z&quot;,
++     &quot;pausedAt&quot;: &quot;2026-10-14T09:10:00.000Z&quot;,
++     &quot;sessionStartedAt&quot;: &quot;2026-10-14T09:00:00.000Z&quot;,
++     &quot;state&quot;: &quot;paused&quot;,
++     &quot;taskPath&quot;: &quot;TaskNotes/Tasks/Write report.md&quot;,
++     &quot;title&quot;: &quot;Write report&quot;,
++   },
++ ]
+
+ ❯ tests/pauseLedger.test.ts:235:23
+            </failure>
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="reconcile rule 1: Pomodoro takeover (D-16) &gt; an owner on a different path leaves the paused record alone" time="0.0003011">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="reconcile rule 1: Pomodoro takeover (D-16) &gt; Pitfall 6: a running record whose entry became the Pomodoro owner is deleted" time="0.0009044">
+            <failure message="expected { next: [ { …(6) } ], changed: false } to deeply equal { next: [], changed: true }" type="AssertionError">
+AssertionError: expected { next: [ { …(6) } ], changed: false } to deeply equal { next: [], changed: true }
+
+- Expected
++ Received
+
+  {
+-   &quot;changed&quot;: true,
+-   &quot;next&quot;: [],
++   &quot;changed&quot;: false,
++   &quot;next&quot;: [
++     {
++       &quot;accumulatedMs&quot;: 600000,
++       &quot;entryStart&quot;: &quot;2026-10-14T11:00:00.000Z&quot;,
++       &quot;sessionStartedAt&quot;: &quot;2026-10-14T09:00:00.000Z&quot;,
++       &quot;state&quot;: &quot;running&quot;,
++       &quot;taskPath&quot;: &quot;TaskNotes/Tasks/Write report.md&quot;,
++       &quot;title&quot;: &quot;Write report&quot;,
++     },
++   ],
+  }
+
+ ❯ tests/pauseLedger.test.ts:245:18
+            </failure>
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="reconcile rule 1: Pomodoro takeover (D-16) &gt; a running record whose entry is not the owner&apos;s start is kept" time="0.0002268">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="reconcile rule 3: rename lag &gt; a running record whose entry is open only under a path holding no record is kept" time="0.0007821">
+            <failure message="expected { next: [], changed: true } to deeply equal { next: [ { …(6) } ], changed: false }" type="AssertionError">
+AssertionError: expected { next: [], changed: true } to deeply equal { next: [ { …(6) } ], changed: false }
+
+- Expected
++ Received
+
+  {
+-   &quot;changed&quot;: false,
+-   &quot;next&quot;: [
+-     {
+-       &quot;accumulatedMs&quot;: 600000,
+-       &quot;entryStart&quot;: &quot;2026-10-14T11:00:00.000Z&quot;,
+-       &quot;sessionStartedAt&quot;: &quot;2026-10-14T09:00:00.000Z&quot;,
+-       &quot;state&quot;: &quot;running&quot;,
+-       &quot;taskPath&quot;: &quot;TaskNotes/Tasks/Renamed.md&quot;,
+-       &quot;title&quot;: &quot;Write report&quot;,
+-     },
+-   ],
++   &quot;changed&quot;: true,
++   &quot;next&quot;: [],
+  }
+
+ ❯ tests/pauseLedger.test.ts:258:18
+            </failure>
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="reconcile rule 3: rename lag &gt; a running record whose entry is open only under a path that holds another record is deleted" time="0.000197">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="reconcile rule 3: rename lag &gt; a running record whose entry is open nowhere is deleted" time="0.0001229">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="reconcile rule 4: completed elsewhere (D-12) &gt; a paused task whose status is a completed-type status is deleted" time="0.0007833">
+            <failure message="expected { next: [ { …(7) } ], changed: false } to deeply equal { next: [], changed: true }" type="AssertionError">
+AssertionError: expected { next: [ { …(7) } ], changed: false } to deeply equal { next: [], changed: true }
+
+- Expected
++ Received
+
+  {
+-   &quot;changed&quot;: true,
+-   &quot;next&quot;: [],
++   &quot;changed&quot;: false,
++   &quot;next&quot;: [
++     {
++       &quot;accumulatedMs&quot;: 600000,
++       &quot;lastEntryStart&quot;: &quot;2026-10-14T09:00:00.000Z&quot;,
++       &quot;pausedAt&quot;: &quot;2026-10-14T09:10:00.000Z&quot;,
++       &quot;sessionStartedAt&quot;: &quot;2026-10-14T09:00:00.000Z&quot;,
++       &quot;state&quot;: &quot;paused&quot;,
++       &quot;taskPath&quot;: &quot;TaskNotes/Tasks/Write report.md&quot;,
++       &quot;title&quot;: &quot;Write report&quot;,
++     },
++   ],
+  }
+
+ ❯ tests/pauseLedger.test.ts:278:18
+            </failure>
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="reconcile rule 4: completed elsewhere (D-12) &gt; completedStatuses null skips the rule" time="0.0002029">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="reconcile rule 4: completed elsewhere (D-12) &gt; an archived task with a non-completed status keeps its pause" time="0.0001785">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="reconcile rule 4: completed elsewhere (D-12) &gt; a null task (cache warming) keeps its pause" time="0.0001499">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="reconcile rule 5: file missing (D-12) &gt; fileExists false deletes a paused record" time="0.0006484">
+            <failure message="expected { next: [ { …(7) } ], changed: false } to deeply equal { next: [], changed: true }" type="AssertionError">
+AssertionError: expected { next: [ { …(7) } ], changed: false } to deeply equal { next: [], changed: true }
+
+- Expected
++ Received
+
+  {
+-   &quot;changed&quot;: true,
+-   &quot;next&quot;: [],
++   &quot;changed&quot;: false,
++   &quot;next&quot;: [
++     {
++       &quot;accumulatedMs&quot;: 600000,
++       &quot;lastEntryStart&quot;: &quot;2026-10-14T09:00:00.000Z&quot;,
++       &quot;pausedAt&quot;: &quot;2026-10-14T09:10:00.000Z&quot;,
++       &quot;sessionStartedAt&quot;: &quot;2026-10-14T09:00:00.000Z&quot;,
++       &quot;state&quot;: &quot;paused&quot;,
++       &quot;taskPath&quot;: &quot;TaskNotes/Tasks/Write report.md&quot;,
++       &quot;title&quot;: &quot;Write report&quot;,
++     },
++   ],
+  }
+
+ ❯ tests/pauseLedger.test.ts:299:73
+            </failure>
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="reconcile rule 5: file missing (D-12) &gt; fileExists false deletes a running record whose entry is still open" time="0.0007937">
+            <failure message="expected { next: [ { …(6) } ], changed: false } to deeply equal { next: [], changed: true }" type="AssertionError">
+AssertionError: expected { next: [ { …(6) } ], changed: false } to deeply equal { next: [], changed: true }
+
+- Expected
++ Received
+
+  {
+-   &quot;changed&quot;: true,
+-   &quot;next&quot;: [],
++   &quot;changed&quot;: false,
++   &quot;next&quot;: [
++     {
++       &quot;accumulatedMs&quot;: 600000,
++       &quot;entryStart&quot;: &quot;2026-10-14T11:00:00.000Z&quot;,
++       &quot;sessionStartedAt&quot;: &quot;2026-10-14T09:00:00.000Z&quot;,
++       &quot;state&quot;: &quot;running&quot;,
++       &quot;taskPath&quot;: &quot;TaskNotes/Tasks/Write report.md&quot;,
++       &quot;title&quot;: &quot;Write report&quot;,
++     },
++   ],
+  }
+
+ ❯ tests/pauseLedger.test.ts:304:18
+            </failure>
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="reconcile rule 5: file missing (D-12) &gt; fileExists null skips the rule" time="0.0001997">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="reconcile rule 5: file missing (D-12) &gt; fileExists true keeps the record" time="0.0001854">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="reconcile pending paths and age &gt; rules 3 to 5 are skipped for a path a pane pause is writing" time="0.0002653">
+        </testcase>
+        <testcase classname="tests/pauseLedger.test.ts" name="reconcile pending paths and age &gt; D-13: a record paused 30 days ago survives reconcile unchanged" time="0.0010077">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/store.test.ts" timestamp="2026-10-16T07:20:04.327Z" hostname="DESKTOP-SD9404U" tests="27" failures="4" errors="0" skipped="0" time="0.0521656">
+        <testcase classname="tests/store.test.ts" name="constants &gt; Stop all eligibility follows exact ownership and recovers from unreadable state" time="0.0094838">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="constants &gt; debounce 200 ms, safety resync 45 s" time="0.0006858">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="trailing debounce &gt; requestRefresh twice 150 ms apart makes exactly one active() call, 200 ms after the second" time="0.0025313">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="trailing debounce &gt; burst A then burst B 300 ms later with an unchanged result: at most 2 calls, at most 1 notification" time="0.0016745">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="trailing debounce &gt; an entry that appears with only a data hint (no time.* event) is visible after the debounce" time="0.0010346">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="single-flight &gt; refreshNow while one is in flight: exactly two active() calls, both callers resolve after the second" time="0.0008916">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="single-flight &gt; refreshNow cancels a pending debounce when it starts" time="0.0026039">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="signature diff &gt; identical entries returned as new objects cause no notification" time="0.0010604">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="signature diff &gt; a changed startTime notifies once" time="0.0010945">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="signature diff &gt; a changed title notifies once" time="0.0010956">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="signature diff &gt; a newly closed entry on the task notifies once" time="0.0011193">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="signature diff &gt; a change to the task&apos;s status alone notifies once, so the title chip re-renders" time="0.0010539">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="signature diff &gt; the first successful refresh notifies even for an empty result" time="0.000779">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="signature diff &gt; snapshotSignature is deterministic and keyed on path, start, title, closed time and display key" time="0.0012113">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="errors &gt; a rejected active() keeps the previous snapshot, logs only the message, and retries nothing" time="0.0013766">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="bridge state &gt; a retired generation cannot publish after a ready reconnect" time="0.0016072">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="bridge state &gt; resync() while not ready makes no call; while ready exactly one" time="0.001078">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="bridge state &gt; leaving ready resets the snapshot, notifies once, and cancels a pending debounce" time="0.0009404">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="bridge state &gt; after leaving and re-entering ready, an unchanged result notifies again (signature reset)" time="0.0009554">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="bridge state &gt; dispose cancels the pending debounce" time="0.0007748">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="pause ledger in refresh &gt; a pause-record change while a refresh awaits its reads causes a re-read and no stale publish" time="0.001767">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="pause ledger in refresh &gt; completed statuses are read only while at least one paused record exists" time="0.0054192">
+            <failure message="expected &quot;statuses&quot; to be called 1 times, but got 0 times" type="AssertionError">
+AssertionError: expected &quot;statuses&quot; to be called 1 times, but got 0 times
+ ❯ tests/store.test.ts:338:20
+            </failure>
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="pause ledger in refresh &gt; a paused task with a completed-type status loses its pause on refresh" time="0.0057496">
+            <failure message="expected [ { state: &apos;paused&apos;, …(6) } ] to deeply equal []" type="AssertionError">
+AssertionError: expected [ { state: &apos;paused&apos;, …(6) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     &quot;accumulatedMs&quot;: 60000,
++     &quot;lastEntryStart&quot;: &quot;2026-10-14T09:00:00.000Z&quot;,
++     &quot;pausedAt&quot;: &quot;2026-10-14T09:01:00.000Z&quot;,
++     &quot;sessionStartedAt&quot;: &quot;2026-10-14T09:00:00.000Z&quot;,
++     &quot;state&quot;: &quot;paused&quot;,
++     &quot;taskPath&quot;: &quot;TaskNotes/Tasks/A.md&quot;,
++     &quot;title&quot;: &quot;A&quot;,
++   },
++ ]
+
+ ❯ tests/store.test.ts:347:32
+            </failure>
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="pause ledger in refresh &gt; a statuses() failure skips the completed rule and is not an error state" time="0.0006685">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="pause ledger in refresh &gt; fileCheck reporting the note missing clears the pause" time="0.0010486">
+            <failure message="expected [ { state: &apos;paused&apos;, …(6) } ] to deeply equal []" type="AssertionError">
+AssertionError: expected [ { state: &apos;paused&apos;, …(6) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     &quot;accumulatedMs&quot;: 60000,
++     &quot;lastEntryStart&quot;: &quot;2026-10-14T09:00:00.000Z&quot;,
++     &quot;pausedAt&quot;: &quot;2026-10-14T09:01:00.000Z&quot;,
++     &quot;sessionStartedAt&quot;: &quot;2026-10-14T09:00:00.000Z&quot;,
++     &quot;state&quot;: &quot;paused&quot;,
++     &quot;taskPath&quot;: &quot;TaskNotes/Tasks/A.md&quot;,
++     &quot;title&quot;: &quot;A&quot;,
++   },
++ ]
+
+ ❯ tests/store.test.ts:366:32
+            </failure>
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="pause ledger in refresh &gt; fileCheck returning null (layout not ready) keeps the pause" time="0.0004324">
+        </testcase>
+        <testcase classname="tests/store.test.ts" name="pause ledger in refresh &gt; a readable Pomodoro owner on a paused task clears the pause on refresh" time="0.0014907">
+            <failure message="expected [ { state: &apos;paused&apos;, …(6) } ] to deeply equal []" type="AssertionError">
+AssertionError: expected [ { state: &apos;paused&apos;, …(6) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     &quot;accumulatedMs&quot;: 60000,
++     &quot;lastEntryStart&quot;: &quot;2026-10-14T09:00:00.000Z&quot;,
++     &quot;pausedAt&quot;: &quot;2026-10-14T09:01:00.000Z&quot;,
++     &quot;sessionStartedAt&quot;: &quot;2026-10-14T09:00:00.000Z&quot;,
++     &quot;state&quot;: &quot;paused&quot;,
++     &quot;taskPath&quot;: &quot;TaskNotes/Tasks/A.md&quot;,
++     &quot;title&quot;: &quot;A&quot;,
++   },
++ ]
+
+ ❯ tests/store.test.ts:382:32
+            </failure>
+        </testcase>
+    </testsuite>
+</testsuites>

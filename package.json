@@ -1,0 +1,31 @@
+{
+  "name": "tasknotes-timer-pane",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sidebar pane that shows the task TaskNotes is timing and stops it in one click.",
+  "type": "module",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "deploy": "node esbuild.config.mjs deploy",
+    "build": "tsc -noEmit && node esbuild.config.mjs production",
+    "typecheck": "tsc -noEmit",
+    "lint": "eslint . --max-warnings 0",
+    "test": "vitest run --dir tests",
+    "check": "npm run build && npm run lint && npm test",
+    "seed": "node scripts/seed-dev-vault.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^24.19.2",
+    "esbuild": "0.28.2",
+    "eslint": "^9.39.5",
+    "eslint-plugin-obsidianmd": "^0.4.2",
+    "globals": "^17.13.0",
+    "jiti": "^2.7.0",
+    "obsidian": "1.14.4",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.2",
+    "vitest": "^5.0.4"
+  }
+}

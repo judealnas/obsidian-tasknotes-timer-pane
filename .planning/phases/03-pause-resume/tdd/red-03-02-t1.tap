@@ -1,0 +1,322 @@
+TAP version 13
+1..78
+ok 1 - tests/pauseLedger.test.ts > loadPauseRecords (CTRL-04 empty predicate) > undefined loads zero pauses without throwing # time=2.21ms
+ok 2 - tests/pauseLedger.test.ts > loadPauseRecords (CTRL-04 empty predicate) > null loads zero pauses without throwing # time=0.18ms
+ok 3 - tests/pauseLedger.test.ts > loadPauseRecords (CTRL-04 empty predicate) > an array loads zero pauses without throwing # time=0.15ms
+ok 4 - tests/pauseLedger.test.ts > loadPauseRecords (CTRL-04 empty predicate) > a string loads zero pauses without throwing # time=0.15ms
+ok 5 - tests/pauseLedger.test.ts > loadPauseRecords (CTRL-04 empty predicate) > settings only loads zero pauses without throwing # time=0.15ms
+ok 6 - tests/pauseLedger.test.ts > loadPauseRecords (CTRL-04 empty predicate) > an unknown version loads zero pauses without throwing # time=0.14ms
+ok 7 - tests/pauseLedger.test.ts > loadPauseRecords (CTRL-04 empty predicate) > a missing version loads zero pauses without throwing # time=0.13ms
+ok 8 - tests/pauseLedger.test.ts > loadPauseRecords (CTRL-04 empty predicate) > non-array records loads zero pauses without throwing # time=0.14ms
+ok 9 - tests/pauseLedger.test.ts > loadPauseRecords (CTRL-04 empty predicate) > a valid paused and a valid running record load as stored # time=0.62ms
+ok 10 - tests/pauseLedger.test.ts > loadPauseRecords drops malformed records one by one > missing taskPath is dropped and its valid sibling survives # time=0.29ms
+ok 11 - tests/pauseLedger.test.ts > loadPauseRecords drops malformed records one by one > empty taskPath is dropped and its valid sibling survives # time=0.16ms
+ok 12 - tests/pauseLedger.test.ts > loadPauseRecords drops malformed records one by one > a taskPath of only separators is dropped and its valid sibling survives # time=0.14ms
+ok 13 - tests/pauseLedger.test.ts > loadPauseRecords drops malformed records one by one > unparseable sessionStartedAt is dropped and its valid sibling survives # time=0.12ms
+ok 14 - tests/pauseLedger.test.ts > loadPauseRecords drops malformed records one by one > non-finite accumulatedMs is dropped and its valid sibling survives # time=0.12ms
+ok 15 - tests/pauseLedger.test.ts > loadPauseRecords drops malformed records one by one > non-number accumulatedMs is dropped and its valid sibling survives # time=0.11ms
+ok 16 - tests/pauseLedger.test.ts > loadPauseRecords drops malformed records one by one > an unknown state is dropped and its valid sibling survives # time=0.13ms
+ok 17 - tests/pauseLedger.test.ts > loadPauseRecords drops malformed records one by one > paused without pausedAt is dropped and its valid sibling survives # time=0.11ms
+ok 18 - tests/pauseLedger.test.ts > loadPauseRecords drops malformed records one by one > paused with unparseable lastEntryStart is dropped and its valid sibling survives # time=0.10ms
+ok 19 - tests/pauseLedger.test.ts > loadPauseRecords drops malformed records one by one > running without a parseable entryStart is dropped # time=0.14ms
+ok 20 - tests/pauseLedger.test.ts > loadPauseRecords drops malformed records one by one > non-object items are dropped # time=0.12ms
+ok 21 - tests/pauseLedger.test.ts > loadPauseRecords repairs what it safely can > a negative accumulatedMs clamps to 0 # time=0.22ms
+ok 22 - tests/pauseLedger.test.ts > loadPauseRecords repairs what it safely can > a non-string title falls back to the path's basename # time=0.16ms
+ok 23 - tests/pauseLedger.test.ts > loadPauseRecords repairs what it safely can > backslash paths are normalized # time=0.11ms
+ok 24 - tests/pauseLedger.test.ts > loadPauseRecords repairs what it safely can > unknown fields are not carried into the record # time=0.15ms
+ok 25 - tests/pauseLedger.test.ts > loadPauseRecords ordering predicate > duplicates for one normalized path keep the newest pausedAt # time=0.25ms
+ok 26 - tests/pauseLedger.test.ts > loadPauseRecords ordering predicate > a running record's newness is its entryStart, compared with a paused record's pausedAt # time=0.12ms
+ok 27 - tests/pauseLedger.test.ts > loadPauseRecords ordering predicate > on a tie the later array item wins # time=0.14ms
+ok 28 - tests/pauseLedger.test.ts > loadPauseRecords ordering predicate > at most the first 1000 items are examined # time=6.49ms
+ok 29 - tests/pauseLedger.test.ts > PauseStore persistence > every change after load persists the serialized records # time=1.35ms
+ok 30 - tests/pauseLedger.test.ts > PauseStore persistence > a change before load is kept, merged over the stored records and persisted once loaded # time=0.68ms
+ok 31 - tests/pauseLedger.test.ts > PauseStore persistence > a failed save is logged without any task path # time=0.43ms
+not ok 32 - tests/pauseLedger.test.ts > reconcile rule 1: Pomodoro takeover (D-16) > a paused record whose path is the readable Pomodoro owner's path is deleted # time=7.96ms
+    ---
+    error:
+        name: "AssertionError"
+        message: "expected { next: [ { …(7) } ], changed: false } to deeply equal { next: [], changed: true }"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:219:18"
+    actual: "{
+  \"changed\": false,
+  \"next\": [
+    {
+      \"accumulatedMs\": 600000,
+      \"lastEntryStart\": \"2026-10-14T09:00:00.000Z\",
+      \"pausedAt\": \"2026-10-14T09:10:00.000Z\",
+      \"sessionStartedAt\": \"2026-10-14T09:00:00.000Z\",
+      \"state\": \"paused\",
+      \"taskPath\": \"TaskNotes/Tasks/Write report.md\",
+      \"title\": \"Write report\",
+    },
+  ],
+}"
+    expected: "{
+  \"changed\": true,
+  \"next\": [],
+}"
+    ...
+ok 33 - tests/pauseLedger.test.ts > reconcile rule 1: Pomodoro takeover (D-16) > with ownership unreadable the same input converts the record to running instead (D-11, D-15) # time=0.30ms
+not ok 34 - tests/pauseLedger.test.ts > reconcile rule 1: Pomodoro takeover (D-16) > rule 1 runs before rule 2: a non-owned open entry beside the owner's does not resume the record # time=1.46ms
+    ---
+    error:
+        name: "AssertionError"
+        message: "expected { next: [ { …(6) } ], changed: true } to deeply equal { next: [], changed: true }"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:230:18"
+    actual: "{
+  \"changed\": true,
+  \"next\": [
+    {
+      \"accumulatedMs\": 600000,
+      \"entryStart\": \"2026-10-14T11:05:00.000Z\",
+      \"sessionStartedAt\": \"2026-10-14T09:00:00.000Z\",
+      \"state\": \"running\",
+      \"taskPath\": \"TaskNotes/Tasks/Write report.md\",
+      \"title\": \"Write report\",
+    },
+  ],
+}"
+    expected: "{
+  \"changed\": true,
+  \"next\": [],
+}"
+    ...
+not ok 35 - tests/pauseLedger.test.ts > reconcile rule 1: Pomodoro takeover (D-16) > an owner matched through a backslash path still takes over # time=1.36ms
+    ---
+    error:
+        name: "AssertionError"
+        message: "expected [ { state: 'paused', …(6) } ] to deeply equal []"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:235:23"
+    actual: "[
+  {
+    \"accumulatedMs\": 600000,
+    \"lastEntryStart\": \"2026-10-14T09:00:00.000Z\",
+    \"pausedAt\": \"2026-10-14T09:10:00.000Z\",
+    \"sessionStartedAt\": \"2026-10-14T09:00:00.000Z\",
+    \"state\": \"paused\",
+    \"taskPath\": \"TaskNotes/Tasks/Write report.md\",
+    \"title\": \"Write report\",
+  },
+]"
+    expected: "[]"
+    ...
+ok 36 - tests/pauseLedger.test.ts > reconcile rule 1: Pomodoro takeover (D-16) > an owner on a different path leaves the paused record alone # time=0.26ms
+not ok 37 - tests/pauseLedger.test.ts > reconcile rule 1: Pomodoro takeover (D-16) > Pitfall 6: a running record whose entry became the Pomodoro owner is deleted # time=0.67ms
+    ---
+    error:
+        name: "AssertionError"
+        message: "expected { next: [ { …(6) } ], changed: false } to deeply equal { next: [], changed: true }"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:245:18"
+    actual: "{
+  \"changed\": false,
+  \"next\": [
+    {
+      \"accumulatedMs\": 600000,
+      \"entryStart\": \"2026-10-14T11:00:00.000Z\",
+      \"sessionStartedAt\": \"2026-10-14T09:00:00.000Z\",
+      \"state\": \"running\",
+      \"taskPath\": \"TaskNotes/Tasks/Write report.md\",
+      \"title\": \"Write report\",
+    },
+  ],
+}"
+    expected: "{
+  \"changed\": true,
+  \"next\": [],
+}"
+    ...
+ok 38 - tests/pauseLedger.test.ts > reconcile rule 1: Pomodoro takeover (D-16) > a running record whose entry is not the owner's start is kept # time=0.18ms
+not ok 39 - tests/pauseLedger.test.ts > reconcile rule 3: rename lag > a running record whose entry is open only under a path holding no record is kept # time=0.62ms
+    ---
+    error:
+        name: "AssertionError"
+        message: "expected { next: [], changed: true } to deeply equal { next: [ { …(6) } ], changed: false }"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:258:18"
+    actual: "{
+  \"changed\": true,
+  \"next\": [],
+}"
+    expected: "{
+  \"changed\": false,
+  \"next\": [
+    {
+      \"accumulatedMs\": 600000,
+      \"entryStart\": \"2026-10-14T11:00:00.000Z\",
+      \"sessionStartedAt\": \"2026-10-14T09:00:00.000Z\",
+      \"state\": \"running\",
+      \"taskPath\": \"TaskNotes/Tasks/Renamed.md\",
+      \"title\": \"Write report\",
+    },
+  ],
+}"
+    ...
+ok 40 - tests/pauseLedger.test.ts > reconcile rule 3: rename lag > a running record whose entry is open only under a path that holds another record is deleted # time=0.15ms
+ok 41 - tests/pauseLedger.test.ts > reconcile rule 3: rename lag > a running record whose entry is open nowhere is deleted # time=0.11ms
+not ok 42 - tests/pauseLedger.test.ts > reconcile rule 4: completed elsewhere (D-12) > a paused task whose status is a completed-type status is deleted # time=0.61ms
+    ---
+    error:
+        name: "AssertionError"
+        message: "expected { next: [ { …(7) } ], changed: false } to deeply equal { next: [], changed: true }"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:278:18"
+    actual: "{
+  \"changed\": false,
+  \"next\": [
+    {
+      \"accumulatedMs\": 600000,
+      \"lastEntryStart\": \"2026-10-14T09:00:00.000Z\",
+      \"pausedAt\": \"2026-10-14T09:10:00.000Z\",
+      \"sessionStartedAt\": \"2026-10-14T09:00:00.000Z\",
+      \"state\": \"paused\",
+      \"taskPath\": \"TaskNotes/Tasks/Write report.md\",
+      \"title\": \"Write report\",
+    },
+  ],
+}"
+    expected: "{
+  \"changed\": true,
+  \"next\": [],
+}"
+    ...
+ok 43 - tests/pauseLedger.test.ts > reconcile rule 4: completed elsewhere (D-12) > completedStatuses null skips the rule # time=0.19ms
+ok 44 - tests/pauseLedger.test.ts > reconcile rule 4: completed elsewhere (D-12) > an archived task with a non-completed status keeps its pause # time=0.15ms
+ok 45 - tests/pauseLedger.test.ts > reconcile rule 4: completed elsewhere (D-12) > a null task (cache warming) keeps its pause # time=0.12ms
+not ok 46 - tests/pauseLedger.test.ts > reconcile rule 5: file missing (D-12) > fileExists false deletes a paused record # time=0.51ms
+    ---
+    error:
+        name: "AssertionError"
+        message: "expected { next: [ { …(7) } ], changed: false } to deeply equal { next: [], changed: true }"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:299:73"
+    actual: "{
+  \"changed\": false,
+  \"next\": [
+    {
+      \"accumulatedMs\": 600000,
+      \"lastEntryStart\": \"2026-10-14T09:00:00.000Z\",
+      \"pausedAt\": \"2026-10-14T09:10:00.000Z\",
+      \"sessionStartedAt\": \"2026-10-14T09:00:00.000Z\",
+      \"state\": \"paused\",
+      \"taskPath\": \"TaskNotes/Tasks/Write report.md\",
+      \"title\": \"Write report\",
+    },
+  ],
+}"
+    expected: "{
+  \"changed\": true,
+  \"next\": [],
+}"
+    ...
+not ok 47 - tests/pauseLedger.test.ts > reconcile rule 5: file missing (D-12) > fileExists false deletes a running record whose entry is still open # time=0.48ms
+    ---
+    error:
+        name: "AssertionError"
+        message: "expected { next: [ { …(6) } ], changed: false } to deeply equal { next: [], changed: true }"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/pauseLedger.test.ts:304:18"
+    actual: "{
+  \"changed\": false,
+  \"next\": [
+    {
+      \"accumulatedMs\": 600000,
+      \"entryStart\": \"2026-10-14T11:00:00.000Z\",
+      \"sessionStartedAt\": \"2026-10-14T09:00:00.000Z\",
+      \"state\": \"running\",
+      \"taskPath\": \"TaskNotes/Tasks/Write report.md\",
+      \"title\": \"Write report\",
+    },
+  ],
+}"
+    expected: "{
+  \"changed\": true,
+  \"next\": [],
+}"
+    ...
+ok 48 - tests/pauseLedger.test.ts > reconcile rule 5: file missing (D-12) > fileExists null skips the rule # time=0.12ms
+ok 49 - tests/pauseLedger.test.ts > reconcile rule 5: file missing (D-12) > fileExists true keeps the record # time=0.11ms
+ok 50 - tests/pauseLedger.test.ts > reconcile pending paths and age > rules 3 to 5 are skipped for a path a pane pause is writing # time=0.16ms
+ok 51 - tests/pauseLedger.test.ts > reconcile pending paths and age > D-13: a record paused 30 days ago survives reconcile unchanged # time=0.88ms
+ok 52 - tests/store.test.ts > constants > Stop all eligibility follows exact ownership and recovers from unreadable state # time=8.44ms
+ok 53 - tests/store.test.ts > constants > debounce 200 ms, safety resync 45 s # time=0.59ms
+ok 54 - tests/store.test.ts > trailing debounce > requestRefresh twice 150 ms apart makes exactly one active() call, 200 ms after the second # time=2.06ms
+ok 55 - tests/store.test.ts > trailing debounce > burst A then burst B 300 ms later with an unchanged result: at most 2 calls, at most 1 notification # time=1.39ms
+ok 56 - tests/store.test.ts > trailing debounce > an entry that appears with only a data hint (no time.* event) is visible after the debounce # time=0.73ms
+ok 57 - tests/store.test.ts > single-flight > refreshNow while one is in flight: exactly two active() calls, both callers resolve after the second # time=0.68ms
+ok 58 - tests/store.test.ts > single-flight > refreshNow cancels a pending debounce when it starts # time=0.50ms
+ok 59 - tests/store.test.ts > signature diff > identical entries returned as new objects cause no notification # time=0.58ms
+ok 60 - tests/store.test.ts > signature diff > a changed startTime notifies once # time=0.71ms
+ok 61 - tests/store.test.ts > signature diff > a changed title notifies once # time=0.87ms
+ok 62 - tests/store.test.ts > signature diff > a newly closed entry on the task notifies once # time=0.65ms
+ok 63 - tests/store.test.ts > signature diff > a change to the task's status alone notifies once, so the title chip re-renders # time=0.55ms
+ok 64 - tests/store.test.ts > signature diff > the first successful refresh notifies even for an empty result # time=0.40ms
+ok 65 - tests/store.test.ts > signature diff > snapshotSignature is deterministic and keyed on path, start, title, closed time and display key # time=2.78ms
+ok 66 - tests/store.test.ts > errors > a rejected active() keeps the previous snapshot, logs only the message, and retries nothing # time=0.81ms
+ok 67 - tests/store.test.ts > bridge state > a retired generation cannot publish after a ready reconnect # time=0.72ms
+ok 68 - tests/store.test.ts > bridge state > resync() while not ready makes no call; while ready exactly one # time=0.52ms
+ok 69 - tests/store.test.ts > bridge state > leaving ready resets the snapshot, notifies once, and cancels a pending debounce # time=0.45ms
+ok 70 - tests/store.test.ts > bridge state > after leaving and re-entering ready, an unchanged result notifies again (signature reset) # time=0.47ms
+ok 71 - tests/store.test.ts > bridge state > dispose cancels the pending debounce # time=0.37ms
+ok 72 - tests/store.test.ts > pause ledger in refresh > a pause-record change while a refresh awaits its reads causes a re-read and no stale publish # time=0.79ms
+not ok 73 - tests/store.test.ts > pause ledger in refresh > completed statuses are read only while at least one paused record exists # time=4.03ms
+    ---
+    error:
+        name: "AssertionError"
+        message: "expected \"statuses\" to be called 1 times, but got 0 times"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/store.test.ts:338:20"
+    ...
+not ok 74 - tests/store.test.ts > pause ledger in refresh > a paused task with a completed-type status loses its pause on refresh # time=4.59ms
+    ---
+    error:
+        name: "AssertionError"
+        message: "expected [ { state: 'paused', …(6) } ] to deeply equal []"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/store.test.ts:347:32"
+    actual: "[
+  {
+    \"accumulatedMs\": 60000,
+    \"lastEntryStart\": \"2026-10-14T09:00:00.000Z\",
+    \"pausedAt\": \"2026-10-14T09:01:00.000Z\",
+    \"sessionStartedAt\": \"2026-10-14T09:00:00.000Z\",
+    \"state\": \"paused\",
+    \"taskPath\": \"TaskNotes/Tasks/A.md\",
+    \"title\": \"A\",
+  },
+]"
+    expected: "[]"
+    ...
+ok 75 - tests/store.test.ts > pause ledger in refresh > a statuses() failure skips the completed rule and is not an error state # time=1.10ms
+not ok 76 - tests/store.test.ts > pause ledger in refresh > fileCheck reporting the note missing clears the pause # time=1.49ms
+    ---
+    error:
+        name: "AssertionError"
+        message: "expected [ { state: 'paused', …(6) } ] to deeply equal []"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/store.test.ts:366:32"
+    actual: "[
+  {
+    \"accumulatedMs\": 60000,
+    \"lastEntryStart\": \"2026-10-14T09:00:00.000Z\",
+    \"pausedAt\": \"2026-10-14T09:01:00.000Z\",
+    \"sessionStartedAt\": \"2026-10-14T09:00:00.000Z\",
+    \"state\": \"paused\",
+    \"taskPath\": \"TaskNotes/Tasks/A.md\",
+    \"title\": \"A\",
+  },
+]"
+    expected: "[]"
+    ...
+ok 77 - tests/store.test.ts > pause ledger in refresh > fileCheck returning null (layout not ready) keeps the pause # time=0.48ms
+not ok 78 - tests/store.test.ts > pause ledger in refresh > a readable Pomodoro owner on a paused task clears the pause on refresh # time=1.07ms
+    ---
+    error:
+        name: "AssertionError"
+        message: "expected [ { state: 'paused', …(6) } ] to deeply equal []"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/tests/store.test.ts:382:32"
+    actual: "[
+  {
+    \"accumulatedMs\": 60000,
+    \"lastEntryStart\": \"2026-10-14T09:00:00.000Z\",
+    \"pausedAt\": \"2026-10-14T09:01:00.000Z\",
+    \"sessionStartedAt\": \"2026-10-14T09:00:00.000Z\",
+    \"state\": \"paused\",
+    \"taskPath\": \"TaskNotes/Tasks/A.md\",
+    \"title\": \"A\",
+  },
+]"
+    expected: "[]"
+    ...

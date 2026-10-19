@@ -1,0 +1,207 @@
+/* TaskNotes Timer Pane: tntp- BEM classes, Obsidian CSS variables only (01-UI-SPEC.md). */
+
+/* Root */
+.tntp-pane {
+	padding: var(--size-4-4);
+	max-width: 480px;
+}
+
+/* Visibility is driven only by the root modifier class. */
+.tntp-pane--running .tntp-message,
+.tntp-pane:not(.tntp-pane--running) .tntp-cards {
+	display: none;
+}
+
+.tntp-pane--loading .tntp-message__heading {
+	display: none;
+}
+
+.tntp-pane:not(.tntp-pane--missing):not(.tntp-pane--incompatible) .tntp-message__retry {
+	display: none;
+}
+
+.tntp-message__meta:empty {
+	display: none;
+}
+
+/* D-15: the Pomodoro line shows only while ownership is unreadable and TaskNotes is ready. */
+.tntp-pane:not(.tntp-pane--pomodoro-unknown) .tntp-pomodoro-note {
+	display: none;
+}
+
+/* Accessible name for the title link (aria-labelledby); never rendered visually. */
+.tntp-visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+/* Running-timer cards: one per open timer, most recently started first */
+.tntp-cards {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-3);
+}
+
+.tntp-card {
+	background-color: var(--background-primary);
+	border: var(--border-width) solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	padding: var(--size-4-4);
+	container-type: inline-size;
+}
+
+.tntp-label {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	line-height: var(--line-height-tight);
+}
+
+/* The card's heading. TaskNotes sizes its chip in em, so the chip scales with this. */
+.tntp-title {
+	font-size: var(--font-ui-large);
+	font-weight: var(--font-semibold);
+	line-height: var(--line-height-tight);
+	color: var(--text-normal);
+	overflow-wrap: anywhere;
+	cursor: var(--cursor-link);
+}
+
+.tntp-title:not(.tntp-title--chip):hover,
+.tntp-title:not(.tntp-title--chip):focus-visible {
+	color: var(--text-accent);
+	text-decoration: underline;
+}
+
+/* Obsidian wraps the rendered wikilink in a paragraph. */
+.tntp-title__md > p {
+	margin: 0;
+}
+
+/* A plain link keeps the title look; accent and underline come from the container. */
+.tntp-title a.internal-link {
+	color: inherit;
+	text-decoration: none;
+}
+
+/* TaskNotes' chip owns the title: keep its cursor, and keep keyboard focus visible. */
+.tntp-title--chip {
+	cursor: auto;
+}
+
+.tntp-title--chip:focus-visible {
+	box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+	border-radius: var(--radius-s);
+}
+
+/* TaskNotes keeps inline chips on one line; let a long title wrap inside the card instead. */
+.tntp-pane .tntp-title .task-card--layout-inline {
+	white-space: normal;
+}
+
+/* Every chip in the pane is being tracked, so TaskNotes' tracking outline adds nothing here. */
+.tntp-pane .tntp-title .task-card--actively-tracked::before {
+	display: none;
+}
+
+.tntp-stat--session {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-1);
+	margin-top: var(--size-4-4);
+}
+
+/*
+ * Numbers match TaskNotes' Pomodoro timer: it asks for an undefined --tn-font-mono, so it
+ * renders in the interface font, bold, spaced 0.05em. Tabular digits stop the clock jittering.
+ */
+.tntp-clock {
+	font-family: var(--font-interface);
+	font-variant-numeric: tabular-nums;
+	font-size: min(calc(var(--font-ui-large) * 1.6), 17cqi);
+	font-weight: var(--font-bold);
+	line-height: 1.1;
+	white-space: nowrap;
+	letter-spacing: 0.05em;
+	color: var(--text-normal);
+}
+
+.tntp-stat--total {
+	display: flex;
+	align-items: baseline;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-4);
+}
+
+.tntp-total {
+	font-family: var(--font-interface);
+	font-variant-numeric: tabular-nums;
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+}
+
+/* Stop timer: mod-cta keeps Obsidian's own colors, padding, height and focus ring. */
+.tntp-actions {
+	margin-top: var(--size-4-4);
+	display: flex;
+	gap: var(--size-4-2);
+}
+
+.tntp-pause-resume,
+.tntp-stop,
+.tntp-complete {
+	flex: 1;
+	min-height: var(--input-height);
+}
+
+/* Paused cards keep their place and only change style (D-06): muted, with a "Paused" label. */
+.tntp-card--paused .tntp-title,
+.tntp-card--paused .tntp-clock,
+.tntp-card--paused .tntp-total {
+	color: var(--text-muted);
+}
+
+.tntp-card:not(.tntp-card--paused) .tntp-card__paused {
+	display: none;
+}
+
+/* Message states (idle, loading, missing, incompatible) */
+.tntp-message {
+	padding-top: var(--size-4-6);
+}
+
+.tntp-message__heading {
+	margin-bottom: var(--size-4-1);
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-semibold);
+	line-height: var(--line-height-tight);
+	color: var(--text-normal);
+}
+
+.tntp-message__body {
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	line-height: var(--line-height-normal);
+}
+
+.tntp-message__meta {
+	margin-top: var(--size-4-1);
+}
+
+.tntp-message__retry {
+	margin-top: var(--size-4-6);
+}
+
+.tntp-header { display: flex; gap: var(--size-4-2); margin-bottom: var(--size-4-4); flex-wrap: wrap; }
+.tntp-picker-row { display: flex; align-items: center; gap: var(--size-4-2); }
+.tntp-picker-chip { min-width: 0; overflow-wrap: anywhere; }
+.tntp-picker-chip__md > p { margin: 0; }
+.tntp-picker-due { color: var(--text-muted); font-size: var(--font-ui-small); white-space: nowrap; }
+.tntp-picker-pomodoro { color: var(--text-muted); font-size: var(--font-ui-small); white-space: nowrap; }
+.tntp-pomodoro-note { color: var(--text-muted); font-size: var(--font-ui-smaller); margin-bottom: var(--size-4-2); }
