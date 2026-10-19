@@ -2,7 +2,7 @@
   "name": "tasknotes-timer-pane",
   "version": "0.1.0",
   "private": true,
-  "description": "Sidebar pane that shows the task TaskNotes is timing and stops it in one click.",
+  "description": "Sidebar pane to watch, start, pause, stop and complete TaskNotes time tracking.",
   "type": "module",
   "main": "main.js",
   "scripts": {

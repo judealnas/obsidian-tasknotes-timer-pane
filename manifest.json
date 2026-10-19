@@ -3,7 +3,7 @@
 	"name": "TaskNotes Timer Pane",
 	"version": "0.1.0",
 	"minAppVersion": "1.12.2",
-	"description": "Sidebar pane that shows the task TaskNotes is timing and stops it in one click.",
+	"description": "Sidebar pane to watch, start, pause, stop and complete TaskNotes time tracking.",
 	"author": "judealnas",
 	"isDesktopOnly": false
 }
