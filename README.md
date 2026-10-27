@@ -14,7 +14,7 @@ An Obsidian plugin that adds a dockable pane for monitoring and controlling Task
 - Open it with the ribbon icon "Open TaskNotes timer" or the command "Open timer pane". It opens in the right sidebar. If the pane is already open, it is revealed where it is instead of opening a second copy, and it stays in place across restarts.
 - While a timer runs, the card shows the task title (click it to open the note; Ctrl/Cmd-click opens it in a new tab), the current session as H:MM:SS ticking every second, and the task's total tracked time including the running session.
 - "Stop timer" stops only the timer the card displays.
-- Several timers at once: the pane shows one card per timer, most recently started first.
+- Several timers at once: the pane shows one card per timer, new timers at the top. Drag a card's handle (or press Up/Down arrow on it) to reorder; the order is remembered.
 - "Start task" opens a searchable picker and starts a timer alongside existing timers. Completed tasks remain selectable at the end of the list.
 - "Stop all" stops regular timers sequentially and preserves the timer owned by an active Pomodoro. It is disabled when ownership cannot be verified or there is nothing eligible to stop.
 - "Complete" beside Stop sets the task's completed status, then stops its same still-open timer. If the status write fails, the timer keeps running. If stopping later fails, the task stays completed and a Notice explains that its timer needs checking.

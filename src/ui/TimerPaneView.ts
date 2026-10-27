@@ -25,6 +25,7 @@ import {
 	type OpenTimer,
 	type PaneState,
 } from "../model/timeMath";
+import { moveKey, moveKeyBy, orderTimers } from "../model/cardOrder";
 import type { CardOrderStore } from "../state/CardOrderStore";
 import type { TimerController } from "../state/TimerController";
 import type { TimerStore } from "../state/TimerStore";
@@ -65,6 +66,8 @@ const UNKNOWN_TOTAL = "—";
 interface CardElements {
 	timer: OpenTimer;
 	card: HTMLElement;
+	/** Drag handle; the only draggable element of the card. */
+	handle: HTMLButtonElement;
 	title: HTMLElement;
 	titleLabel: HTMLElement;
 	/** Inputs of the last title update (see titleRenderKey). */
@@ -122,6 +125,8 @@ export class TimerPaneView extends ItemView {
 	private completionReady = false;
 	private completionGeneration = 0;
 	private closed = true;
+	/** Key of the card being dragged by its handle; null unless our own drag is active. */
+	private dragKey: string | null = null;
 
 	constructor(leaf: WorkspaceLeaf, services: TimerPaneServices) {
 		super(leaf);
@@ -148,6 +153,7 @@ export class TimerPaneView extends ItemView {
 		this.wasShown = false;
 		this.stopping.clear();
 		this.cards = new Map();
+		this.dragKey = null;
 		const root = this.contentEl.createDiv({ cls: ["tntp-pane", "tntp-pane--loading"] });
 		const header = root.createDiv({ cls: "tntp-header" });
 		// D-02: Start task, Pause all, Resume all, Stop all; text labels in a wrapping row.
@@ -181,6 +187,8 @@ export class TimerPaneView extends ItemView {
 		this.register(store.subscribe(() => { this.render(); void this.refreshCompletion(); }));
 		this.register(gateway.onState(() => { this.render(); void this.refreshCompletion(); }));
 		this.register(this.services.controller.subscribeBusy(() => this.render()));
+		// Keeps two open panes in the same order.
+		this.register(this.services.cardOrder.subscribe(() => this.render()));
 		this.registerInterval(window.setInterval(() => this.tick(), 1000));
 		// The pane's own document and window, so this also works in a pop-out window.
 		// Electron may suspend timers in the background or during OS sleep: tick at once
@@ -206,6 +214,7 @@ export class TimerPaneView extends ItemView {
 		this.completionReady = false;
 		this.picker?.close();
 		this.picker = null;
+		this.dragKey = null;
 		for (const card of this.cards.values()) this.discardCard(card);
 		this.els = null;
 		this.cards = new Map();
@@ -222,16 +231,82 @@ export class TimerPaneView extends ItemView {
   modal.open();
  }
 
-	/** Every open timer in display order (most recently started first); none unless running. */
+	/** Every open timer in display order (the saved order, new timers on top); none unless running. */
 	private currentTimers(): { state: PaneState; timers: OpenTimer[] } {
 		const snapshot = this.services.store.getSnapshot();
 		const state = derivePaneState(this.services.gateway.getState(), snapshot);
 		if (state !== "running" || !snapshot?.primary) return { state, timers: [] };
-		return { state, timers: [snapshot.primary, ...snapshot.others] };
+		return { state, timers: orderTimers([snapshot.primary, ...snapshot.others], this.services.cardOrder.get()) };
+	}
+
+	/** Commits a new display order; the store subscription re-renders every pane. */
+	private commitOrder(order: string[]): void {
+		this.services.cardOrder.set(order);
+	}
+
+	private clearDropMarks(): void {
+		for (const { card } of this.cards.values()) {
+			card.removeClass("tntp-card--drop-before");
+			card.removeClass("tntp-card--drop-after");
+		}
+	}
+
+	private clearDragMarks(): void {
+		this.clearDropMarks();
+		for (const { card } of this.cards.values()) card.removeClass("tntp-card--dragging");
+	}
+
+	/** Handle events: keyboard reorder and the HTML5 drag source. */
+	private wireHandle(card: HTMLElement, handle: HTMLButtonElement, key: string): void {
+		handle.addEventListener("keydown", (evt) => {
+			if (evt.key !== "ArrowUp" && evt.key !== "ArrowDown") return;
+			evt.preventDefault();
+			this.commitOrder(moveKeyBy([...this.cards.keys()], key, evt.key === "ArrowUp" ? -1 : 1));
+			if (handle.ownerDocument.activeElement !== handle) handle.focus();
+		});
+		handle.addEventListener("dragstart", (evt) => {
+			this.dragKey = key;
+			const transfer = evt.dataTransfer;
+			if (transfer) {
+				transfer.effectAllowed = "move";
+				transfer.setData("application/x-tntp-card", key);
+				transfer.setDragImage(card, 0, 0);
+			}
+			card.addClass("tntp-card--dragging");
+		});
+		handle.addEventListener("dragend", () => {
+			this.dragKey = null;
+			this.clearDragMarks();
+		});
+		// Only our own handle's drag is acted on; foreign drags are left alone.
+		card.addEventListener("dragover", (evt) => {
+			if (this.dragKey === null || this.dragKey === key) return;
+			evt.preventDefault();
+			if (evt.dataTransfer) evt.dataTransfer.dropEffect = "move";
+			const rect = card.getBoundingClientRect();
+			const after = evt.clientY > rect.top + rect.height / 2;
+			this.clearDropMarks();
+			card.toggleClass("tntp-card--drop-before", !after);
+			card.toggleClass("tntp-card--drop-after", after);
+		});
+		card.addEventListener("drop", (evt) => {
+			const dragKey = this.dragKey;
+			if (dragKey === null || dragKey === key) return;
+			evt.preventDefault();
+			const rect = card.getBoundingClientRect();
+			const after = evt.clientY > rect.top + rect.height / 2;
+			this.dragKey = null;
+			this.clearDragMarks();
+			this.commitOrder(moveKey([...this.cards.keys()], dragKey, key, after));
+		});
 	}
 
 	private buildCard(parent: HTMLElement, key: string, timer: OpenTimer): CardElements {
 		const card = parent.createDiv({ cls: "tntp-card" });
+		const handle = card.createEl("button", { cls: "tntp-handle", attr: { "aria-label": "Reorder card", draggable: "true" } });
+		setIcon(handle, "grip-vertical");
+		setTooltip(handle, "Drag to reorder, or use Up and Down arrow keys");
+		this.wireHandle(card, handle, key);
 		// The tooltip owns aria-label ("Open task note"); the accessible name
 		// "Open {title}" comes from a visually hidden label via aria-labelledby.
 		const titleLabelId = `tntp-title-label-${++titleLabelSeq}`;
@@ -287,6 +362,7 @@ export class TimerPaneView extends ItemView {
 		return {
 			timer,
 			card,
+			handle,
 			title,
 			titleLabel,
 			titleKey: null,
