@@ -4,6 +4,6 @@
 	"version": "0.1.0",
 	"minAppVersion": "1.12.2",
 	"description": "Sidebar pane to watch, start, pause, stop and complete TaskNotes time tracking.",
-	"author": "judealnas",
+	"author": "Jude Alnas",
 	"isDesktopOnly": false
 }
