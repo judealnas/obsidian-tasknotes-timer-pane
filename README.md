@@ -4,6 +4,8 @@
 
 An Obsidian plugin that adds a dockable pane for monitoring and controlling TaskNotes' regular (non-Pomodoro) task time tracking. TaskNotes already has a Pomodoro pane, but for normal task timing the only sign that a task is being timed is a small status-bar indicator in the bottom right of the window. This pane fills that gap: keep it open beside your notes to see what you are timing and how long you've spent on it, and start, pause, resume, stop or complete a task's timer in one or two clicks.
 
+![TaskNotes Timer Pane showing two running task timers and controls to start, pause, stop and complete tasks](docs/assets/panel.png)
+
 ## Requirements
 
 - Obsidian 1.12.2 or later. Verified on desktop only.
