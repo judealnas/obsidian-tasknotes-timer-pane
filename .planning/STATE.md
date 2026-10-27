@@ -4,10 +4,10 @@ current_phase: 1
 current_phase_name: Live Timer Pane
 status: planning
 stopped_at: Phase 03 complete, ready to plan Phase 1
-last_updated: "2026-10-19T16:27:38.328Z"
-last_activity: 2026-10-16
+last_updated: "2026-10-27T20:15:25.871Z"
+last_activity: 2026-10-19
 last_activity_desc: Phase 03 complete, transitioned to Phase 1
-state_head: 5fc684eb86b3e79788cd862bee1d66e70eb34d71
+state_head: 8051ea7f5566a3ba676c058b68634570ffced19f
 progress:
   total_phases: 3
   completed_phases: 2
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-16)
 Phase: 1 — Live Timer Pane
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-10-19 - Completed quick task 261019-h6t: Prep plugin for BRAT distribution
+Last activity: 2026-10-27 - Completed quick task 261027-mcs: Add drag-and-drop reordering of the timer cards in the pane
 
 Progress: [███████░░░] 67%
 
@@ -135,6 +135,7 @@ None yet.
 | 3 | Drop static Tracking label; enlarge card title chip | 2026-10-15 | 72972cc | — |
 | 4 | Match timer digits to TaskNotes' Pomodoro timer font | 2026-10-15 | 3a2b05d | — |
 | 261019-h6t | Prep plugin for BRAT distribution | 2026-10-19 | 5fc684e | [261019-h6t-prep-plugin-for-brat-distribution](./quick/261019-h6t-prep-plugin-for-brat-distribution/) |
+| 261027-mcs | Add drag-and-drop reordering of the timer cards in the pane | 2026-10-27 | 8051ea7 | [261027-mcs-add-drag-and-drop-reordering-of-the-time](./quick/261027-mcs-add-drag-and-drop-reordering-of-the-time/) |
 
 ## Deferred Items
 
