@@ -1,7 +1,7 @@
 {
 	"id": "tasknotes-timer-pane",
 	"name": "TaskNotes Timer Pane",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"minAppVersion": "1.12.2",
 	"description": "Sidebar pane to watch, start, pause, stop and complete TaskNotes time tracking.",
 	"author": "Jude Alnas",
