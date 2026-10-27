@@ -55,6 +55,55 @@
 	border-radius: var(--radius-m);
 	padding: var(--size-4-4);
 	container-type: inline-size;
+	position: relative;
+}
+
+/* Reorder handle: top end corner; the only draggable part of a card. */
+.tntp-handle {
+	position: absolute;
+	inset-block-start: var(--size-4-2);
+	inset-inline-end: var(--size-4-2);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--size-4-6);
+	height: var(--size-4-6);
+	padding: 0;
+	background: transparent;
+	border: 0;
+	box-shadow: none;
+	color: var(--text-muted);
+	cursor: grab;
+}
+
+.tntp-handle:active {
+	cursor: grabbing;
+}
+
+.tntp-handle:hover {
+	color: var(--text-normal);
+}
+
+.tntp-handle:focus-visible {
+	box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+	border-radius: var(--radius-s);
+}
+
+.tntp-handle .svg-icon {
+	width: var(--icon-s);
+	height: var(--icon-s);
+}
+
+.tntp-card--dragging {
+	opacity: 0.5;
+}
+
+.tntp-card--drop-before {
+	box-shadow: inset 0 2px 0 0 var(--interactive-accent);
+}
+
+.tntp-card--drop-after {
+	box-shadow: inset 0 -2px 0 0 var(--interactive-accent);
 }
 
 .tntp-label {
@@ -70,6 +119,7 @@
 	line-height: var(--line-height-tight);
 	color: var(--text-normal);
 	overflow-wrap: anywhere;
+	padding-inline-end: var(--size-4-6);
 	cursor: var(--cursor-link);
 }
 

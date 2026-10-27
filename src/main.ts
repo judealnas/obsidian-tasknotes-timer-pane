@@ -1,5 +1,7 @@
 import { Notice, Plugin } from "obsidian";
 import { PauseStore } from "./state/PauseStore";
+import { CardOrderStore } from "./state/CardOrderStore";
+import { loadCardOrder } from "./model/cardOrder";
 import { TimerController } from "./state/TimerController";
 import { SAFETY_RESYNC_MS, TimerStore } from "./state/TimerStore";
 import { WriteQueue } from "./state/WriteQueue";
@@ -10,7 +12,7 @@ import { TimerPaneSettingTab } from "./ui/TimerPaneSettingTab";
 import { PAUSE_RECORDS_VERSION, loadPauseRecords } from "./model/pauseLedger";
 
 /** The data.json keys this plugin owns; everything else is kept as found. */
-const OWNED_KEYS = new Set(["completionStatus", "pauseRecordsVersion", "pauseRecords"]);
+const OWNED_KEYS = new Set(["completionStatus", "pauseRecordsVersion", "pauseRecords", "cardOrder"]);
 
 function extrasOf(data: unknown): Record<string, unknown> {
 	if (typeof data !== "object" || data === null || Array.isArray(data)) return {};
@@ -30,6 +32,7 @@ export default class TaskNotesTimerPanePlugin extends Plugin {
 	private paneSettings: TimerPaneSettings = { ...DEFAULT_SETTINGS };
 	private settingsReady: Promise<void> = Promise.resolve();
 	private pauses: PauseStore | null = null;
+	private cardOrder: CardOrderStore | null = null;
 	/** Settings as last written to data.json; a pause-only save writes these. */
 	private fileSettings: TimerPaneSettings = { ...DEFAULT_SETTINGS };
 	/** Keys in the loaded data.json that this plugin does not own, preserved on every save. */
@@ -46,11 +49,14 @@ export default class TaskNotesTimerPanePlugin extends Plugin {
 	private persistAll(settings?: TimerPaneSettings): Promise<void> {
 		const result = this.saveChain.then(async () => {
 			const written = settings ? { ...settings } : this.fileSettings;
+			const order = this.cardOrder?.serialize() ?? [];
 			await this.saveData({
 				...this.extras,
 				completionStatus: written.completionStatus,
 				pauseRecordsVersion: PAUSE_RECORDS_VERSION,
 				pauseRecords: this.pauses?.serialize() ?? [],
+				// Omitted when empty, so a user who never reorders keeps an unchanged data.json.
+				...(order.length > 0 ? { cardOrder: order } : {}),
 			});
 			this.fileSettings = written;
 		});
@@ -77,6 +83,9 @@ export default class TaskNotesTimerPanePlugin extends Plugin {
 		// Every pause change rewrites data.json with the current settings too.
 		const pauses = new PauseStore({ log, persist: () => this.persistAll() });
 		this.pauses = pauses;
+		// Pane-local card order, persisted through the same single writer.
+		const cardOrder = new CardOrderStore({ log, persist: () => this.persistAll() });
+		this.cardOrder = cardOrder;
 		// The vault can only tell a deleted note from one not yet indexed once the layout is ready (Pitfall 2).
 		let layoutReady = false;
 		const store = new TimerStore({
@@ -101,13 +110,14 @@ export default class TaskNotesTimerPanePlugin extends Plugin {
 		});
 
 		// Registered synchronously so Obsidian can restore a saved pane leaf (PANE-03).
-		this.registerView(VIEW_TYPE_TIMER_PANE, (leaf) => new TimerPaneView(leaf, { gateway: bridge, store, controller }));
+		this.registerView(VIEW_TYPE_TIMER_PANE, (leaf) => new TimerPaneView(leaf, { gateway: bridge, store, controller, cardOrder }));
 		this.settingsReady = this.loadData().then((data: unknown) => {
 			this.paneSettings = loadSettings(data);
 			this.fileSettings = { ...this.paneSettings };
 			this.extras = extrasOf(data);
 			pauses.load(loadPauseRecords(data));
-		}).catch(() => { log("Loading timer pane settings failed; using defaults."); pauses.load([]); });
+			cardOrder.load(loadCardOrder(data));
+		}).catch(() => { log("Loading timer pane settings failed; using defaults."); pauses.load([]); cardOrder.load([]); });
 		this.addSettingTab(new TimerPaneSettingTab(this.app, this, {
 			gateway: bridge,
 			getSettings: () => this.paneSettings,
