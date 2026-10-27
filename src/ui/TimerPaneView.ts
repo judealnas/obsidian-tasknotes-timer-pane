@@ -25,6 +25,7 @@ import {
 	type OpenTimer,
 	type PaneState,
 } from "../model/timeMath";
+import type { CardOrderStore } from "../state/CardOrderStore";
 import type { TimerController } from "../state/TimerController";
 import type { TimerStore } from "../state/TimerStore";
 import type { TaskNotesGateway } from "../tasknotes/TaskNotesBridge";
@@ -35,6 +36,7 @@ export const VIEW_TYPE_TIMER_PANE = "tasknotes-timer-pane";
 export interface TimerPaneServices {
 	gateway: TaskNotesGateway;
 	store: TimerStore;
+	cardOrder: CardOrderStore;
 	controller: Pick<TimerController, "stop" | "start" | "stopAll" | "complete" | "pause" | "resume" | "stopPaused" | "pauseAll" | "resumeAll" | "completionAvailable" | "isBusy" | "subscribeBusy">;
 }
 

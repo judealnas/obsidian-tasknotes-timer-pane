@@ -187,3 +187,51 @@ test("fileCheck is null before layout ready and backed by vault.getFileByPath af
 	expect(exists!(PAUSED.taskPath)).toBe(true);
 	expect(exists!("TaskNotes/Tasks/Gone.md")).toBe(false);
 });
+
+// ---- quick 261027-mcs: card order persistence ----
+
+type OrderStore = { get(): readonly string[]; set(order: string[]): void };
+const orderOf = (plugin: unknown) => (plugin as { cardOrder: OrderStore }).cardOrder;
+
+test("a stored card order loads and a settings save keeps it", async () => {
+	host.data = { cardOrder: ["a", "b"], extraKey: 1 };
+	const plugin = new TaskNotesTimerPanePlugin({} as App, {} as PluginManifest); plugin.onload();
+	await flush();
+	expect(orderOf(plugin).get()).toEqual(["a", "b"]);
+	await saveSettingsOf(host.tabs[0])({ completionStatus: "done" });
+	expect(host.saved).toEqual([{ extraKey: 1, completionStatus: "done", pauseRecordsVersion: 1, pauseRecords: [], cardOrder: ["a", "b"] }]);
+});
+
+test("setting the card order writes data.json with the settings and pauses", async () => {
+	host.data = { completionStatus: "x", pauseRecordsVersion: 1, pauseRecords: [PAUSED] };
+	const plugin = new TaskNotesTimerPanePlugin({} as App, {} as PluginManifest); plugin.onload();
+	await flush();
+	orderOf(plugin).set(["b", "a"]);
+	await flush();
+	expect(host.saved).toEqual([{ completionStatus: "x", pauseRecordsVersion: 1, pauseRecords: [PAUSED], cardOrder: ["b", "a"] }]);
+});
+
+test("no saved order means no cardOrder key is written", async () => {
+	host.data = { cardOrder: [] };
+	const plugin = new TaskNotesTimerPanePlugin({} as App, {} as PluginManifest); plugin.onload();
+	await flush();
+	await saveSettingsOf(host.tabs[0])({ completionStatus: "done" });
+	expect(host.saved).toEqual([{ completionStatus: "done", pauseRecordsVersion: 1, pauseRecords: [] }]);
+});
+
+test("a malformed card order loads empty; a load rejection keeps the plugin usable", async () => {
+	host.data = { cardOrder: { a: 1 } };
+	const plugin = new TaskNotesTimerPanePlugin({} as App, {} as PluginManifest); plugin.onload();
+	await flush();
+	expect(orderOf(plugin).get()).toEqual([]);
+	const failing = new TaskNotesTimerPanePlugin({} as App, {} as PluginManifest);
+	vi.spyOn(failing, "loadData").mockRejectedValue(new Error("private/path"));
+	const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+	failing.onload();
+	await flush();
+	expect(orderOf(failing).get()).toEqual([]);
+	orderOf(failing).set(["z"]);
+	await flush();
+	expect(host.saved[host.saved.length - 1]).toMatchObject({ cardOrder: ["z"] });
+	log.mockRestore();
+});
