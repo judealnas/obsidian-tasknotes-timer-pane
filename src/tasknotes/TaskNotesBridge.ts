@@ -11,6 +11,7 @@ import type {
 	TaskInfo,
 	TaskStatus,
 	TaskNotesMutationContext,
+	TaskNotesTaskPatch,
 	TaskNotesUserField,
 	TaskNotesRuntimeApiV1,
 	TaskNotesRuntimeLifecycleEventName,
@@ -19,6 +20,8 @@ import type {
 
 export const TASKNOTES_PLUGIN_ID = "tasknotes";
 export const MIN_TASKNOTES_VERSION = "4.10.0";
+/** Staging and recurring completion need TaskNotes 4.13.0+. Feature-gated only; never required for ready. */
+export const STAGING_MIN_TASKNOTES_VERSION = "4.13.0";
 export const REQUIRED_CAPABILITIES = ["time.read", "time.write", "tasks.events", "lifecycle.events"] as const;
 /** Optional: TaskNotes' native task menu (4.11+). Not required for ready. */
 export const TASK_MENU_CAPABILITY = "ui.task-menu";
@@ -59,6 +62,17 @@ export interface TaskNotesGateway {
 	userFields(): Promise<TaskNotesUserField[]>;
 	completionAvailable(): boolean;
 	completeTask(path: string, status: string, context: TaskNotesMutationContext): Promise<void>;
+	/**
+	 * Whether this TaskNotes can stage tasks (4.13.0+, tasks.read/list, tasks.write/update,
+	 * catalog.read/userFields). Feature-gated, not required for ready. Never throws.
+	 */
+	stagingAvailability(): { available: boolean; reason: string };
+	/**
+	 * Writes a patch through TaskNotes' own tasks.update (tasks.write), forwarding the
+	 * context. Refuses a customFrontmatter member, so the only unstage write is
+	 * {staged: null}. Resolves void: re-read the task instead of trusting TaskNotes' echo.
+	 */
+	updateTask(path: string, patch: TaskNotesTaskPatch, context: TaskNotesMutationContext): Promise<void>;
 	start(path: string, options: Record<string, never>, context: TaskNotesMutationContext): Promise<void>;
 	/** Stops the task's open entry through TaskNotes' own api.time.stop; resolves the task as TaskNotes saved it. */
 	stop(taskPath: string, context: TaskNotesMutationContext): Promise<TaskInfo>;
@@ -278,6 +292,14 @@ export class TaskNotesBridge implements TaskNotesGateway {
 	async completeTask(path: string, status: string, context: TaskNotesMutationContext): Promise<void> {
 		const api = this.featureApi("tasks.write", "tasks.complete", api => typeof api.tasks?.complete === "function");
 		await api.tasks!.complete!(path, { status }, context);
+	}
+
+	stagingAvailability(): { available: boolean; reason: string } {
+		return { available: false, reason: "not implemented" };
+	}
+
+	async updateTask(_path: string, _patch: TaskNotesTaskPatch, _context: TaskNotesMutationContext): Promise<void> {
+		await Promise.resolve();
 	}
 
 	normalizeError(error: unknown): { code: string | null; message: string } {

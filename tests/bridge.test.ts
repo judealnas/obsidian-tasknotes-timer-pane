@@ -16,7 +16,7 @@ import type {
 	TaskNotesRuntimeLifecycleEventName,
 	TaskNotesRuntimeEventName,
 } from "../src/tasknotes/runtime-api.types";
-import { createFakeTaskNotes, makeActiveEntry, timerSchedule, type FakeTaskNotes } from "./fakes/fakeTaskNotes";
+import { DEFAULT_CAPABILITIES, createFakeTaskNotes, makeActiveEntry, timerSchedule, type FakeTaskNotes } from "./fakes/fakeTaskNotes";
 
 const SUBSCRIBED: ReadonlyArray<TaskNotesRuntimeLifecycleEventName | TaskNotesRuntimeEventName> = [
 	"unloading",
@@ -659,5 +659,90 @@ describe("staging field registration (D-03)", () => {
 		const { bridge } = setup(tn.plugin);
 		bridge.probe();
 		await expect(bridge.userFields()).rejects.toThrow("TaskNotes is not connected");
+	});
+});
+
+describe("staging write contract (SC3)", () => {
+	const PATH = "TaskNotes/Tasks/A.md";
+	const STAGED_DATE = { id: "f1", displayName: "Staged", key: "staged", type: "date" };
+	const CTX = { source: "tasknotes-timer-pane", correlationId: "c1", reason: "stage" };
+	const TASK = { title: "A", status: "open", path: PATH, archived: false };
+	const readyBridge = (options: Parameters<typeof createFakeTaskNotes>[0] = {}) => {
+		const tn = createFakeTaskNotes({ version: "4.13.8", userFields: [STAGED_DATE], tasks: [structuredClone(TASK)], ...options });
+		const ctx = setup(tn.plugin);
+		ctx.bridge.probe();
+		return { tn, ...ctx };
+	};
+	const stored = async (tn: FakeTaskNotes) => (await tn.api.tasks!.get!(PATH)) as unknown as Record<string, unknown>;
+
+	test("a supported TaskNotes reports staging available and receives a staged write through tasks.update", async () => {
+		const { tn, bridge } = readyBridge();
+		expect(bridge.stagingAvailability().available).toBe(true);
+		expect(bridge.stagingAvailability()).toEqual({ available: true, reason: "Staging is available" });
+		await expect(bridge.updateTask(PATH, { staged: "2026-11-12" }, CTX)).resolves.toBeUndefined();
+		expect(tn.updateCalls).toEqual([{ path: PATH, patch: { staged: "2026-11-12" }, context: CTX }]);
+		expect((await stored(tn)).staged).toBe("2026-11-12");
+	});
+	test("unstaging writes null and keeps the key, as the 04-01 Pins record", async () => {
+		const { tn, bridge } = readyBridge();
+		await bridge.updateTask(PATH, { staged: "2026-11-12" }, CTX);
+		await bridge.updateTask(PATH, { staged: null }, CTX);
+		const task = await stored(tn);
+		expect(Object.prototype.hasOwnProperty.call(task, "staged")).toBe(true);
+		expect(task.staged).toBeNull();
+	});
+	test("an undefined value is skipped, not written", async () => {
+		const { tn, bridge } = readyBridge();
+		await bridge.updateTask(PATH, { staged: "2026-11-12" }, CTX);
+		await bridge.updateTask(PATH, { staged: undefined }, CTX);
+		expect((await stored(tn)).staged).toBe("2026-11-12");
+	});
+	test("an unregistered key is echoed but not stored (research F1/F5)", async () => {
+		const { tn, bridge } = readyBridge({ userFields: [] });
+		await expect(bridge.updateTask(PATH, { staged: "2026-11-12" }, CTX)).resolves.toBeUndefined();
+		expect(tn.updateCalls).toHaveLength(1);
+		const direct = (await tn.api.tasks!.update!(PATH, { staged: "2026-11-12" }, CTX)) as unknown as Record<string, unknown>;
+		expect(direct.staged).toBe("2026-11-12");
+		expect(Object.prototype.hasOwnProperty.call(await stored(tn), "staged")).toBe(false);
+	});
+	test("TaskNotes 4.12.3 stays ready and can start timers, but staging is unavailable", () => {
+		const { bridge } = readyBridge({ version: "4.12.3" });
+		expect(bridge.getState()).toEqual({ kind: "ready" });
+		expect(bridge.startAvailability().available).toBe(true);
+		expect(bridge.stagingAvailability()).toEqual({ available: false, reason: "TaskNotes 4.13.0 or newer is needed for staging" });
+	});
+	test.each(["tasks.read", "tasks.write", "catalog.read"])("without %s staging is unavailable and the bridge stays ready", capability => {
+		const { bridge } = readyBridge({ capabilities: DEFAULT_CAPABILITIES.filter(item => item !== capability) });
+		expect(bridge.getState()).toEqual({ kind: "ready" });
+		expect(bridge.stagingAvailability()).toEqual({ available: false, reason: "TaskNotes is missing " + capability });
+	});
+	test.each(["tasks.list", "tasks.update", "catalog.userFields"] as const)("without %s staging is unavailable", method => {
+		const { bridge } = readyBridge({ omitMethods: [method] });
+		expect(bridge.getState()).toEqual({ kind: "ready" });
+		expect(bridge.stagingAvailability()).toEqual({ available: false, reason: "TaskNotes does not provide " + method });
+	});
+	test("without tasks.update an updateTask call rejects", async () => {
+		const { bridge } = readyBridge({ omitMethods: ["tasks.update"] });
+		await expect(bridge.updateTask(PATH, { staged: "2026-11-12" }, CTX)).rejects.toThrow("TaskNotes does not provide tasks.update");
+	});
+	test("while loading or missing, staging is not connected and nothing throws", async () => {
+		const loading = readyBridge({ ready: false });
+		expect(loading.bridge.getState()).toEqual({ kind: "loading" });
+		expect(loading.bridge.stagingAvailability()).toEqual({ available: false, reason: "TaskNotes is not connected" });
+		await expect(loading.bridge.updateTask(PATH, { staged: "2026-11-12" }, CTX)).rejects.toThrow("TaskNotes is not connected");
+		const missing = setup(null);
+		missing.bridge.probe();
+		expect(missing.bridge.getState()).toEqual({ kind: "missing" });
+		expect(missing.bridge.stagingAvailability()).toEqual({ available: false, reason: "TaskNotes is not connected" });
+	});
+	test("a patch with a customFrontmatter member is refused before TaskNotes is called", async () => {
+		const { tn, bridge } = readyBridge();
+		await expect(bridge.updateTask(PATH, { customFrontmatter: { staged: null } }, CTX)).rejects.toThrow("Staging writes use registered fields only");
+		expect(tn.updateCalls).toHaveLength(0);
+	});
+	test("a TaskNotes update failure rejects", async () => {
+		const { tn, bridge } = readyBridge();
+		tn.failUpdateWith("write broke");
+		await expect(bridge.updateTask(PATH, { staged: "2026-11-12" }, CTX)).rejects.toThrow("write broke");
 	});
 });

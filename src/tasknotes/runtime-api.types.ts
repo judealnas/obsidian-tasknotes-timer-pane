@@ -128,6 +128,12 @@ export interface PomodoroState {
 }
 export interface CompleteTaskOptions { status?: string; }
 
+/**
+ * A `tasks.update` patch: TaskInfo fields plus any other key. TaskNotes 4.13.x stores
+ * only TaskInfo fields and registered user fields; other keys are echoed, not written.
+ */
+export type TaskNotesTaskPatch = Partial<TaskInfo> & Record<string, unknown>;
+
 export interface TaskNotesRuntimeApiV1 {
 	readonly apiVersion: 1;
 	readonly capabilities: readonly string[];
@@ -144,6 +150,8 @@ export interface TaskNotesRuntimeApiV1 {
 		/** 4.13.8: null when the path is not a cached task (also while TaskNotes' cache warms). */
 		get?(path: string): Promise<TaskInfo | null>;
   complete?(path: string, options?: CompleteTaskOptions, context?: TaskNotesMutationContext): Promise<TaskInfo>;
+		/** 4.13.x: writes registered user fields only; null is written, undefined skipped; returns the merged task even when nothing was written. */
+		update?(path: string, updates: TaskNotesTaskPatch, context?: TaskNotesMutationContext): Promise<TaskInfo>;
 	};
 	readonly catalog?: {
 		statuses(): TaskStatus[];

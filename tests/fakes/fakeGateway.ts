@@ -3,7 +3,13 @@
 import { errorMessage } from "../../src/model/errors";
 import type { Ownership } from "../../src/model/pomodoroOwnership";
 import type { BridgeState, TaskNotesGateway } from "../../src/tasknotes/TaskNotesBridge";
-import type { ActiveTimeEntry, TaskInfo, TaskNotesMutationContext, TaskNotesUserField } from "../../src/tasknotes/runtime-api.types";
+import type { ActiveTimeEntry, TaskInfo, TaskNotesMutationContext, TaskNotesTaskPatch, TaskNotesUserField } from "../../src/tasknotes/runtime-api.types";
+
+export interface GatewayUpdateCall {
+	taskPath: string;
+	patch: TaskNotesTaskPatch;
+	context: TaskNotesMutationContext;
+}
 
 export interface GatewayStopCall {
 	taskPath: string;
@@ -51,6 +57,10 @@ export interface FakeGateway extends TaskNotesGateway {
 	setUserFields(fields: TaskNotesUserField[]): void;
 	/** Makes every later `userFields()` reject with `error`; null restores success. */
 	failUserFieldsWith(error: unknown): void;
+	/** Every `updateTask()` call so far, in order (patch deep-copied). */
+	readonly updateCalls: GatewayUpdateCall[];
+	/** Whether `stagingAvailability()` reports available while ready (default true). */
+	setStagingAvailable(available: boolean): void;
 }
 
 export function createFakeGateway(initial: BridgeState = { kind: "ready" }): FakeGateway {
@@ -68,6 +78,8 @@ export function createFakeGateway(initial: BridgeState = { kind: "ready" }): Fak
 	let userFields: TaskNotesUserField[] = [];
 	let userFieldsFailure: { error: unknown } | null = null;
 	const menuCalls: GatewayMenuCall[] = [];
+	const updateCalls: GatewayUpdateCall[] = [];
+	let stagingAvailable = true;
 	const stateListeners = new Set<(state: BridgeState) => void>();
 	const dataListeners = new Set<() => void>();
 
@@ -93,6 +105,20 @@ export function createFakeGateway(initial: BridgeState = { kind: "ready" }): Fak
 		},
 		failUserFieldsWith(error) {
 			userFieldsFailure = error === null ? null : { error };
+		},
+		stagingAvailability() {
+			if (state.kind !== "ready") return { available: false, reason: "TaskNotes is not connected" };
+			return stagingAvailable
+				? { available: true, reason: "Staging is available" }
+				: { available: false, reason: "TaskNotes 4.13.0 or newer is needed for staging" };
+		},
+		setStagingAvailable(available) {
+			stagingAvailable = available;
+		},
+		updateCalls,
+		updateTask(taskPath, patch, context) {
+			updateCalls.push({ taskPath, patch: structuredClone(patch), context });
+			return Promise.resolve();
 		},
 		completionAvailable: () => state.kind === "ready",
 		completeTask: () => Promise.resolve(),

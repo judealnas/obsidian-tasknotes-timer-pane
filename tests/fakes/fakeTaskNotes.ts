@@ -14,6 +14,7 @@ import type {
  TaskNotesRuntimeEventName,
  TaskStatus,
  TaskNotesUserField,
+ TaskNotesTaskPatch,
  PomodoroState,
 	TimeEntry,
 } from "../../src/tasknotes/runtime-api.types";
@@ -46,7 +47,7 @@ export interface FakeTaskNotesOptions {
  /** What catalog.userFields() returns (deep-copied per call). Default []. */
  userFields?: TaskNotesUserField[];
  pomodoro?: PomodoroState;
- omitMethods?: Array<"tasks.list" | "tasks.get" | "tasks.complete" | "catalog.statuses" | "catalog.userFields" | "time.start" | "pomodoro.status">;
+ omitMethods?: Array<"tasks.list" | "tasks.get" | "tasks.complete" | "tasks.update" | "catalog.statuses" | "catalog.userFields" | "time.start" | "pomodoro.status">;
 	/** False builds an api with no `ui` namespace, like TaskNotes 4.10. Default true. */
 	ui?: boolean;
 }
@@ -55,6 +56,17 @@ export interface StopCall {
 	path: string;
 	context?: TaskNotesMutationContext;
 }
+
+export interface UpdateCall {
+	path: string;
+	patch: TaskNotesTaskPatch;
+	context?: TaskNotesMutationContext;
+}
+
+/** The vendored TaskInfo fields: tasks.update stores these, like TaskNotes' core fields. */
+const TASK_INFO_KEYS: ReadonlySet<string> = new Set([
+	"title", "status", "path", "archived", "due", "priority", "contexts", "projects", "tags", "timeEstimate", "timeEntries",
+]);
 
 export interface MenuCall {
 	taskPath: string;
@@ -79,6 +91,10 @@ export interface FakeTaskNotes {
  failStartWith(error: string | null): void;
  failCompleteWith(error: string | null): void;
  readonly completeCalls: Array<{path: string; status: string | undefined; context?: TaskNotesMutationContext}>;
+ /** Every `tasks.update` call so far, in order (patch deep-copied). */
+ readonly updateCalls: UpdateCall[];
+ /** Makes every later `tasks.update` reject with `new Error(message)`; null restores success. */
+ failUpdateWith(error: string | null): void;
 	setActive(entries: ActiveTimeEntry[]): void;
 	emitLifecycle(name: TaskNotesRuntimeLifecycleEventName): void;
 	emitTaskEvent(name: TaskNotesRuntimeEventName): void;
@@ -125,6 +141,8 @@ export function createFakeTaskNotes(options: FakeTaskNotesOptions = {}): FakeTas
  let startFailure: string | null = null;
  let completeFailure: string | null = null;
  const completeCalls: FakeTaskNotes["completeCalls"] = [];
+ let updateFailure: string | null = null;
+ const updateCalls: UpdateCall[] = [];
 	let stopFailure: string | null = null;
 	const stopCalls: StopCall[] = [];
 	const startCalls: Array<{ path: string; options: Record<string, never>; context?: TaskNotesMutationContext }> = [];
@@ -233,6 +251,25 @@ export function createFakeTaskNotes(options: FakeTaskNotesOptions = {}): FakeTas
     for (const entry of fixture) if (entry.taskPath === path) entry.task.status = status;
     return Promise.resolve(structuredClone(task));
    },
+   update(path, patch, context) {
+    updateCalls.push({ path, patch: structuredClone(patch), ...(context ? { context } : {}) });
+    if (updateFailure !== null) return Promise.reject(new Error(updateFailure));
+    const task = tasks.find(task => task.path === path);
+    if (!task) return Promise.reject(new Error("Task not found: " + path));
+    const storedBefore = structuredClone(task);
+    // 04-SPIKE-FINDINGS Pins (b): TaskInfo fields and registered user fields are written,
+    // null as null (the key stays); undefined is skipped; any other key is not stored.
+    const registered = new Set(userFields.map(field => field.key));
+    const writes: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(patch)) {
+     if (value === undefined) continue;
+     if (TASK_INFO_KEYS.has(key) || registered.has(key)) writes[key] = structuredClone(value);
+    }
+    Object.assign(task, writes);
+    for (const entry of fixture) if (entry.taskPath === path) Object.assign(entry.task, structuredClone(writes));
+    // The echo is the merged task even when nothing was written (research F1/F5).
+    return Promise.resolve(structuredClone({ ...storedBefore, ...patch }));
+   },
   },
   catalog: {
    statuses: () => { if (readFailure !== null) throw new Error(readFailure); return structuredClone(statuses); },
@@ -255,6 +292,8 @@ export function createFakeTaskNotes(options: FakeTaskNotesOptions = {}): FakeTas
 
 	return {
   completeCalls,
+  updateCalls,
+  failUpdateWith(error) { updateFailure = error; },
   setTasks(next) { tasks = next; },
   setStatuses(next) { statuses = next; },
   setUserFields(next) { userFields = next; },
