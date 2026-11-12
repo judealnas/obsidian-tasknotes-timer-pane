@@ -294,12 +294,36 @@ export class TaskNotesBridge implements TaskNotesGateway {
 		await api.tasks!.complete!(path, { status }, context);
 	}
 
+	/** Same shape as startAvailability, plus the 4.13.0 floor read from TaskNotes' manifest. */
 	stagingAvailability(): { available: boolean; reason: string } {
-		return { available: false, reason: "not implemented" };
+		try {
+			const api = this.connectedApi();
+			if (this.olderThanStagingFloor()) return { available: false, reason: "TaskNotes " + STAGING_MIN_TASKNOTES_VERSION + " or newer is needed for staging" };
+			for (const [capability, method, callable] of [
+				["tasks.read", "tasks.list", typeof api.tasks?.list === "function"],
+				["tasks.write", "tasks.update", typeof api.tasks?.update === "function"],
+				["catalog.read", "catalog.userFields", typeof api.catalog?.userFields === "function"],
+			] as const) {
+				if (!api.hasCapability(capability)) return { available: false, reason: "TaskNotes is missing " + capability };
+				if (!callable) return { available: false, reason: "TaskNotes does not provide " + method };
+			}
+			return { available: true, reason: "Staging is available" };
+		} catch { return { available: false, reason: "TaskNotes is not connected" }; }
 	}
 
-	async updateTask(_path: string, _patch: TaskNotesTaskPatch, _context: TaskNotesMutationContext): Promise<void> {
-		await Promise.resolve();
+	async updateTask(path: string, patch: TaskNotesTaskPatch, context: TaskNotesMutationContext): Promise<void> {
+		// customFrontmatter writes unregistered keys (research F4); the only unstage write is {staged: null}.
+		if (Object.prototype.hasOwnProperty.call(patch, "customFrontmatter")) throw new Error("Staging writes use registered fields only");
+		const api = this.featureApi("tasks.write", "tasks.update", api => typeof api.tasks?.update === "function");
+		// Called as a method so TaskNotes keeps its receiver; the echoed TaskInfo is dropped (Pitfall 1).
+		await api.tasks!.update!(path, patch, context);
+	}
+
+	/** True only for a parseable manifest version below 4.13.0; an unknown version is not "older". */
+	private olderThanStagingFloor(): boolean {
+		const plugin = this.lookupPlugin();
+		const version = plugin ? readVersion(plugin) : null;
+		return typeof version === "string" && isVersionOlder(version, STAGING_MIN_TASKNOTES_VERSION);
 	}
 
 	normalizeError(error: unknown): { code: string | null; message: string } {
