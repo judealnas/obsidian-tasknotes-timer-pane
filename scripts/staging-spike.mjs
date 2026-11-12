@@ -6,6 +6,8 @@
 //                                                   (manual fallback: paste it into the dev vault's DevTools console)
 //   node scripts/staging-spike.mjs userfields       catalog.userFields() plus the TaskNotes version
 //   node scripts/staging-spike.mjs prepare          create or reuse the two scratch tasks, hand-write `staged:` (Q3 baseline)
+//   node scripts/staging-spike.mjs probe            post-registration probes: q3 (first), q2, q1, q4
+//   node scripts/staging-spike.mjs cleanup          remove only the spikeTouch key the probe added
 //
 // This is a probe, not a tool: it is not wired into package.json and adds no recurring smoke command.
 //
@@ -42,6 +44,9 @@ const EXPECTED_VAULT = path.join(MAIN_ROOT, "dev-vault");
 const CONTEXT = { source: "tasknotes-timer-pane", reason: "staging-spike" };
 const PLAIN_TITLE = "Staging spike scratch";
 const WEEKLY_TITLE = "Staging spike weekly";
+// Paths `prepare` created (recorded in 04-SPIKE-FINDINGS.md, Q3 baseline).
+const PLAIN_PATH = "TaskNotes/Tasks/Staging spike scratch.md";
+const WEEKLY_PATH = "TaskNotes/Tasks/Staging spike weekly.md";
 const CLI_TIMEOUT_MS = 20000;
 const RESULT_DEADLINE_MS = 90000;
 
@@ -120,6 +125,89 @@ return {
 	weeklyRawFrontmatter: await frontmatterBlock(weekly.path),
 	userFields: api.catalog.userFields(),
 };
+`,
+	// Post-registration probes (Task 3). Q3 runs first, before any write touches the plain task.
+	probe: `
+const plainPath = ${JSON.stringify(PLAIN_PATH)};
+const weeklyPath = ${JSON.stringify(WEEKLY_PATH)};
+const attempt = async (fn) => { try { return await fn(); } catch (err) { return { error: String((err && err.message) || err) }; } };
+const pick = (info, keys) => {
+	if (!info) { return '(task not found)'; }
+	const out = {};
+	for (const k of keys) { out[k] = show(info[k]); }
+	return out;
+};
+const stagedView = async (p) => {
+	const info = await api.tasks.get(p);
+	return info ? { staged: show(info.staged), customPropertiesStaged: show((info.customProperties || {}).staged) } : '(task not found)';
+};
+const q3 = await attempt(async () => {
+	const beforeTouch = await stagedView(plainPath);
+	const file = app.vault.getFileByPath(plainPath);
+	if (!file) { throw new Error('scratch file not found ' + plainPath); }
+	await app.fileManager.processFrontMatter(file, (fm) => { fm.spikeTouch = new Date().toISOString(); });
+	await wait(1500);
+	const afterTouch = await stagedView(plainPath);
+	return { beforeTouch, afterTouch, rawFrontmatter: await frontmatterBlock(plainPath) };
+});
+const q2 = await attempt(async () => {
+	const fields = api.catalog.userFields();
+	const members = {};
+	for (const f of fields) { members[f.key] = Object.keys(f); }
+	return { userFields: fields, members };
+});
+const q1 = await attempt(async () => {
+	const setReturned = await api.tasks.update(plainPath, { staged: '2026-11-12' }, ctx);
+	await wait(1500);
+	const afterSet = {
+		returned: pick(setReturned, ['staged']),
+		rawFrontmatter: await frontmatterBlock(plainPath),
+		tasksGet: await stagedView(plainPath),
+	};
+	const nullReturned = await api.tasks.update(plainPath, { staged: null }, ctx);
+	await wait(1500);
+	const fm = cachedFrontmatter(plainPath) || {};
+	const afterNull = {
+		returned: pick(nullReturned, ['staged']),
+		rawFrontmatter: await frontmatterBlock(plainPath),
+		cachedHasKey: Object.prototype.hasOwnProperty.call(fm, 'staged'),
+		cachedStaged: show(fm.staged),
+		cachedTypeof: fm.staged === null ? 'null' : typeof fm.staged,
+		tasksGet: await stagedView(plainPath),
+	};
+	return { afterSet, afterNull };
+});
+const q4 = await attempt(async () => {
+	const read = async () => {
+		const info = await api.tasks.get(weeklyPath);
+		return {
+			tasksGet: pick(info, ['status', 'complete_instances', 'scheduled', 'recurrence']),
+			rawFrontmatter: await frontmatterBlock(weeklyPath),
+		};
+	};
+	const before = await read();
+	const firstReturned = await api.recurring.toggleCompleteInstance(weeklyPath, '2026-11-11', ctx);
+	await wait(1500);
+	const afterFirst = { returned: pick(firstReturned, ['status', 'complete_instances']), ...(await read()) };
+	const secondReturned = await api.recurring.toggleCompleteInstance(weeklyPath, '2026-11-11', ctx);
+	await wait(1500);
+	const afterSecond = { returned: pick(secondReturned, ['status', 'complete_instances']), ...(await read()) };
+	return { offScheduleDay: '2026-11-11 (Wednesday)', before, afterFirst, afterSecond };
+});
+return { q3, q2, q1, q4 };
+`,
+	// Removes only the spikeTouch key the probe added. Scratch tasks stay (no mode removes files).
+	cleanup: `
+const plainPath = ${JSON.stringify(PLAIN_PATH)};
+const file = app.vault.getFileByPath(plainPath);
+if (!file) { throw new Error('staging-spike: scratch file not found ' + plainPath); }
+let hadKey = false;
+await app.fileManager.processFrontMatter(file, (fm) => {
+	hadKey = Object.prototype.hasOwnProperty.call(fm, 'spikeTouch');
+	if (hadKey) { delete fm.spikeTouch; }
+});
+await wait(1000);
+return { plainPath, hadKey, rawFrontmatter: await frontmatterBlock(plainPath) };
 `,
 };
 
