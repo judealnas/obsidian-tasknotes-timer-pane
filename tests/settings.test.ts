@@ -13,10 +13,10 @@ const catalog = [
 	{ value: "done-b", label: "Done B", isCompleted: true },
 	{ value: "done-a", label: "Done A", isCompleted: true },
 ];
-function setup(preference: string | null = null) {
+function setup(preference: string | null = null, rolloverHour = 7) {
 	const gateway = createFakeGateway();
 	gateway.statuses = vi.fn(() => Promise.resolve(catalog));
-	let current = { completionStatus: preference };
+	let current: settings.TimerPaneSettings = { completionStatus: preference, rolloverHour };
 	const saveSettings = vi.fn(async (next: settings.TimerPaneSettings) => { current = next; });
 	const tab = new TimerPaneSettingTab({} as App, {} as Plugin, { gateway, getSettings: () => current, saveSettings, ready: () => Promise.resolve() });
 	return { gateway, saveSettings, tab };
@@ -27,11 +27,11 @@ describe("completion settings", () => {
 		expect(settings).toHaveProperty("loadSettings", expect.any(Function));
 	});
 	test.each([undefined, null, [], "done-a", 4, {}, { completionStatus: false }, { completionStatus: [] }])("malformed saved data %j becomes Same as TaskNotes", value => {
-		expect(settings.loadSettings(value)).toEqual({ completionStatus: null });
+		expect(settings.loadSettings(value)).toEqual({ completionStatus: null, rolloverHour: 4 });
 	});
 	test("accepts an exact string or null and ignores foreign fields", () => {
-		expect(settings.loadSettings({ completionStatus: " done-a ", other: true })).toEqual({ completionStatus: " done-a " });
-		expect(settings.loadSettings({ completionStatus: null })).toEqual({ completionStatus: null });
+		expect(settings.loadSettings({ completionStatus: " done-a ", other: true })).toEqual({ completionStatus: " done-a ", rolloverHour: 4 });
+		expect(settings.loadSettings({ completionStatus: null })).toEqual({ completionStatus: null, rolloverHour: 4 });
 	});
 	test("reads each display and lists sentinel followed by completed statuses in live order", async () => {
 		const ctx = setup("done-a"); ctx.tab.display(); await flush();
@@ -47,9 +47,9 @@ describe("completion settings", () => {
 		expect(host.settings[0]!.description).toContain("saved status is unavailable");
 		expect(ctx.saveSettings).not.toHaveBeenCalled();
 		host.settings[0]!.dropdown.change("1"); await flush(); await flush();
-		expect(ctx.saveSettings).toHaveBeenLastCalledWith({ completionStatus: "done-a" });
+		expect(ctx.saveSettings).toHaveBeenLastCalledWith({ completionStatus: "done-a", rolloverHour: 7 });
 		host.settings[0]!.dropdown.change("default"); await flush();
-		expect(ctx.saveSettings).toHaveBeenLastCalledWith({ completionStatus: null });
+		expect(ctx.saveSettings).toHaveBeenLastCalledWith({ completionStatus: null, rolloverHour: 7 });
 	});
 	test.each(["empty", "failure"])("%s catalog keeps a safe sentinel and normalized explanation", async mode => {
 		const ctx = setup("removed");

@@ -1,5 +1,6 @@
 import { Notice, PluginSettingTab, Setting, type App, type Plugin, type DropdownComponent } from "obsidian";
 import { resolveCompletionStatus, type TimerPaneSettings } from "../settings";
+import { ROLLOVER_HOURS, isRolloverHour, rolloverHourLabel } from "../model/stagingDay";
 import type { TaskNotesGateway } from "../tasknotes/TaskNotesBridge";
 import type { TaskStatus } from "../tasknotes/runtime-api.types";
 
@@ -41,16 +42,33 @@ export class TimerPaneSettingTab extends PluginSettingTab {
 				dropdown.setValue(validExplicit ? String(completed.findIndex(status => status.value === preference)) : "default");
 				dropdown.onChange(value => {
 					const choice = value === "default" ? null : completed[Number(value)]?.value;
-					if (choice !== undefined && generation === this.generation) void this.saveChoice(dropdown, generation, choice);
+					if (choice !== undefined && generation === this.generation) {
+						void this.savePatch(dropdown, generation, { completionStatus: choice }, "Couldn't save the completion status. Try again.");
+					}
+				});
+			});
+		// Rendered whatever the TaskNotes status catalog did (D-04).
+		new Setting(this.containerEl)
+			.setName("Rollover hour")
+			.setDesc("The staging day starts at this hour. Earlier times count toward the previous day, so with 4 AM, 1:30 AM is still yesterday.")
+			.addDropdown(dropdown => {
+				for (const hour of ROLLOVER_HOURS) dropdown.addOption(String(hour), rolloverHourLabel(hour));
+				dropdown.setValue(String(this.deps.getSettings().rolloverHour));
+				dropdown.onChange(value => {
+					const rolloverHour = Number(value);
+					if (isRolloverHour(rolloverHour) && generation === this.generation) {
+						void this.savePatch(dropdown, generation, { rolloverHour }, "Couldn't save the rollover hour. Try again.");
+					}
 				});
 			});
 	}
 
-	private async saveChoice(dropdown: DropdownComponent, generation: number, choice: string | null): Promise<void> {
+	/** Saves one changed setting over the current ones, so no other setting is lost (D-07). */
+	private async savePatch(dropdown: DropdownComponent, generation: number, patch: Partial<TimerPaneSettings>, failureMessage: string): Promise<void> {
 		dropdown.setDisabled(true);
-		try { await this.deps.saveSettings({ completionStatus: choice }); }
+		try { await this.deps.saveSettings({ ...this.deps.getSettings(), ...patch }); }
 		catch {
-			try { new Notice("Couldn't save the completion status. Try again."); }
+			try { new Notice(failureMessage); }
 			catch { console.error("[tasknotes-timer-pane] Showing the settings Notice failed."); }
 		}
 		finally { if (generation === this.generation) this.display(); }

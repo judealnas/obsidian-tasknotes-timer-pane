@@ -55,9 +55,9 @@ test("loading failures keep the plugin usable and log a safe explanation", async
 	vi.spyOn(plugin, "loadData").mockRejectedValue(new Error("private/path"));
 	const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
 	plugin.onload(); (host.tabs[0] as TimerPaneSettingTab).display(); await flush();
-	expect(host.settings).toHaveLength(1);
+	expect(host.settings).toHaveLength(2);
 	expect(log).toHaveBeenCalledWith("[tasknotes-timer-pane] Loading timer pane settings failed; using defaults.");
-	await saveSettingsOf(host.tabs[0])({ completionStatus: "done" });
+	await saveSettingsOf(host.tabs[0])({ completionStatus: "done", rolloverHour: 4 });
 	expect(host.saved).toEqual([{ completionStatus: "done", pauseRecordsVersion: 1, pauseRecords: [] }]);
 	log.mockRestore();
 });
@@ -66,7 +66,7 @@ test("stored pauses survive a restart and a settings save keeps them, the settin
 	host.data = { completionStatus: "x", pauseRecordsVersion: 1, pauseRecords: [PAUSED], extraKey: 1 };
 	const plugin = new TaskNotesTimerPanePlugin({} as App, {} as PluginManifest); plugin.onload();
 	await flush();
-	await saveSettingsOf(host.tabs[0])({ completionStatus: "done" });
+	await saveSettingsOf(host.tabs[0])({ completionStatus: "done", rolloverHour: 4 });
 	expect(host.saved).toEqual([{ extraKey: 1, completionStatus: "done", pauseRecordsVersion: 1, pauseRecords: [PAUSED] }]);
 });
 
@@ -85,9 +85,9 @@ test("back-to-back settings saves never overlap, run in order and end with the n
 	plugin.onload();
 	await flush();
 	const save = saveSettingsOf(host.tabs[0]);
-	const first = save({ completionStatus: "first" });
+	const first = save({ completionStatus: "first", rolloverHour: 4 });
 	await flush();
-	const second = save({ completionStatus: "second" });
+	const second = save({ completionStatus: "second", rolloverHour: 4 });
 	await flush();
 	expect(calls).toHaveLength(1);
 	releases[0]!();
@@ -106,9 +106,9 @@ test("a failed settings save rejects to the caller and does not break later save
 	await flush();
 	const save = saveSettingsOf(host.tabs[0]);
 	host.failSave = true;
-	await expect(save({ completionStatus: "lost" })).rejects.toThrow();
+	await expect(save({ completionStatus: "lost", rolloverHour: 4 })).rejects.toThrow();
 	host.failSave = false;
-	await save({ completionStatus: "kept" });
+	await save({ completionStatus: "kept", rolloverHour: 4 });
 	expect(host.saved).toEqual([{ completionStatus: "kept", pauseRecordsVersion: 1, pauseRecords: [] }]);
 });
 
@@ -124,7 +124,7 @@ test("a pause change writes data.json with the settings last saved, never an old
 	plugin.onload();
 	await flush();
 	const pauses = (plugin as unknown as { pauses: { set(record: unknown): void } }).pauses;
-	const settingsSave = saveSettingsOf(host.tabs[0])({ completionStatus: "newer" });
+	const settingsSave = saveSettingsOf(host.tabs[0])({ completionStatus: "newer", rolloverHour: 4 });
 	await flush();
 	// The settings write is in flight; this pause save queues behind it.
 	pauses.set(PAUSED);
@@ -198,7 +198,7 @@ test("a stored card order loads and a settings save keeps it", async () => {
 	const plugin = new TaskNotesTimerPanePlugin({} as App, {} as PluginManifest); plugin.onload();
 	await flush();
 	expect(orderOf(plugin).get()).toEqual(["a", "b"]);
-	await saveSettingsOf(host.tabs[0])({ completionStatus: "done" });
+	await saveSettingsOf(host.tabs[0])({ completionStatus: "done", rolloverHour: 4 });
 	expect(host.saved).toEqual([{ extraKey: 1, completionStatus: "done", pauseRecordsVersion: 1, pauseRecords: [], cardOrder: ["a", "b"] }]);
 });
 
@@ -215,7 +215,7 @@ test("no saved order means no cardOrder key is written", async () => {
 	host.data = { cardOrder: [] };
 	const plugin = new TaskNotesTimerPanePlugin({} as App, {} as PluginManifest); plugin.onload();
 	await flush();
-	await saveSettingsOf(host.tabs[0])({ completionStatus: "done" });
+	await saveSettingsOf(host.tabs[0])({ completionStatus: "done", rolloverHour: 4 });
 	expect(host.saved).toEqual([{ completionStatus: "done", pauseRecordsVersion: 1, pauseRecords: [] }]);
 });
 

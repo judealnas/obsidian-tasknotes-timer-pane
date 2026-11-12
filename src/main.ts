@@ -10,9 +10,10 @@ import { TimerPaneView, VIEW_TYPE_TIMER_PANE } from "./ui/TimerPaneView";
 import { DEFAULT_SETTINGS, loadSettings, type TimerPaneSettings } from "./settings";
 import { TimerPaneSettingTab } from "./ui/TimerPaneSettingTab";
 import { PAUSE_RECORDS_VERSION, loadPauseRecords } from "./model/pauseLedger";
+import { DEFAULT_ROLLOVER_HOUR, isRolloverHour } from "./model/stagingDay";
 
 /** The data.json keys this plugin owns; everything else is kept as found. */
-const OWNED_KEYS = new Set(["completionStatus", "pauseRecordsVersion", "pauseRecords", "cardOrder"]);
+const OWNED_KEYS = new Set(["completionStatus", "rolloverHour", "pauseRecordsVersion", "pauseRecords", "cardOrder"]);
 
 function extrasOf(data: unknown): Record<string, unknown> {
 	if (typeof data !== "object" || data === null || Array.isArray(data)) return {};
@@ -53,6 +54,9 @@ export default class TaskNotesTimerPanePlugin extends Plugin {
 			await this.saveData({
 				...this.extras,
 				completionStatus: written.completionStatus,
+				// Omitted when default, so a user who never changes it keeps an unchanged data.json.
+				...(isRolloverHour(written.rolloverHour) && written.rolloverHour !== DEFAULT_ROLLOVER_HOUR
+					? { rolloverHour: written.rolloverHour } : {}),
 				pauseRecordsVersion: PAUSE_RECORDS_VERSION,
 				pauseRecords: this.pauses?.serialize() ?? [],
 				// Omitted when empty, so a user who never reorders keeps an unchanged data.json.

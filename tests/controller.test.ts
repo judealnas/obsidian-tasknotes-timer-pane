@@ -123,7 +123,7 @@ describe("Complete transaction", () => {
 		const ready = new Promise<void>(resolve => { release = resolve; });
 		let preference: string | null = null;
 		const controller = new TimerController({ gateway: ctx.bridge, store: ctx.store, queue: new WriteQueue(),
-			notify: ctx.notify, log: ctx.log, newCorrelationId: () => "saved-choice", getSettings: () => ({ completionStatus: preference }), settingsReady: () => ready });
+			notify: ctx.notify, log: ctx.log, newCorrelationId: () => "saved-choice", getSettings: () => ({ completionStatus: preference, rolloverHour: 4 }), settingsReady: () => ready });
 		const pending = controller.complete(ctx.primaryTarget());
 		await Promise.resolve();
 		expect(ctx.tn.completeCalls).toEqual([]);
