@@ -43,6 +43,7 @@ Two rules hold in every phase: refresh and render never write, and every write g
 ## Phase Details
 
 ### Phase 4: Staging Foundations
+
 **Goal**: The plugin knows what "today" means for the fixed `staged` field, can tell whether TaskNotes supports staging, and saving one setting never loses another. This phase adds no Staged UI yet.
 **Depends on**: Nothing new (builds on shipped v0.2). Can run in parallel with Phase 5.
 **Requirements**: SETUP-01, ROLL-01 (SYNC-05 dropped in discussion: multi-device is out of scope)
@@ -50,7 +51,20 @@ Two rules hold in every phase: refresh and render never write, and every write g
   1. The user can set the rollover hour (default 4, 0-23, a dropdown labelled in 12-hour format) in the existing settings tab. Changing it, or the completed-status preference, and then restarting Obsidian leaves every other setting, pause record and card order as it was. The staged key is fixed as `staged`.
   2. With the rollover hour at 4, the plugin treats 1:30 AM as the previous staging day and 4:00 AM as the new one. This holds on DST-change days and in non-UTC timezones (shown by frozen-clock tests across a timezone matrix).
   3. On a TaskNotes build that is older than 4.13.0 or lacks the staging capabilities, the staging contract reports "unavailable" while the existing timer features keep working. On a supported build, the field-registration check reports `missing`, `wrong-type` or `ok` for the `staged` key, based on `catalog.userFields()`. Pause and resume still behave exactly as in v0.2.
-**Plans**: TBD
+
+**Plans**: 5 plans
+Plans:
+**Wave 1**
+- [ ] 04-01-PLAN.md — Dev-vault spike (wave 1, has a human step): guarded `obsidian eval` script answers D-10 Q1-Q4 on TaskNotes 4.13.8, findings pinned for 04-04/04-05
+- [ ] 04-02-PLAN.md — Staging day (wave 1): pure DST-safe `stagingDay` plus rollover constants and 12-hour labels, proven across a timezone matrix (ROLL-01)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 04-03-PLAN.md — Rollover-hour setting (wave 2): `saveChoice` spread fix first, then the dropdown, loader, `OWNED_KEYS` and `persistAll` (SETUP-01)
+- [ ] 04-04-PLAN.md — Field-registration check (wave 2): `STAGED_FIELD_KEY`, pure `fieldStatus`, gated `userFields()` and contract pins (SETUP-01)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 04-05-PLAN.md — Staging write contract (wave 3): `stagingAvailability`/`recurringAvailability`, gated `updateTask`/`toggleCompleteInstance`, fakes and the 4.12 regression proof
+
 **Notes**:
 - **Research flag (dev-vault spike, do first):**
   - Confirm on raw frontmatter that the user's chosen unstage write, `{[key]: null}` only (no `customFrontmatter`), leaves a harmless empty `staged:` that reads as not staged.
@@ -62,6 +76,7 @@ Two rules hold in every phase: refresh and render never write, and every write g
 - The new bridge methods are feature-gated and are NOT added to `REQUIRED_CAPABILITIES`.
 
 ### Phase 5: Two-Tab Shell
+
 **Goal**: The pane becomes a two-tab shell (Staged, Timers) in which the Timers tab is the v0.2 pane, unchanged.
 **Depends on**: Nothing new (v0.2 pane). Independent of Phase 4.
 **Requirements**: TABS-01, TABS-02
@@ -70,6 +85,7 @@ Two rules hold in every phase: refresh and render never write, and every write g
   2. The user can switch between tabs with one click. The Staged tab shows a placeholder empty state, and the header actions change with the tab (Timers keeps Start / Pause all / Resume all / Stop all).
   3. After restarting Obsidian, the pane reopens on the tab that was last active.
   4. Bridge-state messages (TaskNotes missing, disabled, too old, reconnecting) still show correctly. Reconnecting after a TaskNotes reload and after sleep/wake still works from either tab.
+
 **Plans**: TBD
 **UI hint**: yes
 **Notes**:
@@ -79,6 +95,7 @@ Two rules hold in every phase: refresh and render never write, and every write g
 - Standard patterns; skip research.
 
 ### Phase 6: Staged Tab Core
+
 **Goal**: The user can pick today's tasks, put them in order, and start, pause, stop or unstage each one from the Staged tab, with the Timers tab one click away.
 **Depends on**: Phase 4, Phase 5
 **Requirements**: SETUP-02, SETUP-03, STAGE-01, STAGE-02, STAGE-03, STAGE-04, STAGE-05, SCARD-01, SCARD-02, SCARD-03, SCARD-04, ORDER-01, ORDER-02, ORDER-03, TABS-03, TABS-04
@@ -98,6 +115,7 @@ Two rules hold in every phase: refresh and render never write, and every write g
   5. Tab labels show counts (for example "Staged 4 · Timers 1") and Timers is highlighted while any regular timer runs. Timers cards for staged tasks show a staged marker.
      - If the key isn't registered as a TaskNotes date field, the Staged tab shows how to register it (type date, no default value), Stage is disabled, and nothing is written.
      - If TaskNotes lacks the staging APIs, the Staged tab explains why while Timers keeps working.
+
 **Plans**: TBD
 **UI hint**: yes
 **Notes**:
@@ -112,6 +130,7 @@ Two rules hold in every phase: refresh and render never write, and every write g
 - Standard patterns; skip research.
 
 ### Phase 7: Complete, Roll Over & Release 0.3.0
+
 **Goal**: The user can finish staged tasks with ✓ (recurring tasks safely), see what got done today, and trust the list to roll over each morning. The plugin then ships as "TaskNotes Task Control" 0.3.0.
 **Depends on**: Phase 6
 **Requirements**: DONE-01, CTRL-13, DONE-02, ROLL-02, ROLL-03, ORDER-04, PANE-04
@@ -121,6 +140,7 @@ Two rules hold in every phase: refresh and render never write, and every write g
   3. Unfinished staged tasks carry over to the next staging day without any frontmatter writes, and their days-staged count goes up. Rollover takes effect promptly when Obsidian was left open overnight or the machine slept through the rollover hour.
   4. On mobile, ▲▼ buttons let the user reorder cards on both the Staged and Timers tabs.
   5. The plugin shows as "TaskNotes Task Control". The plugin id `tasknotes-timer-pane`, view type, command ids and saved data are unchanged, and upgrading from 0.2.0 through BRAT to the 0.3.0 release keeps the existing pause records and order.
+
 **Plans**: TBD
 **UI hint**: yes
 **Notes**:
