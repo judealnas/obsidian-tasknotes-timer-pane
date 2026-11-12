@@ -4,9 +4,26 @@
 
 An Obsidian plugin that adds a dockable pane for monitoring and controlling TaskNotes' regular (non-Pomodoro) task time tracking. TaskNotes already has a Pomodoro pane, but for normal task timing the only indication that a task is being timed is a small status-bar indicator in the bottom right of the window. This pane fills that gap: keep it open beside your notes to see how long you've spent on the current task, and stop, pause, or switch tasks in one or two clicks.
 
+From v0.3 the plugin is renamed **TaskNotes Task Control** (id unchanged: `tasknotes-timer-pane`) and adds daily task staging: pick the tasks you'll tackle today, put them in order, and start or stop timing each from that list. The pane has two tabs, Staged and Timers.
+
 ## Core Value
 
 With the pane open, I can always see what task is being timed and how long I've spent on it, and stop, pause, or switch tasks in one to two clicks, without leaving the pane.
+
+## Current Milestone: v0.3 Staging Tasks
+
+**Goal:** Let me pick the tasks I'll tackle today, put them in order, and start, stop, pause, or complete each from that list, with the all-timers view one tab away.
+
+**Target features:**
+- Two-tab pane: **Staged** (today's chosen tasks) and **Timers** (all regular timed tasks, as in v0.2), both using the existing card style
+- Stage tasks from the ranked picker; unstage with ✕; staged state is a `staged: YYYY-MM-DD` TaskNotes user field (configurable key) written via `api.tasks.update`, with a setup notice if the field isn't registered
+- Staged cards: idle shows start / ✓ complete / ✕ unstage; running also shows elapsed, pause, stop; title opens the note, right-click opens TaskNotes' task menu
+- Independent, persisted manual order per tab (drag + ArrowUp/Down; up/down buttons on mobile); tasks staged elsewhere join at the bottom
+- Daily rollover at a configurable hour (default 4 AM): unfinished tasks roll forward without writes and show days staged
+- "Done today" section: completing clears `staged`; recurring tasks complete only today's instance
+- Rename display name to "TaskNotes Task Control"; release 0.3.0
+
+Design source: `.planning/research/STAGING-DECISIONS.md` (grilling log; Q7/Q23/Q25 superseded by this milestone's choices).
 
 ## Requirements
 
@@ -23,11 +40,12 @@ With the pane open, I can always see what task is being timed and how long I've 
 
 ### Active
 
-No requirements are active yet; the next milestone defines them (`/gsd-new-milestone`). Candidates carried forward from v0.2:
+See `.planning/REQUIREMENTS.md` for v0.3 Staging Tasks requirements.
 
-- [ ] Finish the skipped Phase 1 native desktop checks (already-stopped race, stop failure and recovery, archived timers, completion auto-stop)
-- [ ] Observe the muted "Can't check Pomodoro" line on desktop (unreadable ownership)
-- [ ] v2 ideas deferred during scoping: recent tasks, today's log, estimate progress, hotkeys
+Still deferred from v0.2 (not in v0.3 scope):
+- Finish the skipped Phase 1 native desktop checks (already-stopped race, stop failure and recovery, archived timers, completion auto-stop)
+- Observe the muted "Can't check Pomodoro" line on desktop (unreadable ownership)
+- v2 ideas: recent tasks, today's log, estimate progress, hotkeys
 
 ### Out of Scope
 
@@ -39,6 +57,9 @@ No requirements are active yet; the next milestone defines them (`/gsd-new-miles
 - Rich reporting/analytics — not part of the core need
 - "Also running" list — superseded in v0.2 by one card per running timer
 - Recent tasks, today's log, estimate progress, hotkeys — deferred to v2 during scoping (next-milestone candidates)
+- Pomodoro display or 🍅 start on staged cards — v0.3 keeps v0.2 behavior: Pomodoro-owned entries are hidden in both tabs and start is refused with a notice
+- Using TaskNotes' `scheduled` field for staging — kept free for its intended purpose; staging uses its own `staged` field
+- Auto-registering the `staged` user field — no official API; would require TaskNotes internals
 
 ## Context
 
@@ -77,6 +98,10 @@ Known debt at close: Phase 1 verification is human_needed with skipped native ch
 | Pause implemented as stop + new entry on resume | TaskNotes time tracking has no native pause; time entries are start/end pairs | Phase 3 accepted |
 | Pause records live in the plugin's data.json, keyed by session and reconciled against TaskNotes on every refresh | Survives restarts; renames follow vault events; clears only on clear signals (resume, stop, complete, delete, Pomodoro takeover), never by age or a null read | Phase 3 accepted |
 | Sidebar view + ribbon icon + command | Matches Pomodoro pane placement; easy to open | ✓ Good (v0.2) |
+| Merge task staging (taskctrl idea) into this plugin as v0.3, renamed "TaskNotes Task Control", id unchanged | Keeps install, saved data, release history and planning | — Pending |
+| Two tabs (Staged, Timers) with independent per-tab order | User wants the all-timers view kept intact; ordering is momentary and per-view | — Pending |
+| Staging stored as a `staged: YYYY-MM-DD` user field; order in plugin data | `tasks.update` only writes registered user fields; date enables roll-forward with no writes | — Pending |
+| Pomodoro stays hidden in v0.3 (no 🍅 display or start) | Simplest; preserves the v0.2 orphan-entry protection | — Pending |
 | Don't base on zczs520 fork | Unknown provenance | ✓ Good (v0.2): not needed |
 
 ## Evolution
@@ -97,4 +122,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-12 after v0.2 milestone*
+*Last updated: 2026-11-12 after starting v0.3 Staging Tasks milestone*
