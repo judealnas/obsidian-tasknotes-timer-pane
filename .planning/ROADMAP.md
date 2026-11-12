@@ -9,7 +9,7 @@
 
 v0.3 adds a **Staged** tab beside the existing **Timers** tab and renames the plugin to "TaskNotes Task Control" (id unchanged). The user picks today's tasks, orders them, and works down the list. There are four phases:
 
-- **Phase 4 lays the foundations without any new UI.** It adds the settings, the staging-day rule and the TaskNotes contract additions, and makes data.json safe against saves from another device. It carries a dev-vault spike that confirms how TaskNotes actually writes the field.
+- **Phase 4 lays the foundations without any new UI.** It adds the rollover-hour setting, the staging-day rule and the TaskNotes contract additions. It carries a dev-vault spike that confirms how TaskNotes actually writes the field.
 - **Phase 5 refactors the pane into a two-tab shell.** The Timers tab must behave exactly as in v0.2. This phase is kept apart from new behavior so any regression is caught on its own.
 - **Phase 6 builds the Staged tab's core loop:** stage, order, then start, pause, stop or unstage from each card.
 - **Phase 7 adds completion, Done today and rollover, then mobile reordering, the rename and the 0.3.0 release.** The recurring-completion semantics in this phase need research first.
@@ -35,7 +35,7 @@ Two rules hold in every phase: refresh and render never write, and every write g
 
 **Milestone Goal:** Let me pick the tasks I'll tackle today, put them in order, and start, stop, pause, or complete each from that list, with the all-timers view one tab away.
 
-- [ ] **Phase 4: Staging Foundations** - Staged-field and rollover-hour settings, a DST-safe staging day, feature-gated TaskNotes staging contract, and data.json that survives saves from other devices
+- [ ] **Phase 4: Staging Foundations** - Rollover-hour setting, a DST-safe staging day, and a feature-gated TaskNotes staging contract for the fixed `staged` key
 - [ ] **Phase 5: Two-Tab Shell** - Pane split into Staged and Timers tabs, with Timers unchanged from v0.2 and the last-active tab remembered
 - [ ] **Phase 6: Staged Tab Core** - Stage from the picker, unstage, order, and start/pause/stop each staged task from its card, with setup notices, tab counts and staged markers
 - [ ] **Phase 7: Complete, Roll Over & Release 0.3.0** - ✓ completion (recurring-safe on both tabs), Done today, daily rollover, mobile ▲▼ reordering, rename, and BRAT release
@@ -43,14 +43,13 @@ Two rules hold in every phase: refresh and render never write, and every write g
 ## Phase Details
 
 ### Phase 4: Staging Foundations
-**Goal**: The plugin knows which field marks a task as staged and what "today" means, can tell whether TaskNotes supports staging, and never loses its saved data. This phase adds no Staged UI yet.
+**Goal**: The plugin knows what "today" means for the fixed `staged` field, can tell whether TaskNotes supports staging, and saving one setting never loses another. This phase adds no Staged UI yet.
 **Depends on**: Nothing new (builds on shipped v0.2). Can run in parallel with Phase 5.
-**Requirements**: SETUP-01, ROLL-01, SYNC-05
+**Requirements**: SETUP-01, ROLL-01 (SYNC-05 dropped in discussion: multi-device is out of scope)
 **Success Criteria** (what must be TRUE):
-  1. The user can set the staged field key (default `staged`) and the rollover hour (default 4, limited to 0-23) in the existing settings tab. Changing either one, or the completed-status preference, and then restarting Obsidian leaves every other setting as it was.
+  1. The user can set the rollover hour (default 4, 0-23, a dropdown labelled in 12-hour format) in the existing settings tab. Changing it, or the completed-status preference, and then restarting Obsidian leaves every other setting, pause record and card order as it was. The staged key is fixed as `staged`.
   2. With the rollover hour at 4, the plugin treats 1:30 AM as the previous staging day and 4:00 AM as the new one. This holds on DST-change days and in non-UTC timezones (shown by frozen-clock tests across a timezone matrix).
-  3. When another device saves the plugin's data.json (for example through Obsidian Sync), this device's pause records survive. The staged-order and Done-today keys are merged rather than wiped. Pause and resume still behave exactly as in v0.2.
-  4. On a TaskNotes build that is older than 4.13.0 or lacks the staging capabilities, the staging contract reports "unavailable" while the existing timer features keep working. On a supported build, the field-registration check reports `missing`, `wrong-type` or `ok` for the configured key, based on `catalog.userFields()`.
+  3. On a TaskNotes build that is older than 4.13.0 or lacks the staging capabilities, the staging contract reports "unavailable" while the existing timer features keep working. On a supported build, the field-registration check reports `missing`, `wrong-type` or `ok` for the `staged` key, based on `catalog.userFields()`. Pause and resume still behave exactly as in v0.2.
 **Plans**: TBD
 **Notes**:
 - **Research flag (dev-vault spike, do first):**
@@ -60,7 +59,6 @@ Two rules hold in every phase: refresh and render never write, and every write g
   - Check `recurring.toggleCompleteInstance` with an off-schedule day.
 - Fix the existing `saveChoice` spread bug first; otherwise saving the completed status erases the new settings.
 - Add the new keys to `OWNED_KEYS` and `persistAll`.
-- Key validation rejects core field names and `fieldMapping` values.
 - The new bridge methods are feature-gated and are NOT added to `REQUIRED_CAPABILITIES`.
 
 ### Phase 5: Two-Tab Shell

@@ -16,8 +16,8 @@ Design sources: `.planning/research/STAGING-DECISIONS.md` (settled decisions; v0
 
 ### Setup
 
-- [ ] **SETUP-01**: User can set the staged field key (default `staged`) and the rollover hour (default 4 AM, 0–23) in the existing settings tab; saving any one setting never resets another
-- [ ] **SETUP-02**: If the configured key isn't registered as a TaskNotes **date** user field (checked via `catalog.userFields()`), the Staged tab shows a setup notice explaining how to register it (type date, no default value) and Stage is disabled; no write is attempted
+- [ ] **SETUP-01**: User can set the rollover hour (default 4 AM, 0–23) in the existing settings tab; saving any one setting never resets another. The staged field key is fixed as `staged` (not configurable; Phase 4 discussion)
+- [ ] **SETUP-02**: If the `staged` key isn't registered as a TaskNotes **date** user field (checked via `catalog.userFields()`), the Staged tab shows a setup notice explaining how to register it (type date, no default value) and Stage is disabled; no write is attempted
 - [ ] **SETUP-03**: If TaskNotes lacks the staging APIs (older than 4.13.0 or missing capability), the Staged tab explains why and the Timers tab keeps working as before
 
 ### Staging
@@ -54,9 +54,8 @@ Design sources: `.planning/research/STAGING-DECISIONS.md` (settled decisions; v0
 - [ ] **ROLL-02**: Unfinished staged tasks roll forward to the next day with no writes, and their days-staged count increases
 - [ ] **ROLL-03**: Rollover takes effect promptly even if Obsidian was left open overnight or the machine slept
 
-### Sync & Release
+### Release
 
-- [ ] **SYNC-05**: When another device saves the plugin's data.json (e.g. via Obsidian Sync), it doesn't wipe this device's staged order, Done-today record, or pause records
 - [ ] **PANE-04**: Display name becomes "TaskNotes Task Control"; plugin id (`tasknotes-timer-pane`), view type, command ids and saved data are unchanged; released as 0.3.0 through BRAT
 
 ## Future Requirements
@@ -79,7 +78,8 @@ Deferred; tracked but not in this roadmap.
 | Auto-registering the `staged` user field | No official API; would require TaskNotes internals (Q15) |
 | Deleting the key via undocumented `customFrontmatter` | User chose documented-only `null` write; empty `staged:` is harmless |
 | Already-staged tasks in the Stage picker / re-staging to reset days | User chose to hide them; unstage + re-stage resets instead |
-| Migrating staged values when the key setting changes | Rare; tasks under the old key simply stop appearing (settings warns) |
+| Configurable staged field key | Hard-coded as `staged` for simplicity (Phase 4 discussion) |
+| Cross-device data.json merge (former SYNC-05) | Multi-device operation is out of scope (Phase 4 discussion); single-device saves still never reset other keys |
 | Bulk timer actions on the Staged tab header | Staged header has Stage only; bulk actions stay on Timers |
 | Auto-archive / "overdue" styling for long-staged tasks | Anti-feature per research; quiet carry-over with days count instead |
 
@@ -115,14 +115,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ROLL-01 | Phase 4 | Pending |
 | ROLL-02 | Phase 7 | Pending |
 | ROLL-03 | Phase 7 | Pending |
-| SYNC-05 | Phase 4 | Pending |
 | PANE-04 | Phase 7 | Pending |
 
 **Coverage:**
-- v0.3 requirements: 28 total
-- Mapped to phases: 28
+- v0.3 requirements: 27 total
+- Mapped to phases: 27
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-11-12*
-*Last updated: 2026-11-12 after v0.3 roadmap creation (Phases 4-7)*
+*Last updated: 2026-11-12 after Phase 4 discussion (SYNC-05 dropped; staged key fixed)*
