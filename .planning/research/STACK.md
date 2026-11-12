@@ -1,280 +1,299 @@
-# Stack Research
+# Stack Research: v0.3 Staging Tasks
 
-**Domain:** Obsidian companion plugin (TypeScript): a sidebar `ItemView` that drives TaskNotes' regular time tracking in-process
-**Researched:** 2026-10-13
-**Confidence:** HIGH for the TaskNotes integration surface and package versions (both read straight from source code and the npm registry). MEDIUM for toolchain combinations nobody has run together yet (TS 6.0 + esbuild 0.28).
+**Domain:** Obsidian companion plugin for TaskNotes (daily task staging added to an existing timer pane)
+**Researched:** 2026-11-12
+**Confidence:** HIGH for TaskNotes surfaces (read from the installed 4.13.0 and 4.13.8 bundles and the tagged upstream source). HIGH for Obsidian APIs (installed `obsidian@1.14.4` typings). MEDIUM where noted.
 
-> **Confidence basis.** The GSD `classify-confidence` seam returns LOW for `github`/`webfetch` and LOW→MEDIUM (verified) for `websearch`. Several findings here go further than a web search. They come from primary artifacts read directly:
-> - a shallow clone of `callumalpass/tasknotes` at commit `451679289d94` (2026-10-12, v4.13.8);
-> - a clone of `obsidianmd/obsidian-sample-plugin` at commit `07ceb81d` (2026-08-02);
-> - `npm view` registry metadata;
-> - `obsidianmd/obsidian-releases/desktop-releases.json`.
->
-> Those findings are marked HIGH (primary source). Findings that rest only on web search or blogs keep the seam's tier.
+> This file replaces the v0.1 STACK.md, which is still in git history. It covers only what is new for v0.3. The validated v0.2 stack (TS 6, esbuild 0.28.2, ESLint 9 with obsidianmd, Vitest 5, `obsidian@1.14.4` typings, TaskNotesBridge, WriteQueue, CardOrderStore, PauseStore, TaskPickerModal) is unchanged and not re-argued here.
 
----
+## Headline
 
-## Headline finding: TaskNotes has a public, versioned in-process API. Use it, not internals.
+**No new dependencies.** Every v0.3 feature is covered by TaskNotes Runtime API v1 surfaces that already ship in 4.13.0, plus long-stable Obsidian APIs. The work is:
 
-TaskNotes **4.10.0** added a documented **JavaScript Runtime API v1** for companion plugins. Release note: "Added a versioned TaskNotes JavaScript runtime API for companion plugins … task, time-tracking, Pomodoro, … event, and extension-registry surfaces". It is still present and growing in **4.13.8** (current, `manifest.json` `minAppVersion: 1.12.2`). The API lives on the plugin instance:
+1. Extend the vendored types in `src/tasknotes/runtime-api.types.ts`.
+2. Add bridge methods.
+3. Add one pure date module.
 
-```ts
-const tn = this.app.plugins.getPlugin("tasknotes") as { api?: TaskNotesRuntimeApiV1 } | null;
-const api = tn?.api;
-if (!api || api.apiVersion !== 1 || !api.hasCapability("time.write")) { /* degrade */ }
-```
+Two findings change the plan as written in STAGING-DECISIONS.md:
 
-- **Docs:** `docs/javascript-api.md`, published at https://tasknotes.dev/javascript-api/
-- **Contract:** `src/api/runtime-api.ts`, exported as `TaskNotesRuntimeApiV1` / `TaskNotesPublicAPI`. The author states it "can later become a standalone `@tasknotes/runtime-api` package". That package **does not exist on npm yet** (verified: npm 404).
-- **Assignment:** `plugin.api = new TaskNotesAPI(plugin)` in `src/bootstrap/pluginBootstrap.ts`, called from `initializeCoreServices`.
-
-**Do not** reach into `plugin.taskService`, `plugin.cacheManager`, `plugin.emitter`, `plugin.startTimeTracking()` or `plugin.getActiveTimeSession()`. All of these exist today, but they are undocumented internals. The runtime API wraps exactly these services:
-
-| Runtime API call | Delegates to |
-|---|---|
-| `api.time.start` | `plugin.taskService.startTimeTracking` |
-| `api.time.stop` | `plugin.taskService.stopTimeTracking` |
-| `api.events` | `plugin.emitter` (`EVENT_TASK_UPDATED`) |
-
-So the public surface gives you the same frontmatter writes and the same status-bar refresh, behind a capability-checked contract. The PROJECT.md constraint "relies on TaskNotes internals which aren't a stable public API" is **obsolete**. Update it to "relies on TaskNotes Runtime API v1 (TaskNotes ≥ 4.10.0)".
-
-### Exact TaskNotes surfaces this project needs (HIGH, from `src/api/runtime-api.ts` @ 4.13.8)
-
-| Need (PROJECT.md) | Runtime API call | Notes |
-|---|---|---|
-| Current timed task(s) | `api.time.active(): Promise<ActiveTimeEntry[]>` | `ActiveTimeEntry = { taskPath, task: TaskInfo, entry: TimeEntry, index }`. Scans all cached tasks for entries without `endTime`. **Can return more than one.** TaskNotes allows concurrent timers on different tasks; only same-task double-start throws "Time tracking is already active for this task". |
-| Live elapsed (session) | `entry.startTime` (ISO) from `active()`, ticked locally | Don't poll TaskNotes every second. Compute `Date.now() - Date.parse(startTime)` in a `registerInterval` tick. |
-| Total tracked on task (+ estimate) | `api.time.task(path): Promise<TaskNotesRuntimeTaskTimeData>` | Returns `summary.totalMinutes`, `totalSessions`, `activeSession.{startTime, elapsedMinutes}` and normalized `timeEntries[]`. Estimate is `task.timeEstimate` (minutes) on `TaskInfo`. |
-| Stop | `api.time.stop(path, context?): Promise<TaskInfo>` | Throws if no active session. There is **no** "stop whatever is active" API method; call `active()` and stop by path. |
-| Pause / resume | `stop(path)` then later `api.time.start(path, { description? }, context?)` | Matches the PROJECT.md decision (pause = close entry, resume = new entry). |
-| Switch task | `for (a of await active()) await stop(a.taskPath)`, then `start(newPath)` | Do these in sequence, not in parallel. TaskNotes serializes per path (`withTimeTrackingLock`), not across paths. |
-| Task picker / recent | `api.query.tasks({ where, sort, limit, scope })` or `api.tasks.list(query)` | Canonical fields like `task.status`, `task.dateModified`, `file.path`. `api.catalog.statuses()` gives configured statuses, so the plugin never hard-codes "open"/"done". |
-| Today's log | `api.time.summary({ period: "today" })` | Returns `topTasks[{task,title,minutes}]` and totals. For per-entry rows, walk `TaskInfo.timeEntries` from `api.tasks.list()` and filter by date. |
-| Sync with status bar / cards / commands | `api.events.on("task.updated" \| "time.started" \| "time.stopped", h): EventRef` → `this.registerEvent(ref)` | See the sync caveat below. |
-| TaskNotes readiness / reload | `api.lifecycle.ready()`, `api.lifecycle.on("ready" \| "unloading" \| "cache.changed" \| "settings.changed", h)` | Since 4.10.0. |
-| Native task context menu (nice-to-have) | `api.ui.taskMenu.showAtElement({ taskPath, element })` | Since **4.11.0**. Gate on `hasCapability("ui.task-menu")`. |
-| Tag our writes | `context = { source: "tasknotes-timer-pane", correlationId, reason }` | Attached to emitted events, so the pane can ignore its own echoes if needed. |
-| Errors | `api.errors.isApiError(e)` / `api.errors.toResult(() => …)` | Stable codes: `task_not_found`, `invalid_task_path`, `operation_failed`, … |
-
-**Sync caveat (HIGH, read in `TaskNotesAPI.normalizeUpdatedEvent` and `TaskManager`):** `time.started`/`time.stopped` are *derived* by comparing `before` vs `after` active-entry counts. `before` exists only when the emitter payload carries `originalTask`:
-
-| Write path | Carries `originalTask`? | `time.started`/`time.stopped` fire? |
-|---|---|---|
-| TaskService writes (status bar, task cards, commands, runtime API) | Yes | Yes |
-| Metadata-cache-driven updates (hand-edited frontmatter, Obsidian Sync / git pulls from another device) | No | No (only `task.updated`) |
-
-**Therefore:** subscribe to `task.updated` (plus `lifecycle` `cache.changed`), debounce about 150 ms, and re-derive state from `api.time.active()`. Treat `time.*` as a fast path only. TaskNotes' own status bar does the same thing: it refreshes on every `task-updated` and `data-changed`.
-
-### TypeScript types for the TaskNotes contract
-
-**Vendor a trimmed copy** of the contract into `src/tasknotes/runtime-api.ts`, as type-only declarations. Record the TaskNotes version/commit it was copied from in a header comment. Copy only:
-
-- `TaskNotesRuntimeApiV1`: keep only the namespaces used (`time`, `tasks`, `query`, `events`, `lifecycle`, `catalog`, `errors`, `ui`, `hasCapability`, `apiVersion`)
-- `ActiveTimeEntry`, `TaskNotesRuntimeTaskTimeData`, `TaskNotesRuntimeTimeSummary`, `TaskNotesRuntimeEventPayload`, `TaskNotesMutationContext`
-- minimal `TaskInfo` / `TimeEntry` shapes: `TimeEntry = { startTime: string; endTime?: string; description?: string; duration?: number }`
-
-Why not `import type … from "tasknotes/src/api/runtime-api"` (the docs' suggestion)? That file imports `../services/NaturalLanguageParser`, `../types`, `../types/settings` and `@tasknotes/model`. Using it means adding the whole TaskNotes repo as a git devDependency, and `tsc` would type-check TaskNotes' sources against your compiler settings. That is fragile and slow. `@tasknotes/model` on npm is `0.2.2` latest while TaskNotes pins `0.3.0-rc.9`, so it is not a clean types source either. Switch to `@tasknotes/runtime-api` if and when it is published.
-
----
+1. **Unstaging cannot use `{ staged: undefined }`.** TaskNotes skips undefined user-field values, so that call does nothing. `{ staged: null }` writes an empty `staged:` key. The key is deleted only through the `customFrontmatter: { staged: null }` pass-through, and that field is not in the typed runtime patch. See "Writing and clearing the `staged` field".
+2. **There is a public way to read registered user fields: `api.catalog.userFields()`.** It is gated by `catalog.read`, which the pane already uses for `catalog.statuses()`. The setup notice can be exact, with no guessing from write results. `settings.snapshot()` also exists, but don't use it (see "What NOT to use").
 
 ## Recommended Stack
 
-### Core Technologies
+### Core technologies (unchanged, with v0.3 notes)
 
-| Technology | Version | Purpose | Why Recommended | Confidence |
-|---|---|---|---|---|
-| Obsidian desktop (host) | 1.14.4 (current public; `desktop-releases.json` latest = beta = 1.14.4) | Runtime | What the user runs. | HIGH (primary) |
-| `obsidian` (API typings) | **1.14.4, pinned exact** | Type definitions for `Plugin`, `ItemView`, `WorkspaceLeaf`, `setIcon`, `Menu`, `FuzzySuggestModal`, `moment` | Matches the installed app. Pin exact instead of the sample's `"latest"` so a later `npm install` can't silently change API surface. Peer-requires `@codemirror/state 6.7.6` / `@codemirror/view 6.43.13` (npm auto-installs; externalized at bundle time). | HIGH (npm registry) |
-| `manifest.json` `minAppVersion` | **`1.12.2`** | Load gate | Same floor as TaskNotes 4.13.8. No point allowing older Obsidian than the dependency itself supports. Avoid APIs flagged `@since` > 1.12.2 in `obsidian.d.ts`. | HIGH |
-| TaskNotes (runtime dependency) | **≥ 4.10.0** required (Runtime API v1); 4.13.8 current; `ui.taskMenu` needs ≥ 4.11.0 | Task data and time-tracking writes | See headline. Detect at runtime with `api.apiVersion === 1 && api.hasCapability("time.write")`. Do **not** add a `dependencies` field to the manifest; Obsidian has no plugin-dependency mechanism. | HIGH (primary) |
-| TypeScript | **6.0.3** (`~6.0.3`) | Type-check (`tsc -noEmit`) | Newest line that `typescript-eslint@8.71.2` supports (peer `typescript >=4.8.4 <6.1.0`). Greenfield, so write a TS6-clean tsconfig (see below) and you won't need `ignoreDeprecations` before TS 7. | HIGH (versions/peers), MEDIUM (no Obsidian-plugin-specific TS6 reports found) |
-| esbuild | **0.28.2** (pin exact) | Bundle `src/main.ts` → `main.js` (CJS, `es2021`, externals per sample) | Sample-plugin standard bundler. Fast, zero-config, no type-checking (that's `tsc`'s job). The sample pins `0.25.5`. 0.28.2 is current (2026-08-08). esbuild 0.x minors may carry breaking changes, but the sample's config uses only long-stable options. Fall back to `0.25.5` if anything breaks. | MEDIUM |
-| Node.js | **24 LTS** (local: v24.13.1) | Build tooling only | The sample's release workflow uses Node 24. Vitest 5 requires `^22.12 \|\| ^24 \|\| >=26`. | HIGH |
-| npm | 11.x (local 11.8.0) | Package manager | The sample-plugin scripts and `.npmrc` (`tag-version-prefix=""`) assume npm. | HIGH |
-| UI layer | **Vanilla Obsidian DOM API** (`ItemView`, `contentEl.createDiv/createEl`, `setIcon`, `registerInterval`) | Sidebar pane | TaskNotes' own `PomodoroView extends ItemView` and builds UI with `createDiv`/`createEl`. That is the look-and-feel target, and TaskNotes has no React/Svelte dependency. A pane with roughly 6 widgets doesn't justify a framework, a second build plugin and lifecycle bridging. | HIGH |
-
-### Supporting Libraries
-
-| Library | Version | Purpose | When to Use |
+| Technology | Version | Purpose | v0.3 note |
 |---|---|---|---|
-| *(none at runtime)* | — | — | Keep `dependencies` empty. Format durations with plain math + `Intl`. Obsidian exports `moment` if a date helper is needed (`import { moment } from "obsidian"`), so nothing to bundle. |
-| `obsidian-test-mocks` | 7.2.1 (published 2026-10-12, peer `obsidian ^1.12.3`, supports Vitest) | In-memory mocks of `obsidian.d.ts` + DOM prototype extensions (`createDiv`, etc.) | Only if you unit-test view rendering. Vitest setup file `obsidian-test-mocks/vitest-setup` mocks the `obsidian` module automatically. TaskNotes itself uses it (with Jest). MEDIUM. |
+| TaskNotes Runtime API v1 | **TaskNotes ≥ 4.13.0** (Personal Vault runs 4.13.0; the dev vault runs 4.13.8) | All reads and writes | Raise `MIN_TASKNOTES_VERSION` from `"4.10.0"` to `"4.13.0"` in `TaskNotesBridge.ts`. Keep gating each feature on `hasCapability`. Use the version only for the "needs an update" message. Every surface below exists, with the same behaviour, in both installed bundles (verified by grep; only the minifier's names differ). |
+| `obsidian` typings | 1.14.4 (pinned, unchanged) | `Platform`, `View.getState/setState`, DOM helpers | No new APIs past `minAppVersion 1.12.2` are needed. |
+| `manifest.json` | `name` becomes `"TaskNotes Task Control"`, `id` stays `tasknotes-timer-pane`, `version` becomes `0.3.0` | Rename and release | Obsidian keys `data.json` and the plugin folder by `id`, so saved card order and pause records survive. The command palette prefixes commands with the manifest `name`, so commands relabel automatically. Also update the view's `getDisplayText()`, the ribbon tooltip and the `package.json` description. |
 
-### Development Tools
+### Supporting libraries
 
-| Tool | Version | Purpose | Notes |
+| Library | Version | Purpose | When to use |
 |---|---|---|---|
-| ESLint | **9.39.5** (the `maintenance` dist-tag; **not 10.x**) | Lint | `eslint-plugin-obsidianmd@0.4.2` pulls `eslint-plugin-import` (peer `eslint ≤ ^9`) and `eslint-plugin-security@2.1.1` (peer `eslint ^9`). ESLint 10 produces peer conflicts and possible rule crashes. The sample and TaskNotes both use `^9.39.4`. HIGH. |
-| `@eslint/js` | 9.39.5 | Base JS rules | `eslint-plugin-obsidianmd` peer-requires `^9.30.1`, so `@eslint/js` 10.x conflicts. |
-| `typescript-eslint` | 8.71.2 | TS parser/rules (`projectService`) | Peer `eslint ^8.57 \|\| ^9 \|\| ^10`, `typescript <6.1.0`. This is the constraint that rules out TS 7. |
-| `eslint-plugin-obsidianmd` | **0.4.2** (2026-08-24) | Official Obsidian review-bot rules (`obsidianmd.configs.recommended`): sentence-case UI text, no detaching leaves in `onunload`, no inline styles, manifest validation, etc. | Same rules the community-plugin review bot applies. Worth keeping even for a personal plugin because they catch real lifecycle bugs. Peer-requires `@eslint/json 0.14.0` (auto-installed). |
-| `globals` | 17.13.0 | `globals.browser` for the flat config | As in sample. |
-| `jiti` | 2.7.0 | Lets ESLint load `eslint.config.mts` (TypeScript flat config) | As in sample. Drop it if you write `eslint.config.mjs` instead. |
-| Vitest | **5.0.4** (pulls `vite` 8.x as peer) | Unit tests for pure logic: elapsed/total math, "today" entry filtering, state derivation from `ActiveTimeEntry[]`, switch/pause sequencing against a fake `api` | Native TS/ESM, no `ts-jest` transform layer, fast watch. Put all TaskNotes access behind a `TaskNotesGateway` interface so tests inject a fake. Test environment `node`, plus `jsdom` only for view tests. MEDIUM (no Obsidian-specific Vitest 5 reports, but the logic under test is framework-free). |
-| `@types/node` | 24.x (24.19.2) | Types for build scripts only | Under TS 6, `types` defaults to `[]`, so Node globals won't leak into `src/`. That's good: plugin code must not use Node APIs (keeps mobile-compatibility honest even if you set `isDesktopOnly`). |
-| Hot Reload (pjeby/hot-reload) | 0.3.1 | Auto-reloads the plugin in a dev vault when `main.js` changes | Put a `.hotreload` file in the plugin folder. Point esbuild `outfile` (or a copy step, as TaskNotes' `copy-to-vault` esbuild plugin does) at `<devVault>/.obsidian/plugins/tasknotes-timer-pane/`. HIGH. |
-| Obsidian CLI (built into desktop ≥ 1.12.2) | n/a | `obsidian plugin:reload id=…`, `obsidian dev:errors`, `obsidian eval` for scripted smoke checks | Optional. There is a forum report of `plugin:reload` exiting 255. MEDIUM/LOW (web search only). |
-| BRAT (TfTHacker/obsidian42-brat) | 2.2.0 | Install/update the plugin from GitHub releases | See Release Flow. |
+| *(none added)* | — | — | `dependencies` stays empty. Rollover and days-staged math is a roughly 30-line pure module on `Date` (see "Date and rollover"). |
 
----
+### Development tools
+
+| Tool | Purpose | Notes |
+|---|---|---|
+| Existing Vitest fakes (`tests/fakes/fakeTaskNotes.ts`, `tests/fakes/fakeObsidian.ts`) | Fake the new surfaces | Add `tasks.update`, `catalog.userFields`, `recurring.toggleCompleteInstance` and the `recurring.write` capability to the TaskNotes fake. **Add a `Platform` export (`{ isMobile: false, ... }`) to `fakeObsidian.ts`**, because the view will import it and the `obsidian` npm package has no runtime (`"main": ""`). |
+| `tests/contract.test.ts` | Pins every vendored shape with `expectTypeOf` | Add pins for each type addition below, so drift fails `tsc -noEmit`. |
+| `eslint-plugin-obsidianmd` 0.4.2 (existing) | Catches lifecycle and platform mistakes | Rules that matter here: `platform` (use `Platform`, never `navigator.userAgent`), `no-unsupported-api` (flags APIs newer than `minAppVersion 1.12.2`, such as `getSettingDefinitions` `@since 1.13.0`), `prefer-window-timers`, `regex-lookbehind` (no lookbehind, because mobile iOS is a target). |
+
+## TaskNotes surfaces for v0.3 (exact names, with citations)
+
+Sources:
+
+- "Bundle" means the Personal Vault's TaskNotes **4.13.0** `main.js`, cited by line. Line 3351 holds the runtime API class.
+- "Contract" means upstream `src/api/runtime-api.ts` at tag `4.13.0`.
+- "Model" means `@tasknotes/model@0.2.2` `dist/types/types.d.ts`.
+- "Docs" means `docs/javascript-api.md` at tag `4.13.0`.
+
+### Capabilities to gate on
+
+| Feature | Capability | Method | Evidence |
+|---|---|---|---|
+| Stage and unstage writes | `tasks.write` (already used by `tasks.complete`) | `api.tasks.update(path, patch, context?)` | Contract L30–63 (capability list), L709–713. Bundle L3351 `update:(e,t,n)=>this.updateTask(e,t,n)`. |
+| Read registered user fields (setup notice) | `catalog.read` (already required for start) | `api.catalog.userFields(): UserMappedField[]` (synchronous) | Contract L635–646. Docs L193. Bundle L3351 `getUserFields(){return(this.plugin.settings.userFields??[]).map(t=>({...t}))}`. |
+| Complete today's recurring instance | **`recurring.write`** (new) | `api.recurring.toggleCompleteInstance(path, date?, context?): Promise<TaskInfo>` | Contract L836–841. Docs L398. Bundle L3351 `this.recurring={toggleCompleteInstance:(e,t,n)=>this.toggleRecurringComplete(e,t,n),…}`. |
+| Non-recurring complete | `tasks.write` | `api.tasks.complete` (already vendored) | Unchanged from v0.2. |
+| Reading `staged`, `recurrence`, `complete_instances`, `completedDate` | `tasks.read` | `tasks.list()` / `tasks.get()` (already vendored) | See "Reading user fields". |
+| Change events | `tasks.events`, `lifecycle.events` (already required) | Existing `task.updated` and `settings.changed` subscriptions | See "Events". |
+
+Don't use these, even though they exist: `settings.snapshot`, `recurring.events`, `query.tasks`, `recurring.materialize`.
+
+### Reading user fields: top level first, then `customProperties`
+
+TaskNotes' field mapper copies every **registered** user field, keyed by its frontmatter `key`, onto the TaskInfo **twice**: as a top-level property and inside `customProperties`. Bundle L411, end of `p2` (mapFromFrontmatter):
+
+```
+for (let d of userFields) e[d.key] !== undefined && (task[d.key] = e[d.key], l[d.key] = e[d.key]);
+… task.customProperties = { ...task.customProperties, ...l }
+```
+
+Unregistered frontmatter keys are not mapped, so they appear in neither place. Reading from the TaskInfo is therefore only reliable once the field is registered, which matches decision Q15.
+
+**Read rule (HIGH):** if `key` is an own property of the task, use `task[key]`. Otherwise fall back to `task.customProperties?.[key]`. Treat anything that is not a `/^\d{4}-\d{2}-\d{2}/` string as "not staged", including `null`, `""`, numbers and `Date`. Keep the top-level-first order because of `BEe` (Bundle L583): after a write, TaskNotes caches `{...originalTask, ...updates}`. The top-level value is fresh at once, but `customProperties` stays **stale** until Obsidian's metadata cache re-indexes the file.
+
+Put this in a pure helper (`readUserField(task, key): unknown` in `src/model/`). Don't add an index signature to the vendored `TaskInfo`, because that would turn off typo checking for every other field.
+
+**Match registration by `key`, not `id`.** `UserMappedField = { id, displayName, key, type: "text"|"number"|"date"|"boolean"|"list", defaultValue? }` (Model L146–152). Writes go through `m2` (Bundle L411), which loops over the registered fields and checks `updates[u.key]`. So the setting the user types (default `staged`) must equal some `userFields()[i].key`. If the matching field's `type !== "date"`, show a softer warning: writes still work, but TaskNotes' own date picker and date filters won't treat the field as a date.
+
+### Writing and clearing the `staged` field
+
+All writes go through `api.tasks.update(path, patch, { source: MUTATION_SOURCE, ... })`. The runtime implementation (Bundle L3351 `updateTask`) calls `requireTask`, then `withMutationContext`, then `taskService.updateTask(task, patch)`, with **no schema validation of the patch**. It holds TaskNotes' per-path lock, writes `dateModified`, updates the cache and emits `task.updated` (Bundle L588).
+
+| Intent | Patch to send | What TaskNotes does | Evidence |
+|---|---|---|---|
+| Stage or re-stage for day D | `{ [key]: "YYYY-MM-DD" }` | `m2` copies the value for a registered key into frontmatter. An **unregistered key is silently dropped from frontmatter**, but it still appears on the returned and cached TaskInfo until the file re-indexes. | Bundle L411 `m2`. Bundle L583 `$Ee`, `BEe`. |
+| **Unstage (delete the key, Q11)** | `{ [key]: null, customFrontmatter: { [key]: null } }` | `m2` first writes `key: null`. Then `$Ee` handles `customFrontmatter`: a `null` value means `delete frontmatter[key]`. The `[key]: null` part makes the returned and cached TaskInfo read "unstaged" at once, without waiting for the re-index. | Bundle L583: `t.customFrontmatter&&Object.entries(t.customFrontmatter).forEach(([u,p])=>{p===null?delete r[u]:r[u]=p})`. Same code in 4.13.8 (dev-vault bundle L581). |
+| ~~`{ [key]: undefined }`~~ | Don't | Does nothing: both `m2` and `$Ee` skip `undefined`. | Bundle L411, L583. |
+
+**Typing caveat (MEDIUM risk):** the runtime contract types the patch as `TaskNotesTaskPatch extends Partial<TaskInfo> { details?: string }` (Contract L441). It allows neither user-field keys nor `customFrontmatter`. `customFrontmatter` comes from the model's `TaskUpdateInput` (Model L79–84), which is what `taskService.updateTask` actually accepts. It is implemented and stable across 4.13.0 to 4.13.8, but it is not part of the documented runtime contract.
+
+The degradation is safe: if a future TaskNotes ignores `customFrontmatter`, the `[key]: null` half still leaves `staged:` empty, and the read rule treats that as unstaged. Record this as a known dependency, and add a contract-test comment pointing here.
+
+**Don't decide registration from the read-back.** The returned TaskInfo echoes an unregistered key even though nothing was written (`BEe`). Check `catalog.userFields()` before writing, and re-check on `settings.changed`.
+
+### Recurring completion
+
+`toggleCompleteInstance(path, date?)` runs `new Date(date)`, which for a `"YYYY-MM-DD"` string is **UTC midnight** (Bundle L3351 `toggleRecurringComplete`). TaskNotes then formats the date back with UTC getters (`le`, Bundle L417: `getUTCFullYear/getUTCMonth/getUTCDate`). So **passing `"YYYY-MM-DD"` round-trips exactly in every timezone (HIGH)**.
+
+Don't pass a local ISO datetime such as `"2026-11-12T00:00"` or `moment().format()`. West of UTC those can shift by a day.
+
+| Rule | Why | Evidence |
+|---|---|---|
+| **Always pass `date`**, set to the plugin's staging day (rollover-adjusted). | With no date, `hN` uses the task's **`scheduled` date** (unless `recurrence_anchor === "completion"`), and only otherwise calendar today. Either way it ignores the 4 AM rollover. | Bundle L424 `function hN(r,e){if(e)return e;if(r.recurrence_anchor!=="completion"&&r.scheduled)return ut(se(r.scheduled));…return an(fr())}` |
+| **It toggles.** Check `task.complete_instances?.includes(day)` first, and don't call it when that is already true. | `JTe` removes the date if it is already present, so a double-click or a completion made elsewhere would un-complete it. | Bundle L424 `JTe`: `d=!l.includes(o)` … `else{u.complete_instances=l.filter(k=>k!==o)}` |
+| Clear `staged` in a **second, sequenced** write through `WriteQueue`, after the toggle resolves. | The toggle rewrites only recurrence fields, so `staged` survives. Run the two writes in sequence, not in parallel. TaskNotes locks per path, but two writes back to back can still interleave their re-index. | Bundle L589 / L595 |
+| "Done today" for a recurring task means `complete_instances.includes(stagingDay)`. | It is a date string list. TaskNotes never sets `completedDate` for recurring toggles. | Model L45. `BEe` sets `completedDate` only when `!recurrence`. |
+| **MEDIUM, verify in phase:** occurrence materialization. | If the task uses `occurrence_materialization` (`on_completion`) or already has a materialized occurrence note for that date, TaskNotes toggles the **occurrence note's status** instead, then reconciles the parent. | Bundle L589 `toggleRecurringTaskCompleteWithOccurrenceNotes`. The vault's one recurring task probably doesn't use this, so check before relying on `complete_instances`. |
+
+**Non-recurring "Done today":** `completedDate` is written as the **local calendar date** at completion (`Rl()`, Bundle L417, local getters, no rollover). Between midnight and the rollover hour, `completedDate` is already the next calendar day while the staging day is still the previous one. Match "done today" against the plugin's own completion record (written by Q12 at the moment of ✓), not `completedDate` alone. If both are used, accept `completedDate ∈ {stagingDay, calendarToday}`.
+
+### Events: no new subscriptions needed
+
+The runtime's `recurring.instance.completed`, `recurring.instance.skipped`, `task.completed` and similar events are **all derived from the same raw task-updated emission**. The runtime diffs `originalTask` against `updatedTask` (Bundle L3351 `normalizeRawEvent`: `l2e(t.complete_instances,n.complete_instances)&&l.push({...o,event:"recurring.instance.completed"})`).
+
+The bridge already subscribes to `task.updated`, `task.deleted`, `cache.changed`, `cache.rebuilt` and `settings.changed`, and each calls `emitData()`. That covers staging changes made anywhere: other devices, hand edits, TaskNotes' own UI.
+
+**Don't add `recurring.*` or `task.completed` handlers.** They fire alongside `task.updated` and would only double the refresh work.
+
+Do use `settings.changed`, which is already wired, to re-run the `catalog.userFields()` registration check, so the setup notice disappears as soon as the user registers the field in TaskNotes settings.
+
+### Vendored type additions (`src/tasknotes/runtime-api.types.ts`)
+
+Update the header to say the file is now trimmed from **4.13.0** (cross-checked against 4.13.8), and that the settings namespace stays out on purpose.
+
+```ts
+/** Model L146–152 (@tasknotes/model 0.2.2). Matched by `key`, which is the frontmatter key. */
+export type UserMappedFieldType = "text" | "number" | "date" | "boolean" | "list";
+export interface UserMappedField {
+	id: string;
+	displayName: string;
+	key: string;
+	type: UserMappedFieldType;
+	defaultValue?: string | number | boolean | string[];
+}
+
+// TaskInfo: add (Model L30–74)
+//   recurrence?: string;
+//   complete_instances?: string[];
+//   completedDate?: string;              // local calendar date, set only for non-recurring tasks
+//   customProperties?: Record<string, unknown>;   // registered user fields, keyed by frontmatter key
+// (No index signature: read user fields through a readUserField(task, key) helper.)
+
+/**
+ * Patch accepted by tasks.update. Upstream types it as Partial<TaskInfo> (Contract L441).
+ * TaskNotes' update service also accepts registered user-field keys and
+ * `customFrontmatter`, where a null value deletes the key (Bundle L583).
+ * Only the shapes this plugin sends are vendored.
+ */
+export interface TaskNotesTaskPatch {
+	[userFieldKey: string]: unknown;
+	customFrontmatter?: Record<string, null>;
+}
+
+// tasks: add
+//   update?(path: string, patch: TaskNotesTaskPatch, context?: TaskNotesMutationContext): Promise<TaskInfo>;
+// catalog: add
+//   userFields?(): UserMappedField[];
+// new optional namespace (Contract L836–851; only the one method vendored):
+//   readonly recurring?: {
+//     toggleCompleteInstance(path: string, date?: string, context?: TaskNotesMutationContext): Promise<TaskInfo>;
+//   };
+```
+
+Keep these unchanged: `TaskNotesRuntimeEventName` (don't add recurring events), and `pomodoro` (status only; v0.3 adds no Pomodoro start). Leave `pomodoro.start` out even though STAGING-DECISIONS listed it: Q7 and Q25 are dropped.
+
+**Bridge additions (`TaskNotesBridge.ts`, all through `featureApi(...)` so the existing connected-api and capability checks apply):**
+
+- `userFields(): Promise<UserMappedField[]>` (`catalog.read` / `catalog.userFields`, wrapped in `Promise.resolve`, like `statuses()`)
+- `stagingAvailable(): { available: boolean; reason: string }` (`tasks.read`, `tasks.write`/`tasks.update`, `catalog.read`/`catalog.userFields`)
+- `setStaged(path, key, day, ctx)` and `clearStaged(path, key, ctx)`, which send the patches above
+- `recurringCompletionAvailable(): boolean` (`recurring.write`/`recurring.toggleCompleteInstance`)
+- `completeRecurringInstance(path, day, ctx)`
+
+Each read keeps the existing pattern of re-checking that the same api object is still connected after the `await`.
+
+## Obsidian APIs for the new UI
+
+| Need | API | Notes | Confidence |
+|---|---|---|---|
+| Two tabs inside the pane | **Plain DOM in the existing `ItemView`**: a `div` with `role="tablist"`, two `button role="tab"` elements with `aria-selected`, and two `role="tabpanel"` containers toggled with `toggleClass`/`hidden`. | Obsidian has **no public in-view tab component**. `WorkspaceTabs` (d.ts L11469) is a workspace leaf container, not a widget. Style with your own `tntp-tab*` classes on theme variables (`--interactive-accent`, `--text-muted`, `--background-modifier-border`). Add ArrowLeft/ArrowRight between tabs to match the existing keyboard reordering. Bind events with `registerDomEvent`, as the view does today. | HIGH |
+| Remember the active tab per leaf | `View.getState(): Record<string, unknown>` and `View.setState(state, result: ViewStateResult)` (d.ts L10536–10556, `@since 0.9.7`) | This is the Obsidian convention for view UI state: it is saved in the workspace layout and restored with the leaf. Keep **card order** in `data.json` through `persistAll`, as Q26 decides. Call `super.getState()`/`super.setState()` and validate the incoming value. | HIGH |
+| Mobile detection (up/down instead of drag) | `import { Platform } from "obsidian"`, then **`Platform.isMobile`** (d.ts L7041–7081, `@since 0.12.2`) | Use `isMobile` ("UI is in mobile mode"), not `isMobileApp`, so tablets and phones both get buttons. `isPhone` and `isTablet` exist if the layout ever needs them. HTML5 `dragstart` (the current handle) doesn't fire from touch in mobile WebViews, so the buttons are required, not just nicer. The `platform` lint rule forbids `navigator` sniffing. **Inject the flag into the view (for example through services or a constructor argument), and don't read `Platform` inside `src/model`**, so Vitest can test both layouts. | HIGH (API). MEDIUM (touch-DnD claim, general WebView knowledge) |
+| New settings: field key, rollover hour | Existing `PluginSettingTab.display()` pattern with `Setting.addText` (key) and `addDropdown` with 24 options or `addSlider` 0–23 (hour) (d.ts L8441 / L8480, `@since 0.9.7`) | **Don't adopt `getSettingDefinitions()`** (`@since 1.13.0`). `no-unsupported-api` flags it against `minAppVersion 1.12.2`, and the current tab already works. Validate the key: trim it, require it to be non-empty, and refuse it if it collides with core TaskNotes fields such as `status`, `scheduled` or `due`. | HIGH |
+| Setup notice | Inline banner in the Staged tab, plus an optional one-time `Notice` | Text should say: register a user field with key `<key>`, type Date, in TaskNotes settings. Re-check on `settings.changed`. | HIGH |
+
+## Date and rollover
+
+**Don't use `moment` from `"obsidian"` for this.** Use a pure module, for example `src/model/stagingDay.ts`, on native `Date` with **local** getters. There are three reasons:
+
+1. `obsidian`'s npm package has no runtime (`package.json` `"main": ""`). Any value import in `src/model` breaks the Vitest suite, which mocks `obsidian` per file. The model layer is deliberately Obsidian-free today.
+2. The arithmetic needs nothing that `moment` adds.
+3. Hour subtraction with `moment().subtract(rolloverHour, "hours")` is **wrong on DST days**: it subtracts elapsed time, not wall-clock time, so on spring-forward day the date flips at 5 AM, not 4 AM.
+
+```ts
+/** "YYYY-MM-DD" of the staging day: before the rollover hour, it is still yesterday. */
+export function stagingDay(now: Date, rolloverHour: number): string {
+	const d = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // local midnight
+	if (now.getHours() < rolloverHour) d.setDate(d.getDate() - 1);        // calendar math, DST-safe
+	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+/** Whole calendar days from `from` to `to`, both "YYYY-MM-DD". Uses UTC so DST can't produce 23/25-hour days. */
+export function daysBetween(from: string, to: string): number { /* Date.UTC(y, m-1, d) diff / 86_400_000 */ }
+```
+
+- **Staged list:** unfinished tasks with `staged <= stagingDay` (string comparison is valid for zero-padded ISO dates), shown with `daysBetween(staged, stagingDay)`. A task with `staged > stagingDay` (staged ahead, from another device in another timezone) stays hidden until its day.
+- **Detecting rollover:** in the existing 1 s `registerInterval` tick, compare `stagingDay(new Date(), hour)` with the last value. On change, re-derive the lists and prune the Done-today record. Also re-check on the existing `visibilitychange` and `focus` handlers, for sleep and wake. **Don't schedule a `setTimeout` for 4 AM**: timers drift or never fire across sleep.
+- **Formatting:** the pane shows "staged N days" text only, so `Intl`/`moment` formatting isn't needed. If a localized date label is ever wanted, `import { moment } from "obsidian"` in **UI** code only is fine (Obsidian bundles moment 2.x globally).
+- Clamp the rollover hour to an integer 0–23. 0 means midnight, which is plain calendar days.
 
 ## Installation
 
 ```bash
-# No runtime dependencies.
-
-# Dev dependencies (pin exact where noted)
-npm install -D obsidian@1.14.4 typescript@~6.0.3 esbuild@0.28.2 \
-  eslint@^9.39.5 @eslint/js@^9.39.5 typescript-eslint@^8.71.2 \
-  eslint-plugin-obsidianmd@^0.4.2 globals@^17.13.0 jiti@^2.7.0 \
-  @types/node@^24.19.2 vitest@^5.0.4
-
-# Optional, only if testing view rendering:
-npm install -D obsidian-test-mocks@^7.2.1 jsdom
+# Nothing to install. No runtime or dev dependency changes for v0.3.
 ```
-
-Start from a clone of `obsidianmd/obsidian-sample-plugin`, not from scratch. Keep its `esbuild.config.mjs`, `version-bump.mjs`, `.npmrc`, `eslint.config.mts` and both GitHub workflows. Then apply the changes below.
-
-### tsconfig.json (TS 6-clean; differs from the sample)
-
-The sample's `"moduleResolution": "node"` is **deprecated (error by default) in TS 6.0**. TaskNotes' `baseUrl` and `target: ES6`-era options are similarly deprecated. Use:
-
-```jsonc
-{
-  "compilerOptions": {
-    "target": "ES2021",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "lib": ["ES2021", "DOM", "DOM.Iterable"],
-    "strict": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": true,
-    "isolatedModules": true,
-    "verbatimModuleSyntax": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "inlineSourceMap": true,
-    "inlineSources": true,
-    "types": []
-  },
-  "include": ["src/**/*.ts"]
-}
-```
-
-### package.json scripts (sample + test)
-
-```json
-"dev": "node esbuild.config.mjs",
-"build": "tsc -noEmit && node esbuild.config.mjs production",
-"lint": "eslint .",
-"test": "vitest run",
-"version": "node version-bump.mjs && git add manifest.json versions.json"
-```
-
-### Typing `app.plugins`
-
-`app.plugins` isn't in the public `obsidian.d.ts`. Add a 5-line module augmentation in `src/tasknotes/obsidian-augment.d.ts` declaring `App.plugins.getPlugin(id: string): Plugin | null`. Don't pull in `obsidian-typings` for one property.
-
----
-
-## Release Flow (personal use via BRAT)
-
-HIGH: sample-plugin `release.yml` read directly. HIGH/MEDIUM: BRAT behavior from tfthacker.com/brat-developers, cross-checked with the BRAT 2.2.0 manifest.
-
-1. `npm version patch|minor|major`. This bumps `package.json`, then `version-bump.mjs` syncs `manifest.json.version` and `versions.json`. `.npmrc` `tag-version-prefix=""` makes the git tag exactly `1.2.3`, with no `v`. Obsidian's updater expects that.
-2. `git push --follow-tags`. The sample's `release.yml` (Node 24, `npm ci && npm run build`, build-provenance attestation) creates a **draft** release with `main.js`, `manifest.json` and `styles.css`.
-3. **Publish the draft on GitHub.** BRAT reads GitHub releases through the API, and drafts are not visible, so a draft release is not installable. Alternatively, drop `--draft` from the workflow for a personal plugin. Marking a release as *pre-release* is fine; BRAT's "latest" picks the highest semver release or pre-release.
-4. In Obsidian: BRAT → "Add beta plugin" → `<user>/obsidian-tasknotes-timer-pane`. You can optionally freeze to a tag.
-5. `manifest-beta.json` is **not needed** (legacy, pre-BRAT-1.1.0). BRAT fetches `manifest.json` from the release assets, not the repo root.
-6. Avoid semver pre-release suffixes (`1.0.1-beta.1`) unless you accept that Obsidian's own updater won't offer the following `1.0.1`. Plain incrementing versions are simplest.
-
-Manual install alternative: copy `main.js`, `manifest.json` and `styles.css` into `<vault>/.obsidian/plugins/<id>/`.
-
----
 
 ## Alternatives Considered
 
-| Recommended | Alternative | When to Use Alternative |
+| Recommended | Alternative | When to use the alternative |
 |---|---|---|
-| TaskNotes Runtime API v1 (`plugin.api`) | `plugin.taskService.startTimeTracking(task)` / `plugin.emitter.on("task-updated")` / `plugin.getActiveTimeSession()` internals | Never for new code. Only if a needed capability is missing from the runtime API, behind a feature-detect plus try/catch. Even then, file an issue upstream: the author is actively building the companion-plugin surface (4.10 → 4.11 added `ui.taskMenu`). |
-| Runtime API (in-process) | TaskNotes HTTP API (`/api/time/active`, what jane-t/TaskNotesTimer polls) | Out of scope per PROJECT.md. Only sensible for out-of-process tools. |
-| Vendored trimmed contract types | Git devDependency on `callumalpass/tasknotes` + `import type` | Once TaskNotes publishes `@tasknotes/runtime-api`, switch to that npm package. |
-| TypeScript 6.0.3 | TypeScript 5.9.3 | If any tool in the chain misbehaves on TS 6. 5.9.3 is what the sample (`^5.8.3`) and TaskNotes (`^5.9.2`) actually resolve to, so it's the most-trodden path. |
-| Vanilla DOM in `ItemView` | Svelte 5 / Preact | Only if the pane grows into a complex interactive UI (it won't per PROJECT.md scope). Svelte adds `esbuild-svelte` and component lifecycle wiring inside `onOpen`/`onClose`. |
-| Vitest 5 | Jest 30 + ts-jest 29 (+ jest-environment-jsdom) | If you want to copy TaskNotes' test setup verbatim. ts-jest peer `typescript <7` is fine with 6.0, but you get more config for no gain. |
-| esbuild 0.28.2 | esbuild 0.25.5 (sample's exact pin) | If a 0.26–0.28 change ever bites. Known-good with the sample config. |
-| Hot Reload plugin | Obsidian CLI `plugin:reload` in an esbuild `onEnd` hook | If you prefer one fewer plugin in the dev vault and the CLI works reliably on your machine. |
+| `catalog.userFields()` for the registration check | `api.settings.snapshot().userFields` (capability `settings.snapshot`, Contract L863, Bundle L3351 `JSON.parse(JSON.stringify(this.plugin.settings))`) | Never. It deep-clones **all** TaskNotes settings, including `apiAuthToken`, webhooks and saved views, on every check. `catalog.userFields()` returns the same array, documented for this purpose (Docs L193). |
+| Unstage with `{ [key]: null, customFrontmatter: { [key]: null } }` | `{ [key]: null }` alone | If a TaskNotes release rejects or strips `customFrontmatter`. Accept the leftover empty `staged:` key; the read rule already treats it as unstaged. |
+| Registered field plus TaskInfo reads (Q15) | `customFrontmatter: { staged: "…" }` writes, which work **without registration**, plus reading `app.metadataCache.getFileCache(file).frontmatter` | Only if the setup step proves too annoying. It skips registration but relies entirely on the untyped pass-through, and bypasses TaskNotes' field mapping when reading. It contradicts Q15, so it is not recommended. |
+| `tasks.list()` plus local filtering by `staged` | `api.query.tasks({ where: user.staged … })` (`query.tasks`, Docs L304) | If the vault grows to thousands of tasks. At 38 tasks, one `list()` per refresh is trivial, and it is already the picker's data source. |
+| Pure `Date` module for rollover | `moment` from `obsidian` | Only for user-facing localized formatting in UI code. |
+| `View.getState/setState` for the active tab | Store the active tab in `data.json` | If the user wants the same tab across all pane instances. Per-leaf state is the Obsidian norm. |
+| Up/down buttons on `Platform.isMobile` | Pointer-events drag reimplementation (`pointerdown`/`pointermove`) | Not worth it for best-effort mobile (Q5). |
 
 ## What NOT to Use
 
-| Avoid | Why | Use Instead |
+| Avoid | Why | Use instead |
 |---|---|---|
-| **TypeScript 7.x** (npm `latest` = 7.0.2, the Go-native compiler) | `typescript-eslint@8.71.2` peer-requires `typescript <6.1.0`, so type-aware linting breaks. TS 7 also removes every TS-6-deprecated option. | `typescript@~6.0.3` |
-| **ESLint 10.x** (npm `latest` = 10.12.0) and `@eslint/js` 10.x | `eslint-plugin-obsidianmd@0.4.2` transitively requires ESLint ≤ 9 (`eslint-plugin-import`, `eslint-plugin-security` peers) and peer-requires `@eslint/js ^9.30.1`. | `eslint@^9.39.5`, `@eslint/js@^9.39.5` |
-| `"obsidian": "latest"` (sample default) | Non-reproducible installs; typings can drift ahead of the installed app. | Pin `obsidian@1.14.4` exact; bump deliberately. |
-| `"moduleResolution": "node"`, `baseUrl`, `target: ES6/ES5` | Deprecated in TS 6.0; errors by default. | `"moduleResolution": "bundler"`, `target: ES2021` |
-| TaskNotes internals (`taskService`, `cacheManager`, `emitter`, `statusBarService`) | Undocumented and refactor-prone (TaskNotes already moved model logic into `@tasknotes/model` in 4.10). The runtime API wraps the same services, triggers the same `EVENT_TASK_UPDATED` (so the status bar refreshes), and carries a version + capability contract. | `app.plugins.getPlugin("tasknotes").api` |
-| Writing `timeEntries` frontmatter yourself (`processFrontMatter`) | Bypasses TaskNotes' per-path lock, field mapping (users can rename `timeEntries`), cache update and events, so the status bar and cards desync. Violates the PROJECT.md data-format constraint. | `api.time.start/stop` (and `api.time.append/deleteEntry` if ever needed) |
-| Relying only on `time.started`/`time.stopped` events | Not emitted for metadata-cache-driven changes (manual frontmatter edits, sync from another device). | Subscribe to `task.updated` + `cache.changed`, re-derive from `api.time.active()` |
-| `obsidian-typings` (6.41.0) | Large, tracks private Obsidian internals, couples you to its release cadence. You need one property (`app.plugins`). | Tiny local module augmentation |
-| `zczs520/tasknotes` 5.2.3 fork | Unknown provenance (PROJECT.md). Its version number is *ahead* of upstream (4.13.8), so don't confuse its APIs with upstream's. | Upstream callumalpass/tasknotes ≥ 4.10.0 |
-| `setInterval` / `window.setInterval` without `registerInterval` | Leaks timers on plugin unload/reload. The obsidianmd lint rules flag related lifecycle mistakes. | `this.registerInterval(window.setInterval(tick, 1000))` |
-| `manifest-beta.json` | Legacy BRAT mechanism. | Plain GitHub releases with assets |
+| `tasks.update(path, { staged: undefined })` to unstage | Does nothing: undefined user-field values are skipped (Bundle L411 `m2`, L583 `$Ee`). | `{ [key]: null, customFrontmatter: { [key]: null } }` |
+| `processFrontMatter` to write or delete `staged` | Bypasses TaskNotes' per-path lock, cache update and `task.updated` event, which violates the PROJECT.md data-format constraint. | `api.tasks.update` |
+| `api.tasks.complete` on recurring tasks | Sets the series status to completed, closing the whole series (Q16). | `api.recurring.toggleCompleteInstance(path, stagingDay)` after a `complete_instances` check |
+| `toggleCompleteInstance(path)` with no date | Defaults to the task's **scheduled** date, not today (Bundle L424 `hN`). | Always pass the `"YYYY-MM-DD"` staging day |
+| Read-back of the returned TaskInfo to decide whether `staged` "took" | The returned object is `{...original, ...patch}` (Bundle L583 `BEe`) and echoes even dropped keys. | `catalog.userFields()` before writing |
+| `settings.snapshot()` | Heavy, and carries secrets. | `catalog.userFields()` |
+| New `recurring.*` / `task.completed` event subscriptions | Derived from the same raw event as `task.updated` (Bundle L3351); they would double the refreshes. | The existing `task.updated` handler |
+| `moment().subtract(h, "hours")` or a `setTimeout` to the rollover moment | Wrong on DST days, and timers stall across sleep. | `stagingDay(now, hour)` checked on the 1 s tick, focus and visibility |
+| `getSettingDefinitions()` (Obsidian 1.13) | Above `minAppVersion 1.12.2`; the lint rule flags it. | The existing `display()` pattern |
+| `navigator.userAgent` / `app.isMobile` | The `platform` lint rule bans the first; the second is internal. | `Platform.isMobile` |
+| `pomodoro.start` or Pomodoro display | Out of scope in v0.3 (Q7 and Q25 dropped). | Keep v0.2 hiding |
+| Any npm dependency (date-fns, dayjs, Svelte, Sortable.js) | Nothing here needs one. TaskNotes bundles dayjs internally, but that is not an API. | Plain TS plus Obsidian DOM |
 
 ## Stack Patterns by Variant
 
-**If TaskNotes is missing, disabled, or `api.apiVersion !== 1`:**
-- Render an empty-state in the pane ("TaskNotes ≥ 4.10 required"). Register no TaskNotes listeners.
-- Re-attempt binding on `app.workspace.onLayoutReady` and when TaskNotes emits `lifecycle` `ready`. Obsidian has no "plugin enabled" event, so a light retry (e.g. 2 s backoff, capped) or re-check on view focus is the practical fallback.
-- Because TaskNotes may load after this plugin, bind inside `onLayoutReady` and `await api.lifecycle.ready()` before the first `active()` call.
+**If the `staged` field isn't registered** (`!userFields().some(f => f.key === key)`):
+- Show the setup notice in the Staged tab and turn off "Stage" in the picker. The Timers tab works as in v0.2.
+- Don't write. A write would show a phantom staged state until re-index, then vanish.
 
-**If TaskNotes reloads (settings toggle, update):**
-- Its `api` object is replaced, and EventRefs registered on the old emitter go dead. Listen for `lifecycle` `unloading`, drop refs, and rebind on the next `ready`.
-- Wrap all of this in one `TaskNotesGateway` class that owns the `api` reference and exposes a small, project-shaped interface (`getActive()`, `stop()`, `start()`, `switchTo()`, `onChange(cb)`). The view never sees `api` directly. That one seam is also what Vitest fakes.
+**If it is registered but `type !== "date"`:**
+- Work normally, and show a one-line hint to change the type to Date.
 
-**If the user has multiple concurrent timers** (TaskNotes allows it):
-- The pane shows a primary item (most recently started) plus a compact "also running" list.
-- "Switch" stops *all* active entries before starting the new one, so it means "time only this".
+**If `recurring.write` is missing:**
+- Hide ✓ on recurring staged cards, with the tooltip "Needs TaskNotes recurring support". Never fall back to `tasks.complete`, because that would close the series.
+
+**If `tasks.update` is missing or `tasks.write` is absent:**
+- The Staged tab is read-only. It shows the staged list without stage or unstage controls.
+
+**On mobile (`Platform.isMobile`):**
+- Render ▲/▼ buttons in place of the drag handle. Keep ArrowUp/Down and the same CardOrderStore move operations, one store per tab.
 
 ## Version Compatibility
 
-| Package A | Compatible With | Notes |
-|---|---|---|
-| `typescript-eslint@8.71.2` | `typescript >=4.8.4 <6.1.0`, `eslint ^8.57 \|\| ^9 \|\| ^10` | Hard ceiling on TS version. |
-| `eslint-plugin-obsidianmd@0.4.2` | `eslint >=9.19` (declared), effectively `^9` via transitive deps; `@eslint/js ^9.30.1`; `typescript-eslint ^8.35.1`; `@eslint/json 0.14.0` | Declares `obsidian: 1.8.7` as a peer. npm prints a peer warning with `obsidian@1.14.4`; it's harmless (lint-time only). Add `overrides` or `--legacy-peer-deps` only if npm errors. |
-| `obsidian@1.14.4` | `@codemirror/state 6.7.6`, `@codemirror/view 6.43.13` (peers) | Externalized by esbuild; never bundled. |
-| `vitest@5.0.4` | `vite ^6.4 \|\| ^7 \|\| ^8`, Node `^22.12 \|\| ^24 \|\| >=26`, `@types/node ^22 \|\| >=24` | Node 24.13.1 local: OK. |
-| `obsidian-test-mocks@7.2.1` | `obsidian ^1.12.3`, `vitest *` or `jest *` | OK with 1.14.4. |
-| `ts-jest@29.4.14` (if Jest chosen) | `typescript >=4.3 <7`, `jest ^29 \|\| ^30` | OK with TS 6.0. |
-| TaskNotes Runtime API v1 | TaskNotes ≥ 4.10.0; `ui.taskMenu` ≥ 4.11.0; tested reading 4.13.8 | Gate on `apiVersion === 1` + `hasCapability(...)`, never on version strings. |
-| Plugin `minAppVersion 1.12.2` | TaskNotes 4.13.8 `minAppVersion 1.12.2`; BRAT 2.2.0 `minAppVersion 1.11.4` | Consistent floor. |
+| Surface | Available since | Checked in | Notes |
+|---|---|---|---|
+| `tasks.update`, `catalog.userFields`, `recurring.toggleCompleteInstance`, `customFrontmatter` null-delete | Present in 4.13.0 (exact first version not traced) | 4.13.0 (Personal Vault), 4.13.8 (dev vault) | Gate on capabilities, never on version strings. The 4.13.0 floor (Q8) is satisfied. |
+| `recurring.write` capability string | In the 4.13.0 capability list | Contract L59, Bundle L3351 | New `hasCapability` check. |
+| `Platform.isMobile` | Obsidian 0.12.2 | d.ts 1.14.4 L7041 | |
+| `View.getState/setState` | Obsidian 0.9.7 | d.ts L10536/L10556 | |
+| `getSettingDefinitions` | Obsidian 1.13.0 | d.ts L7441 | Not used (minAppVersion 1.12.2). |
+| `@tasknotes/model` | 0.2.2 (`latest`), 0.3.0-rc.21 (`next`) | npm 2026-11-12 | Types reference only. **Don't depend on it**: vendor the four small shapes instead. `@tasknotes/runtime-api` is still unpublished. |
 
 ## Sources
 
-Primary (read directly; HIGH):
-- `callumalpass/tasknotes` @ `451679289d94` (2026-10-12), v4.13.8. Files read:
-  - `src/api/runtime-api.ts`: full contract
-  - `src/api/TaskNotesAPI.ts`: `startTime`/`stopTime`/`getActiveTimeEntries`/`normalizeUpdatedEvent`/`onLifecycle`
-  - `src/bootstrap/pluginBootstrap.ts`: `plugin.api = new TaskNotesAPI(plugin)`
-  - `src/services/TaskService.ts`: `startTimeTracking`/`stopTimeTracking`, per-path lock, same-task guard
-  - `src/utils/TaskManager.ts`: metadata-driven `task-updated` without `originalTask`
-  - `src/main.ts`: status bar refresh on `task-updated`/`data-changed`
-  - `src/views/PomodoroView.ts`: vanilla `ItemView`
-  - `docs/javascript-api.md`; `docs/releases/4.10.0.md` (runtime API introduced); `docs/releases/4.11.0.md` (`ui.taskMenu`)
-  - `package.json`, `tsconfig.json`, `esbuild.config.mjs`, `manifest.json`
-- `obsidianmd/obsidian-sample-plugin` @ `07ceb81d` (2026-08-02): `package.json`, `esbuild.config.mjs`, `tsconfig.json`, `eslint.config.mts`, `.npmrc`, `.github/workflows/release.yml`, `lint.yml`, `AGENTS.md`
-- npm registry (`npm view`, 2026-10-13): versions, dist-tags, and peer dependencies for obsidian, typescript, esbuild, eslint, @eslint/js, typescript-eslint, eslint-plugin-obsidianmd, eslint-plugin-import, eslint-plugin-security, vitest, vite, jest, ts-jest, jest-environment-jsdom, obsidian-test-mocks, obsidian-typings, @tasknotes/model, @tasknotes/runtime-api (404), @types/node, globals, jiti
-- `obsidianmd/obsidian-releases/desktop-releases.json`: latestVersion 1.14.4
-- `TfTHacker/obsidian42-brat` `manifest.json`: 2.2.0; `pjeby/hot-reload` `manifest.json`: 0.3.1
+- **Primary, local:** TaskNotes 4.13.0 `main.js` (Personal Vault `.obsidian/plugins/tasknotes/`). Lines read:
+  - L3351: runtime API class, capability list, `tasks`/`catalog`/`recurring`/`settings` namespaces, `updateTask`, `toggleRecurringComplete`, `getUserFields`, `getSettingsSnapshot`, `normalizeRawEvent`
+  - L411: field mapper `p2`/`m2`
+  - L417: date helpers `le`, `an`, `fr`, `Rl`
+  - L424: `hN`, `JTe`
+  - L583: `$Ee`, `BEe`, `sO.updateTask`
+  - L588: cache update and `task.updated` emit
+  - L589: `toggleRecurringTaskCompleteWithOccurrenceNotes`
 
-Secondary:
-- https://devblogs.microsoft.com/typescript/announcing-typescript-6-0/: TS 6.0 changed defaults and deprecations (official; via WebFetch, cross-checked with search results; MEDIUM by seam, treated as HIGH as the official vendor source)
-- https://tfthacker.com/brat-developers: BRAT release requirements, `manifest-beta.json` legacy (author's docs; via WebFetch; MEDIUM)
-- https://forum.obsidian.md/t/functional-update-to-brat-version-picker-github-pre-releases-and-frozen-version-updates/98951: BRAT version picker / frozen versions (MEDIUM)
-- https://forum.obsidian.md/t/obsidian-cli-exits-with-code-255-when-working-with-beta-community-plugin/113419 and third-party skill pages: Obsidian CLI `plugin:reload` (LOW)
-- https://lilting.ch/en/articles/typescript-6-rc, https://noqta.tn/en/blog/typescript-6-release-features-migration-guide-2026: TS 6 migration corroboration (LOW, corroborating only)
-
----
-*Stack research for: Obsidian companion plugin (TaskNotes timer pane)*
-*Researched: 2026-10-13*
+  HIGH (primary source; the GSD seam has no tier for local code reading).
+- **Primary, local:** TaskNotes 4.13.8 `main.js` (dev vault), cross-checked for the same code paths (L409 `m2`, L581 `customFrontmatter`, L3458 `tasks`/`updateTask`/`toggleRecurringComplete`). HIGH.
+- **Primary, upstream:** `callumalpass/tasknotes` tag `4.13.0`, `src/api/runtime-api.ts`: L30–63 capabilities, L441 `TaskNotesTaskPatch`, L635–646 catalog, L705–730 tasks, L836–851 recurring, L863 settings. HIGH.
+- **Primary, upstream:** `callumalpass/tasknotes` tag `4.13.0`, `docs/javascript-api.md`: L193 `catalog.userFields`, L211 `tasks.update`, L304 query fields, L398–400 recurring, L412–419 settings snapshot. HIGH.
+- **npm registry:** `@tasknotes/model@0.2.2` tarball, `dist/types/types.d.ts` L30–84 (`TaskInfo`, `TaskUpdateInput` with `customFrontmatter`), L146–152 (`UserMappedField`). HIGH for the shapes.
+- **Installed `obsidian@1.14.4` `obsidian.d.ts`:** `Platform` L7041–7081, `moment` export L6654, `addDropdown`/`addSlider` L8441/L8480, `getSettingDefinitions` `@since 1.13.0` L7441, `View.getState/setState` L10536–10556, `WorkspaceTabs` L11469. `obsidian/package.json` has `"main": ""`. HIGH.
+- **`eslint-plugin-obsidianmd` 0.4.2 rule sources** (`platform`, `noUnsupportedApi`, `preferWindowTimers`, `regexLookbehind`, `settingsTab/preferSettingDefinitions`). HIGH.
+- **Project source:** `src/tasknotes/runtime-api.types.ts`, `src/tasknotes/TaskNotesBridge.ts`, `tests/fakes/fakeObsidian.ts`, `tests/contract.test.ts`, `.planning/research/STAGING-DECISIONS.md`.
+- **MEDIUM, general knowledge, not verified here:** HTML5 drag events don't fire from touch in mobile WebViews. Obsidian's YAML parsing keeps unquoted `YYYY-MM-DD` values as strings (the read rule's regex guard covers either case).

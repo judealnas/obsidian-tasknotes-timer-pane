@@ -1,273 +1,211 @@
 # Feature Research
 
-**Domain:** Obsidian sidebar pane that monitors and controls TaskNotes' regular (non-Pomodoro) task time tracking. It is a companion plugin, not a replacement.
-**Researched:** 2026-10-13
-**Confidence:** HIGH for what TaskNotes already provides (read from the TaskNotes source at v4.13.8, commit `4516792`, 2026-10-12, plus its docs and release notes). HIGH for jane-t/TaskNotesTimer (read from source, v2.0.1). MEDIUM for Toggl, Clockify and other Obsidian trackers (READMEs, vendor help pages and search results).
+**Domain:** Daily task staging ("today list") inside an Obsidian sidebar pane, layered on TaskNotes time tracking (v0.3 Staging Tasks)
+**Researched:** 2026-11-12
+**Confidence:** HIGH for project-specific behavior (derived from STAGING-DECISIONS.md, PROJECT.md and the v0.2 source). MEDIUM for competitor behavior (vendor help docs and user guides via web search, not hands-on testing).
 
----
+Scope: only the new v0.3 features. Existing v0.2 features (timer cards, Start picker, Stop all, Complete, Pause/Resume, Pomodoro hiding, title chips and task menu, drag/keyboard reorder) are treated as building blocks. Settled decisions (Q2–Q29 with the v0.3 resolutions) are respected. Where this file finds a genuine gap, it is marked **GAP** and collected under "Open questions" at the end.
 
-## Starting Point: What Already Exists and Where the Gap Is
+## How the reference products do "today"
 
-These facts shape every category below, so they come first.
+| Product | Add to today | Order | Unfinished at day end | Completed items | Notes relevant here |
+|---|---|---|---|---|---|
+| **Things 3** | Set "When: Today" (star). Today is a manual list, separate from deadlines. | Manual drag order within Today (plus a "This Evening" sub-list) | Stays in Today with **no overdue badge and no write**. Repeating to-dos move on to the next occurrence. | Checked items stay visible in Today until moved to the Logbook (immediately, daily, or manually, per a setting) | Closest model to this project: quiet roll-forward, manual order, completed items linger for the day. Cultured Code advises keeping Today to what you will actually work on. |
+| **Todoist Today** | Due date = today | Manual sort, or sort by priority/time | Becomes an **Overdue** section at the top, plus a bulk "Reschedule" button | Disappear from the view (collapsed "completed" toggle) | Rollover is modeled as "overdue", which nags. The user's model (Q10) deliberately avoids this. |
+| **Sunsama** | Daily planning ritual: drag from backlog/integrations into today | Manual order, time estimates, timeboxing on calendar | **Auto rolls over** to the next day and shows a **numbered circle with consecutive rollover days**. Auto-archives after N consecutive days (configurable, can be disabled). | Stay on the day, struck through | The days-staged badge (Q10) is Sunsama's rollover counter. Auto-archive is the part to *not* copy (it writes and surprises). |
+| **Amie / Akiflow / Motion** | Drag todos onto a calendar day or time block | Time-based | Moved or rescheduled, sometimes automatically | Shown on the day | Time-blocking products. Out of this project's shape. |
+| **Obsidian Day Planner** | Write tasks with times in the daily note | By time (timeline) | Stays in that day's note; you copy it forward | Checked in the note | Daily-note-centric. Carry-over is manual, which is the pain point staging avoids. |
+| **Obsidian Tasks / Dataview "today" queries** | `scheduled`/`due` on or before today, or a tag | Query sort (no manual order) | Shown again if the query includes `before tomorrow`, with no write | Hidden by `not done`, or shown via `done today` | Shows the "derive the list from a date field, no rollover writes" pattern (same as Q10), but with no manual order, which is the gap this plugin fills. |
+| **TaskNotes (own views)** | `scheduled` date, Agenda view, Bases views | Sort/group by field, no persisted manual order | Overdue styling on `scheduled`/`due` | Status-driven | Q2 keeps `scheduled` free. TaskNotes has no "my picked list, in my order" concept, which is why staging is a gap filler rather than a duplicate (fits the "defer to TaskNotes built-ins" preference). |
 
-### TaskNotes (v4.13.8) time-tracking surfaces, verified in source
-
-| Surface | What it does today | Limits that leave room for this pane |
-|---|---|---|
-| **Status bar item** (`src/ui/StatusBarService.ts`, setting `showTrackedTasksInStatusBar`) | Shows `Tracking: <title, cut at 30 chars> (m:ss)` with a live tick every second (added 4.8.0, #1655). Has a square **stop button** (added 4.13.7, #2326). With several trackers it shows `Tracking N tasks (total)`. Clicking the item opens the task note. | Small text in a corner. No pause, switch or start. No task total, no estimate, no recent tasks, no today view. |
-| **Commands** | Start or stop for the open task note. "Stop active time tracking" (opens a selector if several trackers are running). "Start time tracking (select task)" uses a fuzzy selector of non-archived tasks that are not being tracked. "Edit time entries" (selector, then editor). "Create or open task with time tracking". | **No switch command.** Starting a new task does *not* stop the running one (open FR #1670; a commenter on #2326 asked for a switch command and button). No pause or resume. |
-| **Task cards** (list, kanban, calendar, Bases) | Tracked cards get a blue outline (`task-card--actively-tracked`). Start or stop sits in the **context menu** and the Task Action Palette. Cards can show `timeEstimate` ("Xh estimated") and `totalTrackedTime` ("Xh tracked"). | No one-click play button on cards (open FR #2307). Reaching start or stop takes 2–3 clicks inside a menu. |
-| **TimeEntryEditorModal** | Lists each entry with start, end and description. Add and delete entries; shows a running total. | Modal only, opened from the context menu or a command. |
-| **Pomodoro view** (`src/views/PomodoroView.ts`) | The **UX precedent**: a progress ring with a large timer, "Choose task" and "Clear task" buttons, the chosen task rendered as a task card, Start / Pause / Stop / Skip-break, and a "pomodoros today" stat that opens the stats view. | Pomodoro only. When a Pomodoro has a task, it starts a regular tracker, and it stops only trackers it created. |
-| **Runtime JS API** (since 4.10.0; `app.plugins.getPlugin("tasknotes").api`, `apiVersion === 1`, `hasCapability()`) | `api.time.start(path, {description})`, `stop(path)`, `active()` returning `[{taskPath, task, entry, index}]`, `task(path)` (summary plus normalized entries), `summary({period:"today"})`, `append`, `deleteEntry`. Events: `time.started`, `time.stopped`, `task.updated`, `task.completed`, and others. Lifecycle events: `ready`, `cache.changed`, `unloading`, `settings.changed`. Also `api.ui.taskMenu.show()`, `api.tasks.complete()`, `api.query.tasks()`. | This is a **public, versioned, capability-gated contract**. It largely replaces the "TaskNotes internals" risk named in PROJECT.md (stack and architecture research should confirm this). |
-| **Concurrency model** | **Several trackers on *different* tasks may run at once**. Duplicate trackers on the same task are refused. | The pane cannot assume there is one active timer (see TS-11). |
-| **Pause** | Does not exist for regular tracking. Entries are only `{startTime, endTime?, description?}`. | Pause has to be stop plus a new entry, and the pane must remember the "paused" state itself (see TS-12). |
-
-### jane-t/TaskNotesTimer (v2.0.1, Tauri desktop overlay), verified in source
-
-- A 227×200 always-on-top widget. It polls `GET /api/time/active` every 3 s by default and refreshes the task list every 30 s.
-- The task dropdown is a `<select>` filtered to **status = in-progress only** (not archived, not completed), sorted by due date. There is no search.
-- **START stops every active session, then starts the chosen task.** It enforces one timer at a time, which TaskNotes does not.
-- STOP is the only other control. The big HH:MM:SS clock shows the *current session only*. A dot pulses while running, and a disconnect banner appears after 3 failed polls.
-- **Missing:** pause/resume, task total, estimate, recent tasks, today log, entry description, opening the task, completing the task.
-
-### Demand signals in the TaskNotes issue tracker
-
-- **#2307 (open), "Quick Time Tracking Button".** A commenter asked for *"a panel like the pomodoro one [where] you could select the task and press play and pause and stop … and you could mark it as concluded as well."* That is almost exactly this project.
-- **#2326 (closed in 4.13.7).** It got the stop button. A follow-up asked for *"a command and maybe button to switch the tracked task"*, which is not built yet.
-- **#1670 (open).** Asks that starting one task stop all other trackers.
-- **#2366 (open).** Asks for reminders for time tracking. A commenter wants *"a reminder … when tracked time approaches the timeEstimate value."*
-- **#1079 (closed, deferred).** The maintainer says what is missing is *"a fuller management/status UI for all active timers."*
-
-**The gap in one line:** TaskNotes has every primitive (start, stop, active, entries, events) but no persistent, glanceable control surface for regular tracking. Its only always-visible indicator is the status bar, and **switch** and **pause** do not exist anywhere.
-
----
+**The consensus pattern this project matches:** a manually picked, manually ordered list for the day (Things, Sunsama); unfinished items roll forward silently (Things, Tasks queries); a visible "stale" counter (Sunsama); completed items stay visible until the day ends (Things, Sunsama). Every settled decision lines up with this pattern. Nothing in the settled design contradicts the domain norm.
 
 ## Feature Landscape
 
 ### Table Stakes (Users Expect These)
 
-Without these the pane is no better than the status bar, and the user goes back to it.
+Missing any of these makes the Staged tab feel broken for the "pick, order, work down the list" workflow.
 
-| ID | Feature | Why Expected | Complexity | Notes |
-|---|---|---|---|---|
-| TS-1 | **Dockable sidebar view, ribbon icon and "Open timer pane" command** | Same placement as the Pomodoro view, which is the precedent PROJECT.md names. | LOW | A standard `ItemView`. Re-open in the same sidebar position and reveal it if it already exists (no duplicate leaves). Obsidian restores it with the workspace layout. Users can drag it into a native Obsidian pop-out window, so a custom "always on top" window is not needed. |
-| TS-2 | **Current task header** (title in full, wrapping; click opens the note) | Every timer shows *what* is being timed. The status bar cuts titles at 30 chars. | LOW | Opening the note matches the status bar's click behaviour. Optional secondary line: project or status. |
-| TS-3 | **Live elapsed time for the current entry** (H:MM:SS, large) | The core promise. TaskNotesTimer, Toggl, Clockify and the Pomodoro view all centre on a big clock. | LOW | Compute `now - entry.startTime` on every tick. **Never** keep a counter (see Anti-Features). Tick once per second, and pause rendering while the leaf is hidden, as the Pomodoro view does with `pomodoro-view--rendering-paused`. |
-| TS-4 | **Clear idle state** ("Not tracking" plus a prominent "Start a task" button) | The empty state must still offer the main action, so no clicks are wasted. | LOW | The idle state hosts the picker trigger and the recent list (TS-6, TS-13). |
-| TS-5 | **Stop** (one click) | Done means stopping in one or two clicks. | LOW | `api.time.stop(path, ctx)`. Disable the button while the write is in flight, as TaskNotes' `stopTrackingPending` does. Clears any paused state. |
-| TS-6 | **Start or switch via a searchable task picker** | Switching is the headline gap. TaskNotesTimer's in-progress-only `<select>` is too narrow, and TaskNotes' own selector does not stop the running timer. | MEDIUM | An Obsidian `SuggestModal` or `FuzzySuggestModal` over non-archived, non-completed tasks. Rank tasks touched recently or in-progress first. Show estimate and tracked time in each row. **Switch means stop the active tracker(s), then start the chosen one**, in that order, with a notice if either step fails. If the chosen task is already active, do nothing. Picking from the picker counts as click 2 of the 2-click budget. |
-| TS-7 | **Stays in sync with timers started or stopped elsewhere** (status bar, cards, commands, Pomodoro, HTTP API, Workflows) | The pane is useless if it shows stale state. TaskNotesTimer's main job is this sync, done with a 3 s poll. | MEDIUM | Subscribe to runtime `time.started` / `time.stopped` / `task.updated` / `task.deleted` / `task.moved`, plus lifecycle `cache.changed` / `ready` / `unloading`. Re-read `api.time.active()` on each event. These events are derived from TaskService updates (`TaskNotesAPI.ts`, which compares active-entry counts). File edits that skip TaskService, such as Obsidian Sync from another device or hand edits, may only arrive through cache or metadata events, so keep a cheap fallback (a metadataCache `changed` listener or a slow reconcile every 10–30 s). |
-| TS-8 | **Task total tracked time, including the live entry** | "How long have I spent on this task?" is part of the core value. Cards already show "X tracked". | LOW | **TaskNotes totals leave out the active entry** (`calculateTotalTimeSpent` skips entries with no end). Compute closed-entry seconds plus live elapsed in the pane. TaskNotes' summary helpers work in whole minutes, so the pane should work in seconds from the raw timestamps. |
-| TS-9 | **Graceful degradation** (TaskNotes missing or disabled, API version or capability missing, TaskNotes still loading) | PROJECT.md constraint. Companion-plugin docs require checking `apiVersion` and `hasCapability`. | LOW–MEDIUM | Show an inline message such as "TaskNotes not found / needs ≥ 4.10" instead of crashing. Re-attach on `ready` and detach on `unloading`. Requires capabilities `time.read`, `time.write`, `tasks.read`, `tasks.events`, `lifecycle.events`. |
-| TS-10 | **Correct after a restart or reload** | The timer must survive closing Obsidian. SSTT and Timekeep both advertise timestamp-based persistence. | LOW | Timestamp-based, so this comes free if TS-3 is done right. Paused state (TS-12) must be stored in plugin data. |
-| TS-11 | **Handles several active timers** | TaskNotes allows them, and the status bar, Pomodoro view and HTTP API can all create them. | MEDIUM | Primary display: the most recently started active entry. If more than one is running, show a compact "Also tracking: A (12:03) [stop], B (0:41) [stop]" list. Switch stops **all** active trackers (single-focus model, matching TaskNotesTimer and FR #1670). Decide this explicitly in requirements. |
-| TS-12 | **Pause / resume** | Named in PROJECT.md's core value. Users coming from the Pomodoro view expect a pause button. Toggl and Clockify do the same thing as "continue" (a new entry with the same details). | MEDIUM | Pause = `api.time.stop`, then persist `{pausedTaskPath, pausedAt}` in plugin data. The UI then shows "Paused: <task>, paused 4m ago, [Resume] [Stop]". Resume = `api.time.start(pausedTaskPath)` and clear the state. Stop while paused = clear the state only. **Clear the paused state if any timer starts elsewhere** or the task is completed, deleted or archived. Without the stored state, "paused" looks exactly like "stopped" in the data. |
-| TS-13 | **Recent tasks, one-click resume** | The Toggl and Clockify play-on-a-past-entry pattern is the fastest way to switch back. Named in PROJECT.md. | MEDIUM | Work out the list from `timeEntries` across cached tasks: distinct tasks ordered by latest entry end (or start), top 5–8. Leave out completed and archived tasks and the currently active one. One click equals switch (TS-6 semantics). There is no separate store to drift, and it works across devices. |
+| Feature | Why Expected | Complexity | Notes / dependencies on v0.2 |
+|---|---|---|---|
+| **Two tabs: Staged / Timers**, last-active tab remembered | Q27. A tab that resets to the default on every reopen or reload feels broken in a persistent sidebar pane. | LOW–MEDIUM | Tab strip in `TimerPaneView` header. Persist `activeTab` in data.json via `persistAll`. Timers tab = the v0.2 view unchanged. |
+| **Tab badges: count, and a "running" cue on Timers** | In a narrow sidebar you only see one tab. Without a cue, a timer started from the status bar or a task card is invisible while the Staged tab is showing. That breaks the Core Value ("always see what task is being timed"). | LOW | Staged: count of unfinished staged tasks. Timers: count of running regular timers, with an accent when it is above 0. Reads the existing `TimerStore`. **GAP-1** (not in the decisions). |
+| **Stage via picker** (all not-done, not-archived tasks, no suggestions) | Q14. The only way in. | LOW | Reuse `TaskPickerModal` and `filterAndSortTasks`. Today the picker *includes* completed tasks (sorted last), so it needs a mode that excludes completed statuses (`api.catalog.statuses().isCompleted`) as well as archived ones. See GAP-2 for tasks that are already staged. |
+| **Stage writes `staged: <logical today>`** via `api.tasks.update` | Q9, Q15 | MEDIUM | "Today" must be the **logical day** (rollover hour), not the calendar date. A task staged at 01:30 with a 4 AM rollover gets *yesterday's* date. Otherwise it shows "1 day staged" the next morning or drops off early. Goes through `WriteQueue`. |
+| **Setup notice when the `staged` user field isn't registered** | Q15. `tasks.update` silently drops unregistered keys, so without a check the stage action fails silently. | LOW–MEDIUM | Check `settings.userFields` through the public API if it is exposed. Otherwise verify by reading back after the first write. Replace the Staged tab's empty state with the notice, and disable the Stage button. |
+| **Unstage ✕ deletes the key** | Q11 | LOW–MEDIUM | Needs a "delete key" path through `tasks.update` (for example `{ staged: null }` or `undefined`). Confirm how TaskNotes serializes this (it might write `staged: ""` instead of removing the key). Phase research flag. |
+| **Staged list derived, not stored**: unfinished tasks with `staged <= logicalToday` | Q10. Tasks staged elsewhere (chat, hand edits, Sync from another device) must appear. | MEDIUM | Derive from `api.tasks.list` (or `query.tasks`) on `task.updated` / `cache.changed`, the same refresh model as `TimerStore`. Exclude completed statuses and archived tasks. Ignore `staged` dates in the future (see Differentiators). |
+| **Manual order, persisted, new arrivals at the bottom** | Q3. The workflow is "work down the list". | LOW | Reuse `moveKey` / `moveKeyBy` and a second `CardOrderStore` keyed by **task path**. Note that the v0.2 `orderTimers` puts *unsaved items at the top*. Staged needs unsaved items at the **bottom**, so add a parameter rather than copying the function. |
+| **Drag + ArrowUp/Down reorder; up/down buttons on mobile** | Q5, Q20 | LOW–MEDIUM | v0.2 drag and keyboard code carries over. The mobile buttons are new. Gate them on `Platform.isMobile` so they don't clutter desktop cards. Decide whether the Timers tab gets them too (cheap, consistent). |
+| **Idle staged card: title chip, start, ✓, ✕, drag handle** | Q20, PROJECT.md | LOW | Reuse the card renderer. Title click opens the note. Right-click opens `ui.taskMenu`. |
+| **Running staged card: also elapsed, pause, stop** | PROJECT.md | MEDIUM | The same `TimerController` actions as the Timers tab. A running staged task appears in **both** tabs, so both must render from the same store and pause records (no divergent state). |
+| **Paused staged card state** | The v0.2 pause is "stop + record". A paused staged task is neither idle nor running. | LOW–MEDIUM | **GAP-3**: the decisions define idle and running only. Recommendation: show resume (in place of start) plus ✓ and ✕, with the frozen session time, matching the v0.2 paused card. |
+| **Start from a staged card** keeps other timers running | v0.2 semantics (Start adds a concurrent timer) | LOW | Reuse the existing start path, including the Pomodoro refusal notice. |
+| **Complete ✓ from the staged list** (stops timer, writes completed status, clears `staged`, goes to Done today) | Q12, Q17 | MEDIUM | Reuse the v0.2 Complete flow (persisted completed-status preference, stop the same open entry). Then clear `staged`. Order: status, then stop, then clear `staged`. If clearing `staged` fails after the status write succeeded, the task is still excluded from the list because it is completed, so the failure is harmless. Record it in Done today. |
+| **Recurring ✓ completes today's instance only** | Q16 | MEDIUM | `api.recurring.toggleCompleteInstance(path, date)`. Pass the **logical date** explicitly. Otherwise, at 01:30 TaskNotes may complete the calendar-today instance instead. It is a *toggle*, so guard against double-clicks (busy state, `WriteQueue`). Also stop a running timer first, because toggleCompleteInstance probably won't. |
+| **"Done today" section** until rollover | Q4, Q12 | MEDIUM | A collapsible section at the bottom of the Staged tab. Source = the plugin's record (paths + logical date) intersected with `completedDate == logicalToday` (or `complete_instances` includes today for recurring tasks). Clear the record at rollover. Persist via `persistAll`. |
+| **Rollover at a configurable hour (default 4 AM), no writes, days-staged badge** | Q10, Q19 | MEDIUM | A pure `logicalDay(now, hour)` helper in `model/`. Re-derive when the logical day changes: check it in the existing 1 s tick, plus on sleep/wake and focus (v0.2 already has a wake reconnect). Badge: nothing for 0 days, "1d", "2d", and so on, like Sunsama's numbered circle. Keep it quiet: no red, and no overdue language. |
+| **Empty states** | Every list product has them, and the Staged tab starts empty every day the user doesn't carry tasks over. | LOW | (a) Nothing staged: "Nothing staged for today" plus a Stage tasks button. (b) All done: "All staged tasks done" above the Done today list. (c) Field missing: the setup notice. (d) TaskNotes unavailable: the existing v0.2 degraded state, shared by both tabs. |
+| **Rename / move / delete while staged** | Paths are the order key. Without this, a renamed task jumps to the bottom and a deleted one leaves a ghost in the order or Done today. | LOW | The frontmatter moves with the file, so staged state survives a rename by itself. Only the plugin's path-keyed data needs fixing: on vault `rename`, rewrite the staged order and Done-today record (mirror `PauseStore.renamePath`, folder moves included). On `delete`, drop the entries. Stale keys are already ignored by the order helpers, so a missed event only costs a position. |
+| **Rename: display name "TaskNotes Task Control"** | Q21/Q22 | LOW | Manifest `name`, view title, ribbon tooltip, command names. The id stays the same. |
 
-### Differentiators (Competitive Advantage)
+### Differentiators (cheap wins that fit this user's workflow)
 
-None of the existing surfaces do these. Each one ties back to the core value: see it, and act in one or two clicks.
+| Feature | Value Proposition | Complexity | Notes |
+|---|---|---|---|
+| **Days-staged badge** (already decided) | Sunsama's best idea without the auto-archive: it shows at a glance what keeps slipping. | LOW | Settled (Q10). Listed here because most "today" tools (Todoist, Things) don't have it. |
+| **Total tracked time on idle staged cards** (muted, for example "1:42 total") | When choosing what to start next, you can see how much time you have already put in. Uses data the pane already computes. | LOW | Sum of closed `timeEntries` from TaskInfo (existing `timeMath`). Show it only if non-zero. Skip it if it crowds the narrow card. |
+| **Future `staged` date = quietly deferred** | Falls out of `staged <= today` for free. Hand-editing `staged: 2026-11-20` hides a task until that day. | NONE | Don't build UI for it. Just make sure the derive logic treats future dates as "not yet" rather than errors. |
+| **Staging a running task shows it running immediately** | A task you're already timing (started from the status bar) joins the Staged list in its live state. No restart, no duplicate entry. | LOW | Falls out of rendering staged cards from the shared timer store. The behavior is worth stating so nobody adds a "start on stage". |
+| **Undo for an accidental ✓ in Done today** | Completing writes a status and closes the entry. A misclick on a narrow card is likely. Things allows unchecking while the item is still in Today. | MEDIUM | Reopen with the previous status (or toggle the recurring instance back) and re-stage with the original `staged` date. **GAP-6**. Candidate P2, not required. |
+| **Staged-tab running indicator in the Timers tab** (for example a small "staged" dot on cards) | Shows which running timers belong to today's plan. | LOW | Nice-to-have. Skip if it adds noise. |
 
-| ID | Feature | Value Proposition | Complexity | Notes |
-|---|---|---|---|---|
-| D-1 | **Estimate progress** (progress bar or "1h 20m / 2h", turning a warning colour when over) | Turns "time spent" into "am I on budget?". Commenters on #2366 asked for this. Nothing in TaskNotes shows tracked time against the estimate live. | LOW | `task.timeEstimate` is in minutes. Hide the bar when there is no estimate. Cheap and high value, so it is a strong P1 candidate. |
-| D-2 | **Today's log** (per-task totals for today plus a list of entries, including the live one; today's grand total shown at the top) | Answers "what did I do today?" without opening stats. Toggl has this. TaskNotes only has the Pomodoro and general stats views. | MEDIUM | **Build it from raw entries, not from `api.time.summary({period:"today"})`.** Verified in `timeTrackingUtils.ts`: summary assigns each entry to the day it *started*, rounds each entry down to whole minutes (so pause/resume micro-entries undercount), and returns only the top 10 tasks. Clip entries that cross midnight. Each row opens the task, and row actions can resume it. Collapsible section; secondary per PROJECT.md. |
-| D-3 | **Optional "what are you working on?" description** when starting or switching | Toggl and Clockify centre on the description. TaskNotes entries already support `description`, and the editor shows it. | LOW | `api.time.start(path, {description})`. Must be optional and off by default so it never costs an extra click. Optionally carry the description over on resume. |
-| D-4 | **Complete task from the pane** (checkmark next to the current task) | #2307 asked for "mark it as concluded". Finishing a task usually means stopping its timer too. | LOW | `api.tasks.complete(path)`. TaskNotes' auto-stop setting (on by default) stops the tracker. If that setting is off, call `time.stop` first. Then offer the picker or recent list. |
-| D-5 | **Pane commands for hotkeys**: "Pause/resume current timer", "Switch task…", "Stop current timer", "Open timer pane" | #2326 asked for a switch command. Keyboard users get the pane's semantics without the mouse. | LOW | Reuse the same controller the buttons use. "Switch task…" is the command TaskNotes does not have. |
-| D-6 | **TaskNotes' own context menu on the current task** (right-click or "⋯") | Gives access to every task action (status, priority, dates, "Edit time entries") with no reimplementation. | LOW | `api.ui.taskMenu.show({taskPath, event})` is a public runtime API. |
-| D-7 | **"Fix entries" shortcut** for "I forgot to stop" or "I started late" | Timekeep and SSTT both treat editing entries as essential. Forgotten timers are the most common data-quality problem. | LOW (via menu) / MEDIUM (direct) | Easiest route: D-6's menu includes "Edit time entries". Opening `TimeEntryEditorModal` directly needs a non-public plugin method (`plugin.openTimeEntryEditor`), so guard it with feature detection or skip it. |
-| D-8 | **Long-running timer nudge** (the clock changes colour or shows a one-time notice after N hours, or once the estimate is passed) | A cheap substitute for idle detection. Catches the forgotten timer. Matches FR #2366. | LOW–MEDIUM | Purely visual first (CSS state), with an optional single `Notice`. No OS-level idle monitoring. |
-| D-9 | **Rich current-task context** (project, due, priority, status chips; optional mini task card) | The Pomodoro view renders the chosen task as a task card. Context helps decide whether to switch. | LOW–MEDIUM | Prefer drawing a few chips yourself rather than embedding TaskNotes' card renderer (an internal API). |
-| D-10 | **Create a new task and start tracking from the picker** | Ad-hoc work ("call with X") often has no task yet. TaskNotes' own selector allows creation. | MEDIUM | `api.tasks.create({title})`, then switch. Optional NLP through `api.nlp.parse`. Can be deferred. |
-| D-11 | **Responsive and compact layout** (narrow sidebar, short heights, readable in light and dark themes) | Sidebars are 250–400 px wide. The Pomodoro view has layout-size classes for the same reason. | LOW–MEDIUM | Use Obsidian CSS variables only. Hide secondary sections when space is short. |
-
-### Anti-Features (Commonly Requested, Often Problematic)
+### Anti-Features (seem useful, conflict with this workflow or with the settled design)
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---|---|---|---|
-| **Pane-owned timer state** (an in-memory counter, or the pane's own record of "running since") | Seems simpler than reading TaskNotes. | Drifts on sleep, reload or a delayed tick (TaskNotes fixed the same bug in Pomodoro, #136/#1500). Goes out of sync with the status bar and other devices. | Always derive from `timeEntries` timestamps through `api.time.active()`. The only pane-owned state is the paused marker (TS-12). |
-| **Writing `timeEntries` frontmatter directly** | Avoids depending on TaskNotes APIs. | Skips TaskService, so no events, cache updates, webhooks or status bar refresh. Risks format drift (see the timezone bug #1602). Breaks PROJECT.md's data-format rule. | `api.time.start/stop/append`. Companion-plugin docs say this explicitly. |
-| **A new "paused" field in task frontmatter** | Would make pause survive across devices. | Invents schema TaskNotes does not know. Other tools see a stopped timer anyway. | Store paused state in plugin `data.json`. Accept that it is per device. |
-| **Pomodoro controls or countdown timers** (#1160) | "While you're in there…" | Duplicates the Pomodoro view and confuses ownership (Pomodoro stops only trackers it created). Out of scope per PROJECT.md. | At most a link to open the Pomodoro view. Show Pomodoro-created trackers like any others. |
-| **Reports, charts, CSV/PDF export** (Timekeep-style; #978, #425) | Natural next step after a today log. | Big scope. TaskNotes already has the Stats and Pomodoro Stats views. Out of scope per PROJECT.md. | Today's log only, plus an "Open TaskNotes stats" link. |
-| **OS-level idle detection** (the Toggl desktop style) | Accurate time without manual fixes. | Needs system activity hooks, is platform-specific, and Obsidian does not offer it cleanly. Easy to get wrong and annoying. | D-8 long-running nudge plus D-7 entry fixing. |
-| **HTTP API polling** (the TaskNotesTimer architecture) | Proven by TaskNotesTimer. | Needs the API server and a token (TaskNotesTimer v2.0.1 had to add 401 handling), adds latency, out of scope. | In-process runtime API plus events. |
-| **Several concurrent entries on the *same* task** (#1079) | Parallel work. | TaskNotes refuses it, and stop cannot target a specific entry. The maintainer deferred it. | Do not support it. Resume on an already-active task does nothing. |
-| **A custom always-on-top or floating window** | TaskNotesTimer has it. | Out of scope. Obsidian already lets any leaf be moved to a pop-out window. | Document "drag the pane to a new window". |
-| **Rebuilding the time-entry editor or the task card renderer** | Polished in-pane editing. | Duplicates TaskNotes UI and pulls in internal APIs that will break. | D-6 / D-7: reuse TaskNotes' context menu and modal. |
-| **Auto-start or auto-stop rules** (start on status change, and so on) | Automation. | TaskNotes core already auto-stops on complete, and TaskNotes Workflows covers auto-start. | Leave it to TaskNotes and Workflows. Make sure the pane reacts correctly when those rules fire. |
-| **Another status-bar item** | Visible even when the pane is closed. | TaskNotes already shows one with a stop button. Two indicators is noise. | None. The pane complements the status bar. |
-| **Toggl-style projects, clients, billable flags, tags on entries** | Familiar from SaaS trackers. | Not part of the TaskNotes data model. Scope creep. | TaskNotes projects and tags already exist on the task, so show them read-only (D-9). |
+| Auto-archive / auto-unstage after N days (Sunsama) | Keeps the list from growing stale | Writes to notes on a timer and makes tasks disappear without explanation. Contradicts "roll forward with no writes" (Q10). | The days-staged badge plus manual ✕ |
+| "Overdue" section or red styling for rolled-over tasks (Todoist) | Urgency | Nags, and treats a choice as a failure. Staging isn't a due date. | A neutral "Nd" badge |
+| Rewriting `staged` to today at every rollover | Simplifies "today" filtering | Writes to every staged note daily and causes Sync churn. Destroys the days-staged information. | Derive from `staged <= logicalToday` (settled) |
+| Picker suggestions (due today, overdue, high priority, "add yesterday's") | Faster planning | Explicitly rejected (Q14). Duplicates TaskNotes' Agenda and Bases views. | Plain ranked search over all open tasks |
+| Daily planning ritual / shutdown wizard (Sunsama) | Habit building | Modal friction in a sidebar companion. The user's workflow is a quick pick. | The Stage button in the empty state |
+| Time estimates / planned-hours totals / timeboxing on a calendar | "Is my day realistic?" | Estimate progress is deferred to v2. Calendar blocking is Day Planner's and Amie's territory. | Defer; possibly a v2 "estimate progress" feature |
+| Staging for future days / a weekly plan | Planning ahead | A second date UI and scope creep. `scheduled` already exists for this, and is reserved for its intended use. | A hand-edited future `staged` date works (see Differentiators) |
+| Drag a card from Timers to Staged (cross-tab drag) | Feels natural | Tabs are mutually exclusive in a narrow pane, so cross-tab drag targets are awkward and fragile. | A "Stage" item in the card's context menu or the picker (P3) |
+| A single shared order across tabs | "One order" | Explicitly superseded (Q27 vs Q23). The orders are independent. | Two `CardOrderStore` instances |
+| Unstage auto-stops the timer | "Removing it from today means I'm done with it" | Destroys a running session through a list-membership action. It would be the only non-time button that touches time entries. | ✕ only deletes the key. The timer keeps running and stays visible in Timers (see GAP-4). |
+| Pomodoro display or 🍅 start on staged cards | Original Q7/Q25 | Rejected for v0.3 (it would orphan the Pomodoro's time entry). | v0.2 behavior: hidden; start refused with a notice |
+| Auto-registering the `staged` user field | Zero setup | No official API. Relies on TaskNotes internals. | A one-time setup notice (Q15) |
+| Writing `staged` with `processFrontMatter` as a fallback | Works when the field isn't registered | Bypasses TaskNotes' cache, events and field mapping. Violates the data-format constraint. | `api.tasks.update` only, plus the notice |
 
----
+## Expected behaviors for the specific scenarios asked about
+
+| Scenario | Expected behavior | Status |
+|---|---|---|
+| Add to today | Picker → write `staged: logicalToday` → card appears at the bottom of the Staged order. Re-staging a task that is already staged refreshes its date, which resets its days-staged count (Q10). | Settled, except for picker visibility (GAP-2) |
+| Reorder | Drag, ArrowUp/Down, mobile up/down. Saved per tab. Unknown paths go to the bottom. Missing paths are ignored. | Settled |
+| Carry-over | Unfinished tasks with `staged < today` stay, with an "Nd" badge. No writes. The day boundary is the logical day at the rollover hour. | Settled. The logical-date write rule is an implementation must. |
+| Done today | Completed via the pane, or completed elsewhere if the task is in the plugin's record and `completedDate == today`. Shown in a collapsible section, and cleared at rollover. | Settled. The external-completion detail is GAP-5. |
+| Empty states | Four variants (nothing staged, all done, field missing, TaskNotes unavailable) | Not explicit in the decisions. Recommended above. |
+| Staging a task that is already running | Appears immediately as a running card in Staged, and stays in Timers. Same session and pause state in both tabs. | Follows from the design. Make it explicit in requirements. |
+| Unstaging a running task | **GAP-4.** Recommendation: ✕ deletes the key only. The timer keeps running, and the card leaves Staged but stays in Timers. No confirm dialog. Optionally show a notice "Still timing in Timers". | Open |
+| Completing from the list | Status (or recurring instance) → stop the open entry → clear `staged` → Done today | Settled (Q12, Q16, Q17) |
+| Task completed outside the pane | It drops out of the unfinished list automatically, because completed statuses are excluded. Its `staged` key stays on the note unless the pane clears it. | **GAP-5** |
+| Task deleted while staged | The card vanishes on the next refresh. The vault `delete` event drops it from the order and the Done-today record. | Recommended (mirrors `PauseStore`) |
+| Task renamed or moved while staged | The key moves with the file. The vault `rename` event rewrites the order and Done-today paths, so its position is kept. | Recommended (mirrors `PauseStore.renamePath`) |
+| Task archived while staged | Excluded from Staged, the same as completed tasks (matches the picker's "not archived"). No pane write. | Recommended |
+| Completed task reopened in TaskNotes | `staged` was already cleared at completion, so it doesn't return to Staged. It falls out of Done today because `completedDate` no longer matches. The user restages it if wanted. | Acceptable; note it in docs |
+| Tab UX in a narrow sidebar | Two compact tabs at the top of the pane: text labels with counts ("Staged 4", "Timers 1"). Accent on Timers when anything is running. The header actions change per tab: Staged has a Stage button; Timers keeps Start, Pause all and Stop all. Last-active tab persisted. Keyboard: tabs reachable with Tab/Arrow keys and `aria-selected` set. | Recommended (GAP-1, GAP-7) |
 
 ## Feature Dependencies
 
 ```
-TS-9 TaskNotes API detection / graceful degrade
-  └─ (gates everything below)
+logicalDay(now, rolloverHour)  [new pure helper]
+    └──required by──> staged write date, staged-list derivation, days-staged badge,
+                      Done-today record and clearing, recurring instance date
 
-TS-1 Sidebar view shell
-  └─ TS-7 Sync layer (events + reconcile → "active entries" model)
-       ├─ TS-3 Live elapsed (render tick from startTime)
-       │    └─ TS-10 Correct after reload (free if TS-3 is timestamp-derived)
-       ├─ TS-2 Current task header
-       │    ├─ TS-8 Task total incl. live entry
-       │    │    └─ D-1 Estimate progress ──enhances──> D-8 Long-running / over-estimate nudge
-       │    ├─ D-4 Complete task
-       │    ├─ D-6 TaskNotes context menu ──enables──> D-7 Fix entries
-       │    └─ D-9 Rich task context
-       ├─ TS-11 Multiple active timers display
-       └─ TS-5 Stop
-            └─ TS-12 Pause/resume (stop + persisted paused marker + start)
+User-field setup check
+    └──gates──> Stage, Unstage, Complete's "clear staged" step
 
-TS-6 Task picker + switch semantics (stop-all → start)
-  ├─ requires TS-5 (stop) and TS-7 (know what is active)
-  ├─ TS-13 Recent tasks (reuses switch semantics; derived from timeEntries)
-  ├─ D-3 Optional description on start
-  ├─ D-10 Create-and-start
-  └─ D-5 Commands (Switch…, Pause/resume, Stop) reuse the same controller
+StagedStore (derive from tasks.list + events)  [new; mirrors TimerStore refresh model]
+    ├──requires──> TaskNotesBridge additions: tasks.update, recurring.toggleCompleteInstance,
+    │              user-field read (top-level / customProperties)
+    ├──requires──> existing TimerStore + PauseStore (running and paused state per path)
+    └──required by──> Staged tab rendering, tab counts, empty states
 
-TS-4 Idle state ──hosts──> TS-6 picker trigger + TS-13 recent list
+Staged order store  [reuse CardOrderStore + cardOrder helpers, keyed by path]
+    └──requires──> orderTimers variant with "unsaved → bottom"
+    └──requires──> vault rename/delete handling (pattern exists in PauseStore / main.ts)
 
-D-2 Today's log
-  └─ requires an entry-aggregation helper (seconds, midnight-clipped)
-       └─ shared with TS-8 (total) and TS-13 (recency)
+Stage picker  ──reuses──> TaskPickerModal + filterAndSortTasks (new exclude-completed mode)
 
-Conflicts:
-  TS-11 "switch stops all" ──conflicts──> users who run parallel trackers on purpose
-      (resolve with an explicit decision; a setting is a later option, not v1)
-  TS-12 paused marker ──conflicts──> external starts (must clear marker on any time.started)
+Staged card actions ──reuse──> TimerController start / pause / resume / stop / complete, WriteQueue
+    └── Complete (staged) ──extends──> v0.2 Complete + clear staged + Done-today record
+    └── Recurring complete ──new──> toggleCompleteInstance(path, logicalDate)
+
+Done-today section ──requires──> Complete (staged), logicalDay, persistAll record
+
+Tabs ──requires──> view restructure (header actions per tab, persisted activeTab)
+Mobile up/down buttons ──enhances──> both tabs' ordering (Platform.isMobile)
+Rename to "TaskNotes Task Control" ──independent── (can ship in any phase)
 ```
 
 ### Dependency Notes
 
-- **Everything needs TS-7 and TS-9 first.** The pane is a view over TaskNotes state, so the "active entries" model and its event and reconcile loop is the foundation. Build it before any controls.
-- **TS-12 (pause) needs TS-5 (stop) and plugin-data persistence**, and it has to watch TS-7 events to stay correct (clear the marker when a timer starts elsewhere or the task is completed or deleted).
-- **TS-13 (recent), TS-8 (total) and D-2 (today) share one entry-aggregation helper.** Write it once, in seconds, from raw `timeEntries`, with midnight clipping. Do not use `api.time.summary` (it rounds down to minutes, assigns entries by start day, and returns only the top 10).
-- **TS-6 switch semantics must be fixed before TS-13 and D-5.** All three call the same `switchTo(path)` routine.
-- **D-7 can come almost free through D-6** (TaskNotes' menu already has "Edit time entries"). Only a direct button needs the non-public `openTimeEntryEditor`.
-
----
+- **logicalDay comes first.** Every date-touching feature depends on it. If any write or comparison uses the raw calendar date, staged tasks at 00:00–04:00 get off-by-one dates that persist in frontmatter.
+- **Bridge additions come before any staging UI.** `tasks.update` (including key deletion semantics) and the user-field check are the riskiest unknowns. Probe them against TaskNotes 4.13.x in the dev vault before building cards.
+- **The Staged tab reuses the Timers tab's store, not a copy of it.** Running and paused state must come from the same `TimerStore`/`PauseStore` so the two tabs can't disagree.
+- **The tabs conflict with the v0.2 single-header layout.** The header actions (Start, Pause all, Stop all) need a per-tab home. Decide this in the tabs phase, before adding the Stage button.
 
 ## MVP Definition
 
-### Launch With (v1): the core value
+### Launch With (v0.3.0)
 
-- [ ] **TS-9** API detection and degraded states. Without it the pane crashes or misleads.
-- [ ] **TS-1** Sidebar view, ribbon icon, command. The container.
-- [ ] **TS-7** Sync layer (events plus reconcile fallback). Without it, every control is untrustworthy.
-- [ ] **TS-2 / TS-3 / TS-4** Current task, live elapsed, idle state. "Always see what is timed and for how long."
-- [ ] **TS-8** Task total including the live entry. Part of the core value statement.
-- [ ] **TS-5** Stop. One click.
-- [ ] **TS-6** Picker plus switch (stop-all, then start). The headline gap TaskNotes leaves.
-- [ ] **TS-11** Multiple active timers shown correctly. TaskNotes creates them, so v1 must not lie about them.
-- [ ] **TS-12** Pause/resume with a persisted marker. Named in the core value.
-- [ ] **TS-13** Recent tasks, one-click resume. Named in PROJECT.md. Reuses switch.
-- [ ] **D-1** Estimate progress. Very cheap once TS-8 exists, and high value.
+- [ ] logicalDay helper + rollover hour setting (default 4) — everything else uses it
+- [ ] `staged` key setting + setup notice when the user field is missing — otherwise staging silently fails
+- [ ] Bridge: `tasks.update` (set and delete key), `recurring.toggleCompleteInstance`, user-field read
+- [ ] Tabs (Staged / Timers), persisted active tab, counts and running cue
+- [ ] Stage picker (exclude completed and archived) + unstage ✕
+- [ ] Staged list derivation (`staged <= today`, unfinished), days-staged badge, roll-forward with no writes
+- [ ] Persisted staged order, bottom-insertion, drag/keyboard, mobile up/down
+- [ ] Staged cards: idle, running and paused states, reusing TimerController
+- [ ] Complete from Staged (regular + recurring instance) → clear `staged` → Done today section, cleared at rollover
+- [ ] Rename/delete handling for staged order and Done-today record
+- [ ] Empty states
+- [ ] Display rename to "TaskNotes Task Control", release 0.3.0
 
-### Add After Validation (v1.x)
+### Add After Validation (v0.3.x)
 
-- [ ] **D-2** Today's log. Secondary per PROJECT.md. Add once the aggregation helper has been proven by TS-8 and TS-13.
-- [ ] **D-5** Commands (Switch…, Pause/resume, Stop). Add when hotkey use turns out to matter; cheap.
-- [ ] **D-6 / D-7** TaskNotes context menu, which also gives "fix entries". Add once forgotten-timer corrections come up.
-- [ ] **D-4** Complete-from-pane. Add if finishing tasks from the pane feels natural in use.
-- [ ] **D-3** Optional entry description. Add if the user starts writing entry notes.
-- [ ] **D-11** Compact layout polish. Do after real sidebar use.
+- [ ] Undo complete from Done today — add if misclicks happen in practice
+- [ ] Total tracked time on idle staged cards — add if choosing the next task needs it
+- [ ] "Stage" entry from a Timers card (context menu) — add if staging running tasks via the picker feels roundabout
 
 ### Future Consideration (v2+)
 
-- [ ] **D-8** Long-running or over-estimate nudge. Needs tuning to avoid nagging.
-- [ ] **D-9** Rich task context chips or card. Nice, not core.
-- [ ] **D-10** Create-and-start from the picker. Adds task-creation edge cases.
-- [ ] Setting: "switch stops only the primary timer" instead of all of them. Only if parallel tracking turns out to be real for the user.
-- [ ] Mobile layout check. TaskNotes runs on mobile, but PROJECT.md targets desktop.
-
----
+- [ ] Estimate progress / planned-time totals for the day (already on the v2 list)
+- [ ] Pomodoro display and start on staged cards (rejected for v0.3, revisit with `api.pomodoro.*`)
+- [ ] Today's log / per-day time summary (already on the v2 list)
 
 ## Feature Prioritization Matrix
 
 | Feature | User Value | Implementation Cost | Priority |
 |---|---|---|---|
-| TS-9 API detection / degrade | HIGH | LOW | P1 |
-| TS-1 Sidebar view + ribbon + command | HIGH | LOW | P1 |
-| TS-7 Sync with external starts/stops | HIGH | MEDIUM | P1 |
-| TS-2 Current task header | HIGH | LOW | P1 |
-| TS-3 Live elapsed | HIGH | LOW | P1 |
-| TS-4 Idle state | MEDIUM | LOW | P1 |
-| TS-5 Stop | HIGH | LOW | P1 |
-| TS-6 Picker + switch | HIGH | MEDIUM | P1 |
-| TS-8 Task total incl. live | HIGH | LOW | P1 |
-| TS-11 Multiple active timers | MEDIUM | MEDIUM | P1 |
-| TS-12 Pause/resume | HIGH | MEDIUM | P1 |
-| TS-13 Recent tasks | HIGH | MEDIUM | P1 |
-| TS-10 Correct after reload | HIGH | LOW (falls out of TS-3) | P1 |
-| D-1 Estimate progress | MEDIUM | LOW | P1 |
-| D-2 Today's log | MEDIUM | MEDIUM | P2 |
-| D-5 Pane commands (switch/pause) | MEDIUM | LOW | P2 |
-| D-6 TaskNotes context menu | MEDIUM | LOW | P2 |
-| D-7 Fix entries shortcut | MEDIUM | LOW via D-6 | P2 |
-| D-4 Complete task | MEDIUM | LOW | P2 |
-| D-3 Entry description | LOW | LOW | P2 |
-| D-11 Compact layout | MEDIUM | LOW–MEDIUM | P2 |
-| D-8 Long-running nudge | MEDIUM | LOW–MEDIUM | P3 |
-| D-9 Rich task context | LOW | LOW–MEDIUM | P3 |
-| D-10 Create-and-start | LOW | MEDIUM | P3 |
+| logicalDay + rollover setting | HIGH | LOW | P1 |
+| User-field setup check + notice | HIGH | LOW–MEDIUM | P1 |
+| Stage picker + unstage | HIGH | LOW–MEDIUM | P1 |
+| Staged list derivation + days badge | HIGH | MEDIUM | P1 |
+| Tabs + persisted active tab + counts/running cue | HIGH | LOW–MEDIUM | P1 |
+| Staged order (drag/keyboard) | HIGH | LOW | P1 |
+| Staged card idle/running/paused states | HIGH | MEDIUM | P1 |
+| Complete + Done today (incl. recurring) | HIGH | MEDIUM | P1 |
+| Rename/delete path following | MEDIUM | LOW | P1 |
+| Empty states | MEDIUM | LOW | P1 |
+| Mobile up/down buttons | LOW (desktop-verified only) | LOW | P1 (settled scope), best effort |
+| Display rename | LOW | LOW | P1 (settled) |
+| Undo complete | MEDIUM | MEDIUM | P2 |
+| Total time on idle cards | MEDIUM | LOW | P2 |
+| Stage from a Timers card menu | LOW | LOW | P3 |
 
-**Priority key:**
-- P1: Must have for launch
-- P2: Should have, add when possible
-- P3: Nice to have, future consideration
+## Open questions (genuine gaps; none contradict settled decisions)
 
----
-
-## Competitor Feature Analysis
-
-| Feature | TaskNotes status bar / commands | TaskNotes Pomodoro view | jane-t/TaskNotesTimer | Toggl / Clockify | Obsidian trackers (SSTT, Timekeep, Day Planner) | **Our approach** |
-|---|---|---|---|---|---|---|
-| Always-visible current task | Status bar, title cut at 30 chars | Yes (Pomodoro only) | Yes (overlay) | Running-timer bar | Timekeep: status bar; Day Planner: "active clocks" in sidebar | Full title in the pane, click to open the note |
-| Live session time | m:ss, ticks every 1 s | Countdown ring | Big HH:MM:SS (session only) | Big running clock | Code-block render | Big H:MM:SS from `startTime` |
-| Task total vs estimate | Cards show "X tracked" / "X estimated" (static) | — | — | Project totals | Per-block totals | Total including live entry, plus estimate progress bar |
-| Stop | Status-bar button (4.13.7), command | Stop | STOP | Stop | Stop/End | One-click stop |
-| Pause/resume | **None** | Pause/Resume (Pomodoro only) | **None** | "Continue" = new entry | Day Planner: resume a completed clock | Pause = stop plus marker; Resume = new entry (Toggl "continue" model) |
-| Switch task | **None** (start does not stop others) | Choose/clear task | Dropdown (in-progress only); START stops all | Start new = stop current | — | Fuzzy picker; switch = stop all, then start |
-| Recent tasks | — | — | — | Recent entries with play buttons | — | Derived from `timeEntries`, one-click resume |
-| Today's log | — | "Pomodoros today" stat → stats view | — | Day list with totals | Timekeep exports; SSTT stats companion | Collapsible today section (v1.x), built from raw entries |
-| Sync with other surfaces | Native | Native | 3 s HTTP poll | Cloud sync | N/A (own data) | Runtime events plus reconcile fallback |
-| Entry editing | TimeEntryEditorModal | — | — | Full editor | Timekeep/SSTT inline edit | Reuse TaskNotes' menu or modal |
-| Multiple timers | Count plus total | — | Forces single | Single | Timekeep: several in status bar | Primary plus "also tracking" list |
-| Setup cost | None | None | HTTP API, token, separate install | Account | None | None (in-process) |
-
----
-
-## Feature-Level Gotchas Found During Research
-
-These are flagged for PITFALLS and for requirements wording. Each was verified in the TaskNotes source.
-
-1. **Totals leave out the running entry.** `calculateTotalTimeSpent` skips entries with no `endTime`, so the pane must add live elapsed itself (TS-8).
-2. **`api.time.summary` is unsuitable for today's log.** It assigns each entry to the day it started, rounds each entry down to whole minutes (pause/resume creates many short entries, each losing up to 59 s), and returns only the top 10 tasks (D-2).
-3. **Starting does not stop other trackers.** Switch has to be built as two writes (stop, then start). Decide what happens if the stop fails. Recommendation: abort the start and show a notice (TS-6).
-4. **Runtime time events are inferred from TaskService update diffs.** Changes that skip TaskService (Sync from another device, hand-edited YAML) may only show up through cache events, so a reconcile fallback is required (TS-7).
-5. **Version floor.** The runtime API needs TaskNotes ≥ 4.10.0. The status-bar stop button is ≥ 4.13.7, which matters only for comparison. Feature-detect with `hasCapability`, not version strings (TS-9).
-6. **Starting a task that is already tracked is refused** with a notice. Make resume and switch to the active task do nothing in the pane, rather than surfacing that notice.
-
----
+- **GAP-1 Tab cues.** Should the tab labels show counts, and should Timers get a running accent while Staged is showing? Recommended: yes. It protects the Core Value when the pane sits on Staged.
+- **GAP-2 Already-staged tasks in the stage picker.** Exclude them (cleaner) or show them marked "staged Nd" so picking one refreshes the date (Q10)? Recommended: show them marked, sorted after unstaged tasks, because re-staging is the only built-in way to reset the days count.
+- **GAP-3 Paused staged card.** Not defined by "idle vs running". Recommended: resume + ✓ + ✕ with the frozen session time, matching the v0.2 paused card.
+- **GAP-4 Unstaging a running task.** Recommended: delete the key only. The timer continues and stays visible in Timers.
+- **GAP-5 Completion outside the pane.** Should the pane clear the stale `staged` key on a task completed elsewhere? Recommended: no write on observation (it would echo writes on Sync from other devices). The leftover key is harmless because completed tasks are excluded. Clear it if the task is restaged or unstaged. Also confirm that Done today includes externally completed tasks that were in the plugin's record (Q12 implies yes).
+- **GAP-6 Undo complete.** Not in the decisions. Recommended for P2, not v0.3.0.
+- **GAP-7 Header actions per tab.** Recommended: Stage on the Staged tab. Start, Pause all and Stop all on the Timers tab. Whether Stop all should also appear on Staged needs a user call.
+- **Research flag (phase level):** how `api.tasks.update` deletes a user-field key (null vs undefined vs empty string), whether TaskNotes exposes `userFields` through the public API for the setup check, and whether `toggleCompleteInstance` stops a running timer or emits `time.stopped`. Verify all three against TaskNotes 4.13.x in the dev vault before planning card actions.
+- **Research flag:** date semantics. `completedDate` and `complete_instances` use TaskNotes' calendar date, while the pane uses the logical day. Between midnight and the rollover hour, "completed today" checks must compare against the date TaskNotes actually wrote, or Done today misses items completed at 01:00.
 
 ## Sources
 
-- TaskNotes source, v4.13.8, commit `4516792` (2026-10-12), cloned from https://github.com/callumalpass/tasknotes. Files read: `src/ui/StatusBarService.ts`, `src/ui/TaskActionCoordinator.ts`, `src/commands/taskNotesCommands.ts`, `src/views/PomodoroView.ts`, `src/modals/TimeEntryEditorModal.ts`, `src/modals/TaskSelectorWithCreateModal.ts`, `src/ui/taskCardProperties.ts`, `src/ui/taskCardState.ts`, `src/api/runtime-api.ts`, `src/api/TaskNotesAPI.ts`, `src/utils/helpers.ts`, `src/utils/timeTrackingUtils.ts`, `src/types.ts`. Confidence: HIGH (primary source).
-- TaskNotes docs: `docs/features/time-management.md`, `docs/javascript-api.md`, `docs/companion-plugins.md`. Release notes `docs/releases/4.8.0.md`, `4.10.0.md`, `4.13.7.md`. Confidence: HIGH.
-- TaskNotes issues: #2307, #2326, #1670, #2366, #1079, #1655, #296 (GitHub REST API). Confidence: HIGH as evidence of user demand.
-- jane-t/TaskNotesTimer v2.0.1 source (`README.md`, `VERSION_HISTORY.md`, `src/main.js`, `src/index.html`): https://github.com/jane-t/TaskNotesTimer. Confidence: HIGH.
-- Super Simple Time Tracker README: https://github.com/Ellpeck/ObsidianSimpleTimeTracker. Confidence: MEDIUM.
-- Timekeep README: https://github.com/jacobtread/obsidian-timekeep. Confidence: MEDIUM.
-- Day Planner README (time-tracking / active clocks section): https://github.com/ivan-lednev/obsidian-day-planner. Confidence: MEDIUM.
-- Clockify extension help (continue from entry list, play icon copies details): https://clockify.me/help/apps/chrome-extension and https://clockify.me/chrome-time-tracking. Confidence: MEDIUM.
-- Toggl Track idle detection and reminders: https://support.toggl.com/focus/toggl-focus-desktop-app and https://dev.classmethod.jp/articles/toggl-track-desktop-app-solving-timer-problems/. Confidence: LOW–MEDIUM (secondhand for "continue").
-- Not reviewed, by user preference: the zczs520/tasknotes 5.2.3 fork.
+- Project: `.planning/PROJECT.md`, `.planning/research/STAGING-DECISIONS.md`, v0.2 source (`src/model/cardOrder.ts`, `src/model/taskPicker.ts`, `src/state/PauseStore.ts`, `src/main.ts`) — HIGH
+- [Sunsama: Task rollover basics](https://help.sunsama.com/docs/task-rollover-and-recurring-tasks-the-basics), [Sunsama archive](https://help.sunsama.com/docs/usage-guides/archive), [Sunsama changelog Nov 2022 (rollover count always shown)](https://roadmap.sunsama.com/changelog/weekly-update-november-4-2022) — MEDIUM
+- [Todoist: Plan your day with the Today view](https://www.todoist.com/help/articles/plan-your-day-with-the-today-view-UVUXaiSs) — MEDIUM
+- [Things: Cultured Code support](https://culturedcode.com/things/support/articles/4001304/), [Effective task management with Things (Sebastian De Deyne)](https://sebastiandedeyne.com/effective-task-management-with-things/), [Things 3 complete guide (vanja.io)](https://vanja.io/things-3-complete-guide/) — MEDIUM (Logbook move-timing setting from prior knowledge, not re-verified: LOW)
+- Obsidian Day Planner, Obsidian Tasks / Dataview query patterns, TaskNotes views: prior knowledge of the plugins' documented behavior, not re-fetched this session — LOW–MEDIUM, used only for contrast, not for decisions
 
 ---
-*Feature research for: TaskNotes companion timer pane (Obsidian)*
-*Researched: 2026-10-13*
+*Feature research for: daily task staging in TaskNotes Task Control (v0.3)*
+*Researched: 2026-11-12*

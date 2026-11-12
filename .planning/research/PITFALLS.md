@@ -1,352 +1,349 @@
 # Pitfalls Research
 
-**Domain:** Obsidian companion plugin: a sidebar pane that monitors and controls TaskNotes (callumalpass/tasknotes) regular time tracking, running in the same process
-**Researched:** 2026-10-13
-**Confidence:** HIGH for TaskNotes behaviour (read directly from TaskNotes source at commit `451679289`, v4.13.8, and from the `5.0.0-beta.5` tag). MEDIUM for Obsidian platform behaviour (official docs plus established plugin practice). Web-only corroboration is marked where used.
+**Domain:** Adding daily task staging (v0.3 "Staging Tasks") to an existing Obsidian companion plugin that drives TaskNotes through Runtime API v1
+**Researched:** 2026-11-12
+**Confidence:** HIGH for the TaskNotes write, read and recurring behavior below, which was read directly from the TaskNotes 4.13.8 bundle in `dev-vault/.obsidian/plugins/tasknotes/main.js` (minified names quoted so they can be found again). MEDIUM for Sync and multi-device behavior, which comes from Obsidian typings and general knowledge rather than a test. The Personal Vault runs TaskNotes **4.13.0**, but these findings come from **4.13.8**. Re-check the write and delete paths against 4.13.0 before relying on them there.
 
-> **Correction to PROJECT.md:** PROJECT.md assumes TaskNotes "internals ... aren't a stable public API". That was true before 4.10.0 but is now out of date. Since **TaskNotes 4.10.0** there has been a **versioned in-process JavaScript Runtime API** (`app.plugins.getPlugin("tasknotes").api`, `apiVersion === 1`, capability flags) built for companion plugins. It includes `api.time.start/stop/active/task/summary`, `api.events.on(...)` (with `time.started`/`time.stopped`), `api.lifecycle`, `api.query`, and typed errors. The TaskNotes docs (`docs/companion-plugins.md`) say companion plugins *should* use it "instead of rewriting TaskNotes frontmatter directly". Most of the pitfalls below are either avoided by using this API or are traps that remain even when you use it.
+The v0.1 pitfalls file is in git history. This file covers only what v0.3 adds.
 
-**Suggested phase labels used below** (for the roadmapper to rename):
-- **P1 Bridge:** TaskNotes connection layer: discovery, version/capability gating, lifecycle, events, and a typed facade
-- **P2 Pane + Live Timer:** ItemView, ribbon/command, current task, live elapsed, total
-- **P3 Controls:** stop, pause/resume, switch
-- **P4 Picker + Recents**
-- **P5 Today's Log**
-- **P6 Hardening:** reload/disable cycles, popout/mobile, perf, sleep/wake
+---
+
+## TaskNotes facts these pitfalls rest on (from the 4.13.8 bundle)
+
+| # | Fact | Where in the bundle |
+|---|------|------|
+| F1 | `api.tasks.update(path, patch, ctx)` calls `requireTask`, then `taskService.updateTask(task, patch)`, with **no filtering or validation at the API layer**. `tasks.patch` is the same function. | `async updateTask(e,t,r){let a=await this.requireTask(e),i=await this.withMutationContext([a.path],r,()=>this.plugin.taskService.updateTask(a,t));return cr(i)}` |
+| F2 | The frontmatter writer (`mapToFrontmatter` → `wz`) writes a user field only if its key is in `settings.userFields` **and** its value is not `undefined`. It looks for the value on the patch top level first, then in `patch.customProperties`. Unregistered top-level keys are dropped silently. | `for(let u of a)Object.prototype.hasOwnProperty.call(d,u.key)&&d[u.key]!==void 0?i[u.key]=d[u.key]:c&&...` |
+| F3 | Mapped values are then applied with `m!==void 0&&(n[p]=m)`. **`null` is written as a value, not deleted.** `""` is written as an empty string. `undefined` is a no-op. | `dfe`: `Object.entries(u).forEach(([p,m])=>{m!==void 0&&(n[p]=m)})` |
+| F4 | `patch.customFrontmatter` is applied **without any registration check**. `null` deletes the key and any other value sets it. This shape is **not** in the documented `TaskNotesTaskPatch` (`extends Partial<TaskInfo>`, `details?`), so it is an undocumented path. | `dfe`: `t.customFrontmatter&&Object.entries(t.customFrontmatter).forEach(([p,m])=>{m===null?delete n[p]:n[p]=m})` |
+| F5 | The TaskInfo that `update` returns, and that the cache and the `task.updated` event receive, is `{...originalTask, ...updates}`. **It contains the key you sent even when nothing was written to disk.** The cache is updated straight from this merge. | `ufe`: `let c={...n,...e,...t,path:r,dateModified:a}` → `r.cacheManager.updateTaskInfoInCache(l,f)` → `r.emitter.trigger(nt,{...updatedTask:f})` |
+| F6 | On read, `mapFromFrontmatter` copies a frontmatter key onto TaskInfo (top level and `customProperties`) **only if it is a registered user field**. If `staged` is not registered, the pane can't see it through any TaskNotes read API, even when it is in the file. | `if(a.length>0){...for(let d of a)e[d.key]!==void 0&&(c[d.key]=e[d.key],l[d.key]=e[d.key]);...o.customProperties=...}` |
+| F7 | Every `updateTask` also writes `dateModified` and re-normalizes `tags`. Staging and unstaging are therefore real content edits that sync and show up in diffs. | `dfe`: `let d={tags:Yo(n.tags),...t,...r,dateModified:a}` |
+| F8 | `api.settings.snapshot()` (capability `settings.snapshot`) returns a deep JSON copy of all TaskNotes settings, including `userFields: [{id, displayName?, key, type, defaultValue?}]`. | `getSettingsSnapshot(){return JSON.parse(JSON.stringify(this.plugin.settings))}`; user fields matched by `d.id` / `c.key` / `r.type==="date"` |
+| F9 | A user field with a `defaultValue` is stamped onto **every newly created task**. | `Fqe(o, e.userFields, ...)` in task-creation defaults |
+| F10 | `recurring.toggleCompleteInstance(path, date?)` is a **toggle**. If the computed instance is already in `complete_instances`, it removes it. | `Ece`: `d=!l.includes(o)` … `else{u.complete_instances=l.filter(T=>T!==o)` |
+| F11 | When `date` is omitted, the target is the task's **`scheduled` date** (for non-completion-anchored tasks), not today. Only with no `scheduled` value does it fall back to the local calendar today. | `kM(n,e){if(e)return e;if(n.recurrence_anchor!=="completion"&&n.scheduled)return it(ne(n.scheduled));...}` |
+| F12 | Even with an explicit date, a scheduled-anchored task **snaps to an occurrence**. If the date is not an occurrence, TaskNotes completes the latest uncompleted occurrence within one interval before it, otherwise the next one. The date recorded in `complete_instances` can therefore differ from the date you passed. | `XUe` / `Sce` |
+| F13 | The `date` string goes through `new Date(t)`. A bare `YYYY-MM-DD` parses as UTC midnight, and TaskNotes formats instances with **UTC** getters (`ae`), so a bare date string round-trips correctly. An ISO string with a time, or a `Date` built from local time, can shift by one day. | `toggleRecurringComplete`: `i=t?new Date(t):void 0`; `ae(n)` uses `getUTCFullYear/Month/Date` |
+| F14 | With occurrence notes (`occurrence_materialization === "on_completion"`, or an existing materialized occurrence), completion toggles the status of a **separate occurrence note** rather than only appending to the parent's `complete_instances`. | `toggleRecurringTaskCompleteWithOccurrenceNotes` → `findMaterializedOccurrence` / `materializeOccurrence` → `toggleStatus` |
+| F15 | `completedDate` is the **local calendar date** at completion. It knows nothing about the pane's rollover hour. | `Ko()` uses `getFullYear/getMonth/getDate` |
+| F16 | Runtime events carry `context` (`source`, `correlationId`, `reason`) and `before`/`after`. Our own writes come back to us as `task.updated` events. | `runtime-api.ts` `TaskNotesRuntimeEventPayload` (via WebFetch of upstream main) |
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Reaching into TaskNotes private internals instead of the Runtime API
+### Pitfall 1: Trusting the `tasks.update` return value (or the next read) as proof the `staged` write landed
 
 **What goes wrong:**
-The plugin calls `plugin.taskService.startTimeTracking(task)`, `plugin.cacheManager.getAllCachedTasks()`, `plugin.emitter.on("task-updated")`, `plugin.getActiveTimeSession()`, or `plugin.taskActionCoordinator.*`. These are internal and change between point releases. TaskNotes ships very often (4.10.0 through 4.13.8 plus six v5 betas in a few months). One refactor, such as the `TaskActionCoordinator` extraction or `emitter` becoming an alias of `cacheManager` (`pluginBootstrap.ts:133`), silently breaks the pane.
+The user hasn't registered `staged`, or registered it under a different key, or the setting changed. The pane calls `api.tasks.update(path, { staged: "2026-11-12" })`, which resolves without error. The returned TaskInfo has `staged: "2026-11-12"`, and an immediate `tasks.list`/`tasks.get` shows it too. The card appears in Staged. Nothing was written to the file (F2). Seconds later, Obsidian's metadata cache re-parses the file, TaskNotes rebuilds the TaskInfo from disk (F6), and the card disappears. On restart it is gone for good.
 
 **Why it happens:**
-Older forum and Discord snippets and the `jane-t/TaskNotesTimer` inspiration predate the Runtime API. The internals are reachable from `app.plugins.plugins.tasknotes` and look convenient.
+TaskNotes builds the returned task, the cached task and the event payload from `{...original, ...patch}` (F5), not from what it wrote. "No throw" and "the returned object has my field" both look like success.
 
 **How to avoid:**
-- Use only `tasknotes.api` (the `TaskNotesRuntimeApiV1` contract in `src/api/runtime-api.ts`).
-- At connect time, gate on `api.apiVersion === 1` and on `api.hasCapability(...)` for each of `time.read`, `time.write`, `tasks.read`, `tasks.events`, `lifecycle.events`, and `query.tasks`. If any is missing, show a clear "TaskNotes ≥ 4.10 required" state in the pane.
-- Put every TaskNotes call behind one `TaskNotesBridge` module, which is the only file that touches `app.plugins`. When TaskNotes changes, only that file changes.
-- **Do not** follow the docs' suggestion to `import type ... from "tasknotes/src/api/runtime-api"`. That file imports `@tasknotes/model`, `../types`, `../types/settings`, and `../services/NaturalLanguageParser`, which pulls TaskNotes' source tree and dependencies into your type-check. Vendor a small hand-written `tasknotes-api.d.ts` that covers only the members you use (time, events, lifecycle, query, and the `TaskInfo`/`TimeEntry` fields you read). Use `import type` only, and never value-import anything from TaskNotes, because esbuild would bundle a second copy.
+1. **Gate before writing.** Read `api.settings.snapshot().userFields` (gate on `hasCapability("settings.snapshot")`). Find the field whose `key === configuredKey`. Refuse to stage, and show the setup notice, when it is missing. Re-check on `lifecycle` `settings.changed`, and cache the result: snapshot is a full deep copy (F8), so don't call it per render.
+2. **Verify after writing, from disk, not from TaskNotes.** After the update resolves, wait for that file's `app.metadataCache.on("changed")` event (or a short bounded timeout), then read `app.metadataCache.getFileCache(file)?.frontmatter?.[key]`. This is a read-only Obsidian API, not a TaskNotes internal. If the value is absent, show "Staging didn't save: register the `staged` user field in TaskNotes settings" and drop the optimistic card.
+3. In the bridge, treat "registered" as a three-state value: `registered`, `missing`, `unknown` (capability absent, or snapshot threw). Use `unknown` to allow the write and rely on step 2. Never treat it as `missing` and block silently.
+4. Test with a fake whose `update` mimics F2+F5: it returns the merged task but does not persist unregistered keys. The v0.2 fake almost certainly persists whatever it is given.
 
 **Warning signs:**
-- Any `as any` access to `plugin.taskService`, `plugin.cacheManager`, or `plugin.emitter` outside the bridge.
-- TypeScript compile pulling in files from a `tasknotes` dev dependency.
-- The pane breaks after a TaskNotes auto-update while the rest of TaskNotes still works.
+A staged card appears and then vanishes within about 1 s. Staged tasks don't survive a restart. `grep staged` over the vault returns nothing after staging.
 
-**Phase to address:** P1 Bridge. This is foundational and must exist before any UI.
+**Phase to address:**
+The staging data-layer phase (the first v0.3 phase: bridge `stage`/`unstage`, registration check, setup notice). This must come before any UI depends on it.
 
 ---
 
-### Pitfall 2: Writing `timeEntries` yourself and racing TaskNotes (lost updates / resurrected timers)
+### Pitfall 2: "Unstage deletes the key" done with `undefined`, `null` or `""`
 
 **What goes wrong:**
-The pane edits frontmatter with `app.fileManager.processFrontMatter`, or it uses `api.tasks.update(path, { timeEntries })` or `api.time.append(...)` to implement pause or switch. Either path can overwrite a concurrent TaskNotes write. Two examples:
-- The user hits the status-bar stop at the same moment as the pane's pause. One write wins and a closed entry reopens, or an entry is duplicated.
-- Pomodoro writes an entry while the pane writes a stale snapshot.
+Each obvious patch fails differently:
+- `{ staged: undefined }`: a **silent no-op** (F2/F3). The task stays staged, and the card reappears on the next refresh.
+- `{ staged: null }`: writes `staged: null` or an empty `staged:` into the YAML (F3). The key stays, so Q11 ("unstaging deletes the key") is violated, Bases and Dataview see a null property, and any `staged != null` or `staged exists` filter misreads it.
+- `{ staged: "" }`: writes `staged: ""`, with the same problems plus a type mismatch for a `date` user field.
 
 **Why it happens:**
-- TaskNotes serializes start/stop only through a **per-path promise lock** inside `TaskService.withTimeTrackingLock` (`TaskService.ts:1555`). It re-reads persisted frontmatter inside `processVaultFrontMatter` before deciding.
-- `tasks.update` and `time.append` are **not** under that lock. They do read-modify-write on the **whole array** from the cached `TaskInfo`: `appendTimeEntry` builds `[...task.timeEntries, entry]` (`TaskNotesAPI.ts:2242`), and `taskUpdatePlanning.ts:87` replaces `timeEntries` wholesale.
-- The cache updates through a **300 ms debounced** metadata listener (`TaskManager.ts:58`), so a snapshot taken right after a stop can still show the entry as open.
-- The `timeEntries` frontmatter key is **user-remappable** (`fieldMapper.toUserField("timeEntries")`), so a raw `frontmatter.timeEntries` write can also go to the wrong key.
+TaskNotes has explicit delete-on-undefined code for core fields only (`Rqe` handles `due`, `scheduled`, `timeEstimate` and so on). User fields go through the generic `m!==void 0` writer. The only path that really deletes is the undocumented `customFrontmatter: { key: null }` (F4).
 
 **How to avoid:**
-- Make only two kinds of write: `api.time.start(path, opts?, ctx)` and `api.time.stop(path, ctx)`. Both route through the locked, re-reading TaskService path.
-- Implement pause as `time.stop`, and resume as `time.start` on the same task. Never edit entries to pause.
-- Never call `tasks.update({timeEntries})`, `time.append`, or `processFrontMatter` on task files in v1.
-- Always pass a mutation context `{ source: "tasknotes-timer-pane", correlationId, reason }`. TaskNotes events then carry it, which helps debugging and lets you ignore your own echo.
-- Read time data only from API `TaskInfo` objects. Never read raw `metadataCache` frontmatter keys.
+- Decide this in the data-layer phase, prove it against the real bundle in the dev vault (write, then read raw frontmatter), and record it as a decision. Options:
+  - **(a)** `api.tasks.update(path, { customFrontmatter: { [key]: null } })`. This deletes the key (F4) and goes through TaskNotes' lock, cache and events. Risk: it is not in the documented patch type, so feature-test it at bind time against a scratch value, or at least wrap it so a later TaskNotes change shows up as a verification failure (Pitfall 1, step 2) and not as silent data drift. Add it to the vendored type as an explicitly marked undocumented field, with a compile-time test pinning it.
+  - **(b)** Accept `null` as the "unstaged" representation and amend Q11. This is simpler and fully documented-path, but leaves `staged: null` litter in every task ever staged.
+- Recommended: **(a)**, with a fallback to (b) if the feature test fails, and a log line.
+- Whatever is chosen, the **reader** must treat missing, `null`, `""`, and anything that isn't a valid `YYYY-MM-DD` the same way: not staged. Users edit frontmatter by hand, and TaskNotes' own edit modal may write an emptied user field back as `""`.
+- Note that `customFrontmatter` with a non-null value **also bypasses registration** (F4). Don't use it to write `staged` as a way around the setup notice. Reads would still be blind without registration (F6), so the tab would stay empty.
 
 **Warning signs:**
-- Code that builds or mutates a `TimeEntry[]`.
-- An entry with an `endTime` reappears without one, or adjacent entries with identical `startTime` appear after rapid clicks.
-- Time data lands under `timeEntries` when the user mapped it to another key.
+The ✕ button "works" but the card comes back. `staged: null` appears in files.
 
-**Phase to address:** P1 Bridge (the facade exposes only start/stop) and P3 Controls.
+**Phase to address:**
+Staging data-layer phase. Write a test for each of `undefined`, `null`, `""`, and key absent.
 
 ---
 
-### Pitfall 3: Assuming exactly one active timer
+### Pitfall 3: Computing "today" with UTC or with millisecond subtraction (timezone, DST, rollover hour)
 
 **What goes wrong:**
-The pane shows "the current task" and assumes it is the only one. TaskNotes **explicitly allows several concurrent trackers on different tasks** and prevents duplicates only on the same task. The docs say: "Active sessions on different tasks can exist at the same time." Issue #1670, asking to auto-stop other timers, is still an open feature request, and the 4.13.7 "Stop active time tracking" command opens a chooser "with several" trackers. If the pane assumes one timer:
-- "Stop" stops the wrong one.
-- "Switch" leaves the old timer running, so two timers accrue.
-- Totals double-count wall time.
+- `new Date().toISOString().slice(0, 10)` gives the **UTC** date. In UTC-5 after 7 PM, it stages tasks for tomorrow, so they vanish from a list filtered to `staged <= today`.
+- `logicalDay = localDate(Date.now() - rolloverHour * 3600_000)` breaks on DST days. On the spring-forward day, 04:30 local is only 3 elapsed hours after midnight, so subtracting 4 h lands on 23:30 the previous day, and the rollover happens at 05:00 instead of 04:00. In autumn it happens an hour early.
+- "Days staged" computed as `(Date.parse(today) - Date.parse(staged)) / 86_400_000` across a DST change gives 0.958 or 1.04, so `Math.floor` and `Math.round` disagree.
+- Comparing `completedDate === logicalToday` fails between midnight and the rollover hour. TaskNotes writes the **calendar** date (F15), and the pane's logical day is still yesterday, so a task completed at 01:30 never shows in "Done today".
 
 **Why it happens:**
-Single-timer apps like the TaskNotesTimer overlay and Toggl train that mental model. TaskNotes' `api.time.start` does **not** stop other tasks' timers (`TaskNotesAPI.ts:2197`).
+Date-only values have no timezone, so every conversion through `Date` is a chance to shift a day. The rollover hour adds a second notion of "today" that TaskNotes doesn't share.
 
 **How to avoid:**
-- Model the state as `ActiveEntry[]` (from `api.time.active()`, which returns `{taskPath, task, entry, index}` for every open entry). The UI shows one "primary" entry, the most recent `startTime`, plus a visible "+N other timers running" indicator with per-entry stop.
-- "Switch to task B" must explicitly `time.stop` **every** other active entry the user intends to end. Decide this in requirements: stop all, or stop only the primary. Recommended: stop the primary and warn if others remain.
-- Handle malformed data: one task can contain more than one open entry after sync conflicts or hand edits. TaskNotes' `getActiveTimeEntry` returns the first one, and its start will refuse with "Time tracking is already active for this task".
+- Write one pure module (`model/logicalDay.ts`, Obsidian-free, fully tested) and route every date through it:
+  - `logicalDay(now: Date, rolloverHour): string`. Take the local calendar Y/M/D from `now`. If `now.getHours() < rolloverHour`, step back one calendar day with `new Date(y, m, d - 1)`, not by subtracting milliseconds. Format with local getters.
+  - `daysBetween(a: "YYYY-MM-DD", b): number`. Parse both into `Date.UTC(y, m-1, d)` and divide by 86 400 000. UTC arithmetic has no DST.
+  - `isValidDay(s)`: a strict `/^\d{4}-\d{2}-\d{2}$/` check plus a round-trip check. Also accept a datetime value and normalize it (`"2026-11-12T00:00"` → its first 10 characters), because Obsidian's property editor can turn a date property into a datetime.
+- Write `staged` as the **logical** day. Staging at 01:00 belongs to the previous logical day, consistent with the list.
+- Build "Done today" mainly from the plugin's own record (`{path, logicalDay, completedAt}`). Use `completedDate` only as a secondary signal, matched against **both** the logical day and the calendar day of the record's timestamp.
+- For recurring tasks, pass the logical day as a bare `YYYY-MM-DD` string (F13). Never pass a `Date`, `toISOString()` or a datetime.
+- Tests: freeze the clock (Vitest `vi.setSystemTime`) and set `TZ` per test file, or use the `process.env.TZ` matrix trick, at minimum for `America/New_York` (both DST transitions), `UTC`, `Pacific/Auckland`, and a non-hour-offset zone (`Asia/Kolkata`). Cover rollover hour 0 and 23, and the change of rollover setting mid-day.
 
 **Warning signs:**
-- Types like `activeTask: TaskInfo | null` instead of an array.
-- After switching, TaskNotes' status bar shows two trackers.
+Tasks staged in the evening vanish. Off-by-one "staged 2 days" right after a DST weekend. Done today is empty after a late-night completion.
 
-**Phase to address:** P2 (data model) and P3 (switch semantics). Requirements must state the policy explicitly.
+**Phase to address:**
+Staging data-layer phase (the module and its tests), consumed by the rollover / Done-today phase.
 
 ---
 
-### Pitfall 4: Non-atomic switch and pause/resume (double-clicks, partial failure)
+### Pitfall 4: Rollover never fires while Obsidian stays open (overnight, sleep/wake, clock changes)
 
 **What goes wrong:**
-"Switch" is two awaited writes, `stop(A)` then `start(B)`. Each write waits for the metadata cache, because `waitForFreshTaskData` polls up to 10 times with 50 ms × i backoff, so a write can take hundreds of milliseconds. During that window:
-- A double-click fires a second switch.
-- The user clicks a different recent task, so two starts race. TaskNotes' lock is **per path**, so starts on *different* tasks are not serialized, and you can end up with two timers.
-- `start(B)` fails (task file renamed or deleted, "already active", TaskNotes threw), leaving **nothing** running with no feedback.
+The Staged list and "Done today" are computed once per data refresh. If Obsidian is left open overnight and nothing in TaskNotes changes, the pane keeps showing yesterday's Done today and yesterday's days-staged counts. After a laptop wakes, timers were suspended and the first tick may be hours late. If the device clock is corrected backwards (NTP, or manual and timezone travel), the logical day goes **backwards** and a naive "prune records older than today" either loses today's record or resurrects yesterday's.
 
 **Why it happens:**
-TaskNotes has no transactional "switch" API, and the per-path lock gives a false sense of safety.
+Rollover is a time event, not a data event. The v0.2 store only refreshes on TaskNotes events, the 45 s safety resync, and the wake-gap detection in the view tick.
 
 **How to avoid:**
-- Run every control action through **one pane-level serial operation queue** (a single in-flight promise). Disable the buttons and show a busy state while it is pending.
-- Order the switch as `stop(A)` → `start(B)`. If `start(B)` fails, surface a Notice with a "Resume A" action rather than silently leaving nothing running.
-- Treat `TaskNotesApiError.code` (`task_not_found`, `task_file_not_found`, `operation_failed`) and the "already active" / "No active time tracking session" messages as expected outcomes. Re-read state after any failure.
-- Accept a small gap of up to about 1 s between A's `endTime` and B's `startTime`. The public API has no `stopTime` parameter; only the internal `taskService.stopTimeTracking(task, stopTime, expectedStartTime)` has one. Do not reach into internals to close the gap.
+- Derive `logicalDay` in the existing 1 s view tick, which already does wake-gap detection (`TimerPaneView` around line 705). When it differs from the last rendered day, re-render both tabs and request a store refresh. Don't schedule a `setTimeout` for 04:00: it is wrong after sleep, DST or a clock change.
+- Prune the Done-today record **only when the logical day moves forward** past an entry's day, and only on load or a forward rollover. If the day goes backwards, keep everything and log once.
+- Bound the Done-today record (keep only entries for the current logical day plus a small cap, mirroring `MAX_STORED_ORDER`), so a clock jumping far forward and back can't grow data.json.
+- Changing the rollover hour in settings recomputes `logicalDay` immediately. Make sure it doesn't prune the record (treat it like a backwards move until the next forward boundary).
 
 **Warning signs:**
-- Buttons that stay enabled while a write is in flight.
-- Rapid clicking in manual testing produces two active entries or a missing entry.
+At 9 AM, "Done today" still lists last night's work until you click something. Records disappear after the clock is corrected.
 
-**Phase to address:** P3 Controls.
+**Phase to address:**
+Rollover / Done-today phase. Its UAT must include a native "leave it open across the rollover hour" check and a sleep/wake check. Per the v0.2 retrospective, schedule these as an explicit hands-on session; don't let them get skipped.
 
 ---
 
-### Pitfall 5: Pause state that exists only in memory or in the pane
+### Pitfall 5: A refresh-driven "cleanup" write loops forever on our own `task.updated` echoes
 
 **What goes wrong:**
-After pause (which is a stop), TaskNotes has **no record** that the task is paused rather than stopped. After an Obsidian restart, a plugin reload, or switching devices, the pane forgets the paused task, or shows "Paused" for a task the user has since started elsewhere, completed, or deleted.
+It is tempting to reconcile in the refresh: "task is completed but still has `staged` → clear it", "staged date is in the future → fix it", "recurring instance done today → clear `staged`". Each fix is a `tasks.update`, which emits `task.updated` (F5/F16), which the bridge turns into `emitData()` → refresh → reconcile again. With a working write it settles after one extra round. When the write is **silently dropped** (Pitfall 1: unregistered key, or `undefined`), the condition never clears and the plugin writes to the file in a tight loop. Every loop also bumps `dateModified` (F7), producing Sync churn and conflict risk.
 
 **Why it happens:**
-TaskNotes has no native pause for regular tracking. Its own Pomodoro pause uses the same stop-then-new-entry semantics (`PomodoroService.pausePomodoro` → `stopOwnedTimeTracking`; resume → `startOwnedTimeTracking`), which confirms the approach, but the "paused" flag is companion-owned state.
+Read paths that write. The v0.2 design never wrote from a refresh, but staging introduces state that seems to need hygiene.
 
 **How to avoid:**
-- Persist `{ pausedTaskPath, pausedAt }` in the plugin's `saveData`.
-- Re-validate it on load and on every relevant event:
-  - Clear it if any timer starts on any task (the user moved on).
-  - Clear it if the task is deleted, completed, or archived.
-  - Follow renames via `task.moved`.
-- Define pause in requirements as "stopped, with one-click resume to the same task". It is not a frozen session. Each pause/resume cycle creates one more `timeEntries` item, which is expected but is TaskNotes-visible fragmentation (see Pitfall 9 for rounding).
-- Optionally write a time-entry `description` on resume. This is not recommended for v1, because `api.time.start` with a description does a second, non-locked `tasks.update` write (`TaskNotesAPI.ts:2207-2222`).
+- **Rule: refresh and render never write.** All `staged` writes come from explicit user actions (stage, unstage, ✓ complete) through the existing `WriteQueue`. This matches the "unfinished roll forward without writes" decision and the memory note to defer to TaskNotes' own mechanisms.
+- Handle stale state on **read**, not by writing. A task in a completed status, archived, or (for recurring tasks) with today in `complete_instances` is excluded from Staged regardless of its `staged` value. A future `staged` date is shown as not yet due (or treated as today; decide in discuss), never rewritten.
+- Tag every pane write with `context.source = "tasknotes-timer-pane"` (already done for time writes). Coalesce echoes through the existing 200 ms debounce. Don't try to skip our own echoes entirely: the refresh is cheap and keeps the pane honest.
+- If a cleanup write is ever added, guard it with a per-`(path, value)` "attempted this session" set so it can run at most once.
 
 **Warning signs:**
-- Pause state held in a View field, so it is lost when the pane closes.
-- "Resume" shown for a completed task.
+`dateModified` on a task keeps changing while idle. The console shows repeated updates. Obsidian Sync shows constant uploads.
 
-**Phase to address:** P3 Controls.
+**Phase to address:**
+Staging data-layer phase (state the rule in the plan). Check it in every later phase's code review.
 
 ---
 
-### Pitfall 6: Missing timers started or stopped outside the pane (sync and external edits)
+### Pitfall 6: Recurring ✓ completes the wrong instance, un-completes, or closes the series
 
 **What goes wrong:**
-The pane subscribes only to `time.started` / `time.stopped` and misses changes that come from file edits, such as:
-- Obsidian Sync or iCloud bringing in a timer started on mobile.
-- The user editing YAML by hand.
-- A git pull.
-
-Confirmed in source: for file-originated changes, `TaskManager.handleFileChanged` triggers `task-updated` **without `originalTask`** (`TaskManager.ts:194`). The API's normalizer then has no `before`, so it emits `task.created` + `task.updated` and **never** `time.started`/`time.stopped` (`TaskNotesAPI.ts:2726-2840`). The same file change also produces a spurious `task.created`.
+- Calling `api.tasks.complete(path)` on a recurring task sets a completed status on the whole series (that is why Q16 exists). The branch must be on fresh data at click time.
+- Calling `api.recurring.toggleCompleteInstance(path)` **with no date** completes the instance on the task's `scheduled` date (F11), which is often not today, for example an overdue weekly task.
+- Passing today on a non-occurrence day completes a **different, snapped** instance (F12). "Done today means `complete_instances` includes today" (Q16) is then false, so the task never appears in Done today.
+- A double click, a retry after a timeout, or the button staying enabled while the write is in flight hits the toggle twice and **un-completes** it (F10).
+- With occurrence notes (F14), completion changes a **separate occurrence note**. The parent's `complete_instances` may change later or not at all, and an extra file appears. Watching only the parent misses it.
+- After the instance completes, the series' status stays open, so a status-based "unfinished" filter keeps showing the task as staged.
 
 **Why it happens:**
-The docs list `time.started`/`time.stopped` as the time events, and it is natural to trust them as complete.
+The recurring API is a toggle with smart date resolution, designed for calendar UIs, not "I did it today".
 
 **How to avoid:**
-- Treat events as "something may have changed" hints, not as state deltas.
-- Subscribe to `task.updated`, `task.deleted`, `task.moved`, `time.started`, `time.stopped`, and lifecycle `cache.changed` / `cache.rebuilt`. On any of them, **debounce about 250 ms** and re-derive active state from `api.time.active()`.
-- Make re-derivation idempotent. TaskNotes typically fires `task-updated` **twice** per mutation: once immediately from `TaskService`, and again about 300 ms later from the debounced metadata listener.
-- Compare state by `(taskPath, entry.startTime)` keys, not by object identity. The API returns fresh deep copies every call (`copyTaskInfo`), so identity checks always say "changed" and cause re-render churn.
-- Add a low-frequency safety resync, for example every 30-60 s and when the pane becomes visible.
+- At click time, re-read the task (`api.tasks.get`) inside the `WriteQueue`. If `task.recurrence` is set, use the recurring path. Otherwise use the v0.2 completion path with the user's completed-status preference.
+- Always pass the logical day explicitly as a bare `YYYY-MM-DD` (F13).
+- **Before calling the toggle, check whether `complete_instances` already contains the target day.** If it does, don't call it (it would un-complete). Treat the task as done and just clear `staged`.
+- After the call, read the returned or fresh TaskInfo and record what changed in the plugin's Done-today record: the path and logical day the user acted on, not what TaskNotes chose. Build Done today from **that record**, not from `complete_instances.includes(today)`.
+- Disable the ✓ button from click until the queue entry settles (the v0.2 busy-key pattern).
+- Order: complete first, then clear `staged`. If clearing fails, the task is done but still staged. The read-side filter (Pitfall 5) hides it from Staged, and the record shows it in Done today. Tell the user with a notice; don't retry automatically.
+- Gate on `hasCapability("recurring.write")`. Without it, disable ✓ for recurring tasks and show a notice. Never fall back to `tasks.complete`.
+- The dev vault needs a seeded recurring task with `scheduled` in the past, one completion-anchored task, and, if the feature is used, one with occurrence notes.
 
 **Warning signs:**
-- Starting a timer on phone, then syncing to desktop, leaves the pane idle while the status bar shows tracking.
-- The pane flickers twice per action.
+A recurring task's next due date jumps unexpectedly. A recurring task is missing from Done today. A second click brings a task back.
 
-**Phase to address:** P1 Bridge (the event-to-resync pipeline) and P2. Verify in P6 with a manual YAML edit test.
+**Phase to address:**
+Completion / Done-today phase. Flag it for **deeper research during planning** (occurrence-notes mode and the 4.13.0 vs 4.13.8 difference).
 
 ---
 
-### Pitfall 7: Load order and TaskNotes disable/enable/update lifecycle
+### Pitfall 7: data.json and frontmatter diverge across devices (Obsidian Sync, git)
 
 **What goes wrong:**
-- **Load order:** In our `onload`, `app.plugins.getPlugin("tasknotes")?.api` is `undefined` because plugin load order is not guaranteed. TaskNotes also creates `plugin.api` only after `await loadSettings()` inside its own `onload` (`main.ts:281`, `pluginBootstrap.ts:113`). The pane then permanently shows "TaskNotes not installed".
-- **Stale handle:** The pane caches the `api` object. When the user disables, updates, or re-enables TaskNotes, a **new plugin instance with a new `api` and a new emitter** is created. Our cached reference now points at a torn-down instance: calls may throw, or worse, half-work against unloaded services. Event subscriptions are bound to the dead emitter and stop firing silently.
-- **Warm-up:** TaskNotes fires its runtime `ready` at the end of `onload`, but heavy initialization runs in `onLayoutReady` (`main.ts:323`). Very early `getAllTasks()` calls can fall back to disk reads per file while the metadata cache is incomplete (see `TaskManager.getAllCachedTasks` comment, lines 710-715).
+`staged` lives in markdown frontmatter, which Sync merges per file. The staged order and the Done-today record live in `.obsidian/plugins/tasknotes-timer-pane/data.json`. That file syncs only if the user enabled community-plugin settings sync, and then as a whole file, with the last writer winning.
+- Device B never sees A's order, so A's newly staged tasks join at the bottom on B (acceptable by design: Q3).
+- Worse: B keeps an in-memory copy loaded at startup. `persistAll` rewrites the **whole** file on B's next save (a pause, a reorder, a settings change), wiping A's order, A's Done-today record **and A's pause records**.
+- `CardOrderStore.load()` runs **once only** (`if (this.loaded) return;`), so a store modelled on it can't take an external reload.
 
 **Why it happens:**
-Obsidian has no public "plugin enabled/disabled" event, and `app.plugins` is undocumented (not in `obsidian.d.ts`).
+v0.2 had a single-device assumption baked into its single-writer design.
 
 **How to avoid:**
-- Do no TaskNotes discovery in `onload`. Connect in `app.workspace.onLayoutReady(...)`, then `await api.lifecycle.ready()`. Note that `ready()` resolves at the end of TaskNotes' `onload`, *before* its layout-ready warm-up (`initializeAfterLayoutReady`: index warm-up, then the `layout.ready` lifecycle event, `pluginBootstrap.ts:358-384`). For the first full task scan, check `api.lifecycle.isReady()`. If it returns false, wait for lifecycle `layout.ready`. Subscribe *before* checking, so the event can't fire between the check and the subscription.
-- Subscribe to lifecycle `unloading` and, on it, immediately drop the `api` reference, `offref` all subscriptions, and put the pane into a "TaskNotes unavailable" state.
-- While disconnected, re-probe on a `registerInterval` (for example every 5 s; TaskNotes v5 itself uses a 5 s reconnect interval for its interop publisher) and on `active-leaf-change` or the pane's `onOpen`. Re-bind when a new `api` appears.
-- Never store `api` long-term outside the bridge. Expose `bridge.api` as a getter that validates the connection.
-- Render a "Connecting to TaskNotes..." placeholder. The pane can be restored from `workspace.json` before TaskNotes is ready.
+- Implement `Plugin.onExternalSettingsChange()` (in `obsidian.d.ts` `@since 1.5.7`, below the 1.12.2 floor). In it, `loadData()` and **merge**: incoming order first, then append local paths it doesn't know; Done-today as the union for the current logical day; settings take the incoming values. Then re-render. Give the new stores a `replace()` or `merge()` method separate from the one-shot `load()`.
+- Keep frontmatter the source of truth for **membership**. data.json only orders and annotates it. Order entries for paths that aren't staged are ignored (as `orderTimers` already does for dead keys), so a stale order never adds tasks.
+- Add every new data.json key (`stagedOrder`, `doneToday`, `stagedKey`, `rolloverHour`, `activeTab` if stored) to `OWNED_KEYS` in `main.ts`. Otherwise `extrasOf()` keeps the loaded copy as an "extra" and writes it back. For a key omitted when empty (like `cardOrder`), the stale extra **resurrects** the old value.
+- Version the new records the way `pauseRecordsVersion` is versioned, and keep loaders tolerant of other devices' (older or newer plugin) data.
 
 **Warning signs:**
-- The pane works after a fresh install but not after disabling and re-enabling TaskNotes in Settings.
-- Console errors from TaskNotes services after its unload.
-- The pane is blank right after Obsidian launch.
+The order resets on one device after using the other. Pauses disappear after using a second device. A cleared list comes back after restart.
 
-**Phase to address:** P1 Bridge. Verify with an explicit disable → enable → update test in P6.
+**Phase to address:**
+Two-tab / ordering phase (order store and `OWNED_KEYS`). Do the `onExternalSettingsChange` merge in the same phase, since that is where the second persisted list appears. Multi-device verification is MEDIUM confidence. If the user doesn't sync plugin settings, note that and keep the merge anyway (it is cheap).
 
 ---
 
-### Pitfall 8: Counting live elapsed time with tick counters (drift, sleep, background throttling)
+## Moderate Pitfalls
+
+### Pitfall 8: Staged tasks renamed, moved, deleted or auto-archived
 
 **What goes wrong:**
-The timer increments `seconds++` every `setInterval(1000)`. Chromium (Electron) throttles timers in hidden or minimized windows: heavily after about 5 minutes hidden, and timers are fully suspended on laptop sleep and on mobile when backgrounded. The display then drifts minutes behind the truth, while TaskNotes records correct wall-clock entries. TaskNotes hit exactly this with Pomodoro (#136, #1500) and fixed it in 4.8.0 by "deriv[ing] remaining time from the session clock instead of from counted interval ticks".
-
-**Why it happens:**
-Naive timer UIs treat the interval as a clock.
+The staged order and Done-today record are keyed by path. A rename leaves an order entry pointing at nothing, so the task jumps to the bottom. A delete leaves junk in data.json. TaskNotes' auto-archive on completion (`handleAutoArchive` in `updateTask`) or `storeTitleInFilename` title edits can **move or rename the file during our own completion write**, so the Done-today record we just wrote points at the old path. A rename that arrives through Sync may show up as delete plus create.
 
 **How to avoid:**
-- Compute each frame from wall clock: `elapsed = Date.now() - Date.parse(entry.startTime)`. The interval only triggers repaint.
-- Clamp negative values to 0. A `startTime` written by another synced device with a fast clock can be in the future.
-- Re-render immediately on `visibilitychange`/focus and when the pane is revealed.
-- Only tick while there is an active entry and the pane is open, as TaskNotes' `StatusBarService` does: it starts its 1 s ticker only when trackers exist and stops it when none remain.
-- To avoid visibly skipped seconds, align the first tick to the next second boundary with `setTimeout`, then use a 1 s interval. Alternatively tick at 500 ms and render the floored seconds.
+- Reuse the v0.2 pattern in `main.ts`: synchronous `vault.on("rename")` / `vault.on("delete")` handlers that remap or drop paths in the staged order and Done-today record, including folder renames (prefix match, as `pauses.renamePath` does), then `store.requestRefresh()`.
+- Record Done-today entries keyed by the path in the **returned** TaskInfo from the completion call, not the pre-click path.
+- Expect delete-plus-create from Sync. The task loses its place and rejoins at the bottom. Accept that. Don't try to match by title.
+- `staged` itself moves with the file (it is frontmatter), so membership is preserved without any write.
 
-**Warning signs:**
-- The pane shows a different elapsed time than TaskNotes' status bar after the window was minimized or the laptop slept.
-- Mobile shows stale elapsed time after unlocking.
+**Phase to address:** Two-tab / ordering phase (order remap). Completion phase (returned-path recording).
 
-**Phase to address:** P2 Pane + Live Timer.
+### Pitfall 9: The user changes the configured key, or picks a dangerous key
+
+**What goes wrong:**
+- After a key change, tasks staged under the old key silently disappear from Staged. Their frontmatter still carries the old key forever.
+- Keys that collide with TaskNotes core field names or TaskInfo properties (`status`, `scheduled`, `due`, `title`, `path`, `tags`, `archived`, `timeEntries`, or any value in `settings.fieldMapping`) make `task[key]` read the wrong thing. They could also let an "unstage" clobber a core field: `{ status: null }` would go through the core mapper, not the user-field path.
+- If the user registers the field with a **default value**, TaskNotes stamps it onto every new task (F9), so every task created becomes "staged" on that date.
+- If the field is registered as `text` or `list` rather than `date`, values may come back as arrays or with commas (`Array.isArray(l)?l.join(", "):l` appears in the creation paths).
+
+**How to avoid:**
+- Validate the key in the settings tab: non-empty, trimmed, not a core field name or a `fieldMapping` value, not a reserved TaskInfo property. Show inline whether it is registered, and its type (from the snapshot).
+- On a key change, show a notice saying tasks staged under the old key won't appear. Don't bulk-migrate in v0.3 (that would be many writes, and conflicts with "no writes on read"). A "migrate" command can be a later idea.
+- The setup notice should say: type **date**, **no default value**, key exactly `<configured key>`.
+- Parse values defensively. Accept a string; take the first element of an array; ignore anything else.
+
+**Phase to address:** Staging data-layer phase (validation and setup notice). Settings work in the same phase.
+
+### Pitfall 10: Sending more than the one field in `tasks.update`
+
+**What goes wrong:**
+Spreading a TaskInfo into the patch (`{...task, staged: day}`) makes TaskNotes rewrite every mapped field, including `timeEntries`. That races with a running timer's own writes and can resurrect a just-closed entry. `title` can trigger a file rename under `storeTitleInFilename`. Even the minimal patch rewrites `dateModified` and `tags` (F7).
+
+**How to avoid:**
+Send exactly `{ [key]: value }` (or the `customFrontmatter` form for deletion). Run stage/unstage through the same `WriteQueue` as time writes, so a stage and a stop on the same task never interleave inside the pane. Pin this with a test that asserts the exact patch object.
+
+**Phase to address:** Staging data-layer phase.
+
+### Pitfall 11: The same task in both tabs breaks keyed DOM reuse
+
+**What goes wrong:**
+A running staged task appears in both Staged and Timers. If both tabs share one card map, keyed by `sessionKey` or path, one DOM node gets moved between containers, the title-chip `Component` is unloaded under the other tab, or drag code reorders the wrong list. The two tabs also use different keys: Timers are keyed by **session** (`taskPath` + `startTime`), and staged rows by **path**, since one staged row survives pause/resume and new sessions.
+
+**How to avoid:**
+Give each tab its own card map, order store and drag handlers. Make the keys explicit (`staged:<path>`, `timer:<sessionKey>`). Factor the card builder so both tabs share rendering code but not instances. The existing `moveKey` / `moveKeyBy` helpers are pure and reusable as they are.
+
+**Phase to address:** Two-tab / ordering phase.
+
+### Pitfall 12: Re-render and scan cost grows with tabs and staging
+
+**What goes wrong:**
+- Staged needs `tasks.list` (or `query.tasks`) on top of `time.active()`. Calling it per event, per tab or per card (N × `tasks.get`) multiplies cost. TaskNotes deep-copies each TaskInfo it returns (`cr(...)`).
+- Rendering the hidden tab, or calling `MarkdownRenderer.render` for every staged title chip on every refresh, costs far more than the 1 s elapsed-text update.
+- Calling `settings.snapshot()` (a full deep copy of TaskNotes settings, about 18 KB in the dev vault) per refresh.
+
+**How to avoid:**
+- One debounced store refresh (the existing 200 ms trailing debounce) fetches `active()` and **one** task list. Both tabs derive from that single snapshot. If `query.tasks` with a `where` on the user field is supported (capability `query.tasks`), use it to cut the payload. Otherwise filter in memory; at the Personal Vault's 38 tasks this is free, and it stays fine into the low thousands.
+- Render only the active tab's cards. Mark the other dirty and render it on switch. The 1 s tick updates only elapsed `textContent` of visible running cards.
+- Re-render a title chip only when its title inputs change (the v0.2 "title render generation" logic). Don't regenerate chips on tab switch.
+- Cache the registration check. Invalidate it on `settings.changed`.
+
+**When it breaks:** A noticeable lag on each TaskNotes event at roughly 2–5k tasks if `tasks.list` runs undebounced, or per tab. Chip re-rendering becomes visible at about 20 staged cards.
+
+**Phase to address:** Two-tab / ordering phase (render strategy). Data-layer phase (single list fetch).
+
+### Pitfall 13: Pomodoro-owned timers on staged tasks
+
+**What goes wrong:**
+Pomodoro-owned entries stay hidden (v0.3 decision). A staged task that a Pomodoro is timing therefore looks idle and offers ▶ start. Clicking ✓ on it could reach completion code that "stops every active entry for the path", including the Pomodoro's, which orphans the Pomodoro session (the exact v0.2 protection).
+
+**How to avoid:**
+Reuse v0.2's ownership check inside the queue: refuse start with the existing notice, and in the complete path stop only regular entries matched by exact `(taskPath, startTime)`. Consider a muted "Pomodoro running" hint on the staged card (display only, no controls), so start isn't offered without any explanation. Confirm this in discuss, since Q25 rejected full Pomodoro display.
+
+**Phase to address:** Two-tab phase (card states). Completion phase (complete path).
+
+### Pitfall 14: Display-name rename breaking things that are keyed by strings
+
+**What goes wrong:**
+Renaming to "TaskNotes Task Control" is safe **only** if the `manifest.json` `name` alone changes. Changing any of these breaks existing installs:
+- `id` (`tasknotes-timer-pane`): a new plugin folder, so data.json, BRAT tracking and hotkeys are lost.
+- `VIEW_TYPE_TIMER_PANE`: saved workspace leaves don't restore, and an orphaned "plugin no longer active" leaf appears.
+- Command ids (`open-timer-pane`): user hotkeys are bound to `tasknotes-timer-pane:open-timer-pane`.
+- CSS class prefixes: user snippets.
+- The GitHub repo name: BRAT stores `owner/repo`.
+
+**How to avoid:**
+Change `name`, `description`, `getDisplayText()`, the ribbon tooltip and command **names** only. Keep every id and string key. BRAT needs a GitHub release whose tag is exactly `0.3.0` (no `v`, per `.npmrc` `tag-version-prefix=""`), with `main.js`, `manifest.json` and `styles.css` as assets, and `manifest.json` `version` equal to the tag. Lint consequences (from `eslint-plugin-obsidianmd` 0.4.2 in node_modules):
+- `validate-manifest` forbids the words "obsidian" and "plugin" in the name and checks the description format.
+- `commands/no-plugin-name-in-command-name` compares command names against the **new** manifest name, so "Open TaskNotes Task Control" would fail; "Open task control pane" passes.
+
+**Phase to address:** Rename/release phase (last). Add a test that pins `VIEW_TYPE`, command ids and the manifest `id`.
 
 ---
 
-### Pitfall 9: Totals that disagree with TaskNotes (rounding and inconsistent calculators)
+## Minor Pitfalls
+
+### Pitfall 15: Obsidian review-bot lint rules tripped by tab UI
 
 **What goes wrong:**
-The pane's "total tracked" and "today" numbers differ from TaskNotes' own views. TaskNotes has **at least two different duration calculators**:
-- `utils/helpers.calculateDuration` uses **`Math.round`** per entry and `calculateTotalTimeSpent` there **excludes** the active entry.
-- `utils/timeTrackingUtils.calculateTotalTimeSpent`, used by `api.time.task()` and `api.time.summary()`, uses **`Math.floor`** per entry in minutes and **includes** the active entry.
-
-Per-entry flooring means every pause/resume fragment loses up to 59 s in TaskNotes' API summaries. Ten 50-second fragments count as 0 minutes.
-
-**Why it happens:**
-Pause-as-stop multiplies the number of entries, and developers reuse `api.time.task().summary.totalMinutes` for display.
+Tab code commonly does `el.style.display = "none"` (`no-static-styles-assignment`), uses `document.addEventListener` for drag (`prefer-active-doc`, which matters in popout windows), detects mobile with `navigator.userAgent` (`platform`), injects a `<style>` element (`no-forbidden-elements`), or writes Title Case labels such as "Done Today" or "Staged Tasks" (`ui/sentence-case`). Settings headings made with `createEl("h3")` fail `settingsTab/no-manual-html-headings`. Any API newer than 1.12.2 fails `no-unsupported-api`.
 
 **How to avoid:**
-- Compute display totals in the pane at **millisecond precision**: sum `(end ?? now) - start` across entries, then format.
-- Document that this is "true" time and may differ by a few minutes from TaskNotes' minute-floored stats.
-- Do not try to "fix" TaskNotes' numbers by merging entries, because that would require editing `timeEntries` (see Pitfall 2).
-- Show time estimate progress (`timeEstimate`, in minutes) against the pane's ms-precision total.
+- Toggle CSS classes or `el.toggle(bool)`.
+- Use `el.doc` / `activeDocument` for document-level listeners.
+- Use `Platform.isMobile` from `obsidian` for showing the up/down buttons. Better still, always render them as visually compact buttons, since they also serve keyboard and accessibility users.
+- Keep labels in sentence case ("Done today", "Staged", "Timers").
+- Use `new Setting(containerEl).setHeading()` for a "Staging" settings section.
+- Run `npm run lint` in each phase's verification.
 
-**Warning signs:**
-- A user reports "pane says 1h 12m, TaskNotes stats say 1h 07m" after many pauses.
+**Phase to address:** Two-tab phase. Settings work in the data-layer phase.
 
-**Phase to address:** P2 (totals) and P5 (today's log). Note the discrepancy in the README.
-
----
-
-### Pitfall 10: "Today's log" wrong for entries crossing midnight, DST, and legacy timestamps
+### Pitfall 16: Tab state persisted in the wrong place
 
 **What goes wrong:**
-- TaskNotes' own `api.time.summary({ period: "today" })` attributes an entry by **start time only**. In `computeTimeSummary` the check is `entryStart >= startOfToday`, and the full duration is credited. A session started at 23:30 yesterday and still running at 09:00 shows **0** in today's summary, and a session from 23:30 to 00:30 is credited entirely to yesterday.
-- Mixed timestamp formats: since 4.4.0 (#1602) TaskNotes writes canonical UTC `toISOString()` (`...Z`). Older entries may carry local offsets (`+11:00`) or a legacy `duration` field. Hand-edited entries may have **no offset**, which JS `Date` parses as **local** time, while date-only strings parse as **UTC**.
-- The pane stays open across midnight and keeps showing yesterday as "today".
-- On DST days a local day is 23 or 25 hours, so `startOfToday + 24h` arithmetic is wrong.
-
-**Why it happens:**
-"Today" is a local-calendar concept, but entries are UTC instants. Library summaries trade correctness for simplicity.
+Storing the active tab in data.json makes it shared across panes and devices, and adds a write per click, which adds Sync churn and conflicts (Pitfall 7). Not storing it at all resets the pane to Staged on every restart.
 
 **How to avoid:**
-- Build today's log yourself. Clip each entry to `[localMidnightToday, min(now, localMidnightTomorrow))` and sum the overlap.
-- Compute local midnights with `new Date(y, m, d)` constructors (or Obsidian's bundled `moment`), never with `+ 86_400_000`.
-- Parse with `Date.parse`. Treat `NaN` as an invalid entry: skip and count it, don't crash. Ignore any stored `duration` and always derive from start/end, as TaskNotes does since 4.4.0.
-- Track the "current local date" in the ticker. When it changes, recompute the log. Do not rely on TaskNotes' internal `date-changed` event, which is not part of the runtime API.
-- Unit-test cross-midnight, DST-transition, offset/Z/no-offset, and "end before start" entries. TaskNotes logs and returns 0 for those.
+Store the active tab as **view state** (`getState()` / `setState()` on the `ItemView`). Obsidian then saves it in `workspace.json` per leaf and restores it with the leaf, with no data.json write. Keep the per-tab **order** in data.json (that one is meant to persist).
 
-**Warning signs:**
-- Late-night sessions missing from the morning's log.
-- Totals changing when the system time zone changes.
+**Phase to address:** Two-tab phase.
 
-**Phase to address:** P5 Today's Log. It needs explicit test cases, so flag it for deeper planning.
-
----
-
-### Pitfall 11: Scanning the whole vault every tick or every event
+### Pitfall 17: Touch and drag on mobile
 
 **What goes wrong:**
-The pane calls `api.time.active()`, `api.tasks.list()`, or `api.time.summary()` every second or on every event. Each of these runs `cacheManager.getAllTasks()`, which iterates **every Markdown file in the vault** (`app.vault.getMarkdownFiles()`) and calls `getTaskInfo` per file, with possible disk fallback during warm-up. Each call then deep-copies results. On a vault with thousands of notes this causes UI jank and battery drain. TaskNotes has had its own versions of this: Pomodoro stalls from refreshing stats on every tick (#1813, 4.5.2), and a slow time-entry modal with many entries (#2206).
-
-**Why it happens:**
-The API returns data that looks cheap, but the iteration cost is hidden.
+HTML5 drag-and-drop events don't fire from touch on Obsidian mobile, so v0.2's drag reorder silently does nothing there. Up/down buttons that move a row by one place (`moveKeyBy`) give no focus feedback, so a user can't tell which row moved.
 
 **How to avoid:**
-- **The tick never calls TaskNotes.** It only re-renders from cached `ActiveEntry[]` and the clock.
-- Re-query only on debounced events (250-500 ms) and coalesce bursts, for example a `cache.rebuilt` or a sync touching 200 files.
-- For the picker, use `api.query.tasks({ where: <not completed / not archived>, limit, sort })` when the modal opens, not on every keystroke. Let `FuzzySuggestModal` filter in memory.
-- For recents and today's log, compute only on open and on relevant events. Reuse results between the two features.
-- Measure against a large test vault (5k+ notes) in P6.
+Show up/down buttons on mobile (Q5). Keep focus on the moved row's button after the re-render, and disable "up" on the first row and "down" on the last. Mobile is best effort and was verified on desktop only, so test once in Obsidian's mobile emulation (`app.emulateMobile(true)` in the dev console).
 
-**Warning signs:**
-- The DevTools Performance panel shows `getMarkdownFiles` and `getTaskInfo` every second.
-- Typing lag in the editor while the pane is open.
-
-**Phase to address:** P1 (event debouncing in the bridge), P2 (tick design), P4 and P5 (query strategy), and P6 (measure).
-
----
-
-### Pitfall 12: Colliding with TaskNotes Pomodoro-owned timers (and auto-start/auto-stop automations)
-
-**What goes wrong:**
-While a Pomodoro session is linked to a task, `PomodoroService` **owns** a time entry and remembers its `timeTrackingStartTime`. It stops only that exact entry later (`stopOwnedTimeTracking` passes `expectedStartTime`; the docs say "Pomodoro only stops trackers it created"). If the pane pauses (stops) that task and then resumes (starts a new entry), the following happens:
-- Pomodoro's later stop fails with "Active time tracking session has changed" or "No active time tracking session".
-- The pane-created entry **keeps running after the Pomodoro ends**.
-- Pomodoro resume hitting "already active" leaves `timeTrackingStartTime` undefined, so Pomodoro loses ownership.
-
-In addition:
-- TaskNotes' **auto-stop on complete** setting can close the entry underneath a "paused" or "running" pane state.
-- The **TaskNotes Workflows** companion's auto-start-on-active-status rule can start timers the pane didn't ask for.
-
-**Why it happens:**
-Several actors write the same `timeEntries` array with different ownership rules.
-
-**How to avoid:**
-- Before stop/pause/resume, check `api.pomodoro.status()` (capability `pomodoro.read`). If a running Pomodoro is linked to the same task, either disable the pane's pause/resume for that task with a "controlled by Pomodoro" hint, or route the action to `api.pomodoro.pause/resume` (out of scope per PROJECT.md, so prefer the hint).
-- Subscribe to `pomodoro.started`, `pomodoro.completed`, and `pomodoro.interrupted` as resync triggers.
-- After any external stop, treat "pane thought it was running, now it isn't" as normal. Re-derive state and never "repair" it by restarting.
-
-**Warning signs:**
-- Timers still running hours after a Pomodoro finished.
-- "Active time tracking session has changed" in the console.
-
-**Phase to address:** P3 Controls (guard). Requirements should explicitly state Pomodoro interaction rules.
-
----
-
-### Pitfall 13: View lifecycle leaks (intervals, events, DOM) and deferred views
-
-**What goes wrong:**
-- Intervals or event subscriptions are registered with **`plugin.registerInterval` / `plugin.registerEvent` inside the View's `onOpen`**. Those are released only on plugin unload, so every close and reopen of the pane leaks another 1 s ticker and another handler that holds detached DOM. Raw `window.setInterval` without any `register*` leaks even past plugin unload.
-- Obsidian **1.7.2+ deferred views**: every restored view starts as a `DeferredView`. Code like `getLeavesOfType(VIEW).first().view as TimerView` returns a placeholder, and calling methods on it throws or does nothing.
-- Keeping a `this.view` reference on the plugin goes stale when the leaf is closed or deferred.
-- Detaching leaves in `onunload` breaks Obsidian's layout restore. Obsidian guidelines say not to.
-
-**Why it happens:**
-`ItemView` is a `Component`, but tutorials register everything on the plugin. Deferred loading changed long-standing assumptions.
-
-**How to avoid:**
-- Inside the view, use **`this.registerInterval`, `this.registerEvent`, and `this.register(() => ...)`**. These are released automatically in `onClose`/unload of the view component. The plugin keeps only plugin-wide things (the bridge connection, ribbon, commands).
-- Build DOM in `onOpen` with `contentEl.empty()` first. Tear down in `onClose`.
-- Activate the pane with `getLeavesOfType` → create via `workspace.getRightLeaf(false)` if absent → `await workspace.revealLeaf(leaf)` (async since 1.7.2). Only then check `leaf.view instanceof TimerView`. Avoid `loadIfDeferred()` except where unavoidable, gated by `requireApiVersion("1.7.2")`.
-- Have the bridge broadcast state through an event emitter that views subscribe to (via `this.registerEvent`), rather than the plugin pushing into a stored view reference.
-- If the pane is collapsed or deferred, skip ticking. Only visible, loaded views should render each second.
-
-**Warning signs:**
-- The DevTools memory snapshot grows with each pane open/close.
-- After 5 reopenings, the elapsed counter updates 5× per second (visible stutter).
-- "Cannot read property ... of undefined" on startup with the pane restored.
-
-**Phase to address:** P2 (view scaffolding). Run a leak test in P6.
+**Phase to address:** Two-tab / ordering phase.
 
 ---
 
@@ -354,121 +351,113 @@ Several actors write the same `timeEntries` array with different ownership rules
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Call `plugin.taskService.*` / `cacheManager.*` directly | Access to `stopTime`, sync cache reads | Breaks on TaskNotes refactors; bypasses event context | **Never.** The Runtime API covers start/stop/active/events |
-| `import type` from TaskNotes repo source | Full typings for free | Drags TaskNotes source + `@tasknotes/model` into the build; version skew | Never. Vendor a minimal `.d.ts` |
-| Single `activeTask` instead of `ActiveEntry[]` | Simpler UI code | Wrong stop/switch whenever >1 timer exists (allowed by TaskNotes) | Never in the data model; UI can show one primary |
-| Pause state in View memory | Fast to build | Lost on restart and reload; wrong "Resume" for completed tasks | Only in a throwaway spike |
-| Poll `api.time.active()` every second | No event wiring | Vault-wide scan each second; jank on big vaults | Only as a temporary debug fallback |
-| Use `api.time.summary({period:"today"})` for today's log | One call | Start-date attribution and minute flooring give wrong numbers across midnight and with pause fragments | Acceptable only for a prototype; replace in P5 |
-| Store recents as raw paths without rename handling | Trivial MRU list | Dead entries after rename/move; history of TaskNotes #1019 | MVP, if entries are pruned lazily when unresolved |
-| Hard-code status strings ("done", "in-progress") for picker filtering | Quick filter | Breaks with custom statuses | Never. Use `api.catalog.statuses()` (`isCompleted`) |
+| Use the `update` return value as write confirmation | No metadata-cache wait | Phantom staged cards whenever the field isn't registered (Pitfall 1) | Never |
+| Unstage with `{ staged: null }` | Documented patch path | `staged: null` litter in every touched task, and a Q11 violation | Only as the fallback if the `customFrontmatter` feature test fails |
+| `customFrontmatter: { key: null }` for deletion | Real key deletion | Undocumented, so it can break in a TaskNotes update | Acceptable with a bind-time feature test and the verify-from-disk check |
+| `toISOString().slice(0,10)` for dates | One line | Off-by-one days in every non-UTC zone | Never |
+| Reconcile `staged` in refresh (auto-clear) | Tidier frontmatter | Write loops and Sync churn (Pitfall 5) | Never in v0.3 |
+| Copy `CardOrderStore` as-is for the staged order | Fast | No external reload or merge, so multi-device clobbering (Pitfall 7) | Only if `replace()`/`merge()` is added |
+| Done-today from `complete_instances.includes(today)` | No plugin record | Misses snapped and late-night completions (Pitfalls 3 and 6) | Never as the primary signal |
 
 ## Integration Gotchas
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| TaskNotes discovery | `this.app.plugins.plugins.tasknotes.api` in `onload` | In `onLayoutReady`: `getPlugin("tasknotes")?.api`, check `apiVersion === 1` + capabilities, `await api.lifecycle.ready()` |
-| TaskNotes events | `this.registerEvent(api.events.on(...))` on the **plugin** from inside a view | Bridge owns the subscriptions and re-binds after TaskNotes reloads; views subscribe to the bridge with `view.registerEvent` |
-| TaskNotes events | Trust `time.started/stopped` as complete | They are not emitted for file-originated changes (sync, manual edits). Resync on `task.updated` + lifecycle `cache.*` |
-| Own-write echo | Re-render twice and re-trigger logic on own writes | Pass `{source:"tasknotes-timer-pane"}` context; ignore or soft-handle events where `event.source` matches. Still resync idempotently |
-| Task identity | Key tasks by `task.id` assuming it equals path | v4: id is often the path. **v5 beta** introduces real task IDs (`tasks.getById`, `taskId` on events) and deprecates `tasks.get` for `getByPath`. Key by path now, isolate in the bridge, plan for an ID switch |
-| Field mapping | Read `frontmatter.timeEntries` / `timeEstimate` | Use `TaskInfo.timeEntries` / `timeEstimate` from the API; keys are user-remappable |
-| Status semantics | Treat `status === "done"` as completed | `api.catalog.statuses()` and the configured completed flags |
-| Errors | `catch (e) { console.log(e) }` | Branch on `TaskNotesApiError.code`; show a Notice; resync state |
-| TaskNotes v5 beta | Assume the v4 surface forever | Runtime API diff v4.13.8 → 5.0.0-beta.5 is small and additive (`tasks.lookup-id`, `getByPath/getById`, `duplicate_task_id`). Capability-gate and test against the beta before the user upgrades. v5 requires Obsidian ≥ 1.13.1 |
-| zczs520 "5.2.3" fork | Use it as a reference | No such official version exists (official v5 line is `5.0.0-beta.0..5`). Keep it out of scope as decided |
+| `api.tasks.update` | Assume unregistered keys throw | They are dropped silently (F2). Gate on `settings.snapshot().userFields` and verify from `metadataCache` |
+| `api.tasks.update` | Delete with `undefined` | No-op (F3). Use `customFrontmatter: {key: null}` (F4), behind a feature test |
+| `api.recurring.toggleCompleteInstance` | Omit `date` | That defaults to the `scheduled` date (F11). Always pass the logical day as a bare `YYYY-MM-DD` |
+| `api.recurring.toggleCompleteInstance` | Call it when already complete | It un-completes (F10). Check `complete_instances` first |
+| `api.tasks.complete` | Use it on recurring tasks | It closes the series. Branch on fresh `task.recurrence` |
+| `api.settings.snapshot` | Call it per render | It is a deep JSON clone. Cache it and invalidate on `settings.changed` |
+| TaskNotes events | Write in response to `task.updated` | Echo loop. Refresh only, never write |
+| TaskNotes user field config | Register `staged` with a default value | Every new task becomes staged (F9). The setup notice must say "no default" |
+| Obsidian data.json | Whole-file save with a stale in-memory copy | Implement `onExternalSettingsChange` and merge |
+| `completedDate` | Compare to the logical day | It is the calendar day (F15). Use the plugin's record |
 
 ## Performance Traps
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Calling `time.active()` / `tasks.list()` per tick | Constant CPU, editor lag | Tick renders from cached state only | Noticeable around 1-2k notes; bad at 5k+ |
-| Re-querying on every raw event | Bursts of full scans during sync or `cache.rebuilt` | Debounce and coalesce at 250-500 ms; one in-flight query at a time | Any bulk sync (dozens of files) |
-| Full DOM rebuild each second | Flicker, lost hover/focus on buttons | Update only the elapsed text node's `textContent`; rebuild lists only on state change | Immediately visible with lists of 20+ |
-| Recents/today computed by scanning all entries of all tasks on every change | Slow pane updates with long-tracked tasks (TaskNotes #2206 had many-entry slowness) | Compute on open plus debounced events; cap recents (e.g. 10); skip tasks without `timeEntries` early | Tasks with hundreds of entries |
-| Ticking while pane collapsed or deferred | Battery drain on laptops/mobile | Tick only if the view is loaded and visible and an entry is active | Always on mobile |
+| `tasks.list` per event and per tab | Lag after each TaskNotes write | One debounced fetch shared by both tabs | About 2–5k tasks undebounced |
+| `tasks.get` per staged card | N round trips and N deep copies | Derive from the single list snapshot | About 50+ staged cards |
+| Re-rendering hidden-tab cards and chips | CPU each second, chip flicker | Render the active tab only; chips only on input change | About 20 cards |
+| `settings.snapshot()` per refresh | GC churn | Cache it | Any scale (wasteful) |
 
 ## Security Mistakes
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Rendering task titles or descriptions with `innerHTML` | HTML/script injection from note content (Obsidian review guidelines forbid it) | `createEl`/`setText` only; render titles as text, and link via `openLinkText` |
-| Exposing control actions through the TaskNotes extension registry without need | Other plugins and scripts can start or stop timers unexpectedly | Do not register an extension namespace in v1 |
-| Enabling TaskNotes HTTP API "because the pane needs it" | Opens a local listener (now token-protected since 4.13.0) for no reason | The pane is in-process only; never require the HTTP API |
+| Using the configured key unvalidated as a frontmatter or TaskInfo property name | Overwriting core fields (`status`, `timeEntries`), or prototype keys (`__proto__`) | Validate against a denylist of core and mapped fields plus `^[A-Za-z][\w-]*$` |
+| Trusting data.json order and record arrays from another device | Unbounded growth, odd types | Reuse the `loadCardOrder` style: cap, dedupe, type-check, never throw |
+| Logging paths or task titles in errors | Private task names in console logs shared for support | Keep v0.2's "message never carries a path" rule |
 
 ## UX Pitfalls
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Silent failure on start/stop | User believes time is tracked when it isn't | Notice on failure, plus the pane re-derives and shows the real state. Note that TaskNotes' coordinator shows its own Notices but `api.time.*` does **not**, so the pane must |
-| Double Notices | Noisy duplicate toasts | Use `api.time.*` (no Notices) and show your own, once |
-| "Paused" indistinguishable from "stopped" | Confusion after restart | Distinct paused styling plus a persisted paused task with "Resume" CTA; clear it when obsolete |
-| Forgotten overnight timer shows "14:32:10" with no warning | Corrupted reports | Highlight sessions longer than N hours and offer a stop. Editing the end time is out of v1 scope; link to TaskNotes' time entry editor |
-| Hidden "other timers running" | Double-counted time | Always show a count badge with per-entry stop when more than one is active |
-| Picker lists completed or archived tasks first | Slow switching, which defeats the 1-2 click goal | Default filter: non-completed, non-archived; recents pinned at the top; fuzzy search |
-| Pane disappears or errors when TaskNotes is off | Looks broken | Explicit empty state: "TaskNotes not enabled / requires ≥ 4.10", with a retry |
-| Mobile: no status bar exists in Obsidian mobile, so the pane is the only indicator | Users depend on a pane that may be unstyled or untested on mobile | Decide `isDesktopOnly` explicitly. If false, test touch target sizes and the sidebar drawer, and re-render on app resume |
+| Staging fails silently when the field is unregistered | "Staging is broken" | A setup notice in the Staged tab with exact instructions (key, type date, no default), re-checked on `settings.changed` |
+| Staged card offers start while a hidden Pomodoro times it | Confusing refusal notice | A muted Pomodoro hint, or at least a clear notice (Pitfall 13) |
+| "Days staged" shows "0 days" on the first day | Noise | Show nothing on day 0, then "2d" and so on |
+| Future `staged` dates (another device's clock, hand edits) vanish | "My task disappeared" | Decide in discuss: show them as today, or in a muted "upcoming" note |
+| Done today reshuffles when timers stop | Lost place | Done today in completion order, separate from the manual staged order |
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Live timer:** often missing wall-clock derivation. Verify by minimizing Obsidian for 10 minutes (or sleeping the laptop) and checking the pane against TaskNotes' status bar.
-- [ ] **Sync with external changes:** often missing file-originated resync. Verify by hand-editing a task's YAML to add an open entry, and by starting a timer via the status bar and via the TaskNotes command. The pane must update within about 1 s.
-- [ ] **Stop:** often missing multi-timer handling. Verify with two timers started from task cards.
-- [ ] **Switch:** often missing serialization and partial-failure handling. Verify by triple-clicking a recent task, and by switching to a task whose file was just deleted.
-- [ ] **Pause/resume:** often missing persistence and invalidation. Verify by pausing, restarting Obsidian, completing the task elsewhere, and confirming that Resume disappears.
-- [ ] **TaskNotes lifecycle:** often missing re-binding. Verify by disabling TaskNotes, re-enabling it, then starting a timer from TaskNotes. The pane must reflect it without an Obsidian restart.
-- [ ] **Startup:** often missing deferred/not-ready handling. Verify by launching Obsidian with the pane already open in the sidebar, and with TaskNotes listed after this plugin in load order.
-- [ ] **Today's log:** often missing midnight clipping and rollover. Verify with a fixture entry from 23:30 to 00:30 and by leaving the pane open across midnight (or faking the clock).
-- [ ] **Totals:** often missing active-entry inclusion and ms precision. Verify that the total increases live while running and matches the sum of entries.
-- [ ] **Leaks:** verify by opening and closing the pane 10× and checking that one interval exists (log tick counts) and the listener count is stable.
-- [ ] **Field mapping:** verify with TaskNotes' `timeEntries` remapped to a custom property name.
-- [ ] **Pomodoro interplay:** verify by running a Pomodoro on task X, pausing X from the pane, and confirming that no orphan running entry remains after the Pomodoro completes.
+- [ ] **Stage:** verified with the field **unregistered**. The setup notice shows, no phantom card appears, and the raw file is unchanged.
+- [ ] **Stage:** raw frontmatter (not TaskInfo) shows `staged: YYYY-MM-DD` with the **logical** day at 01:00 (before rollover) and at 23:00 in a negative-UTC zone.
+- [ ] **Unstage:** the key is **gone** from the raw file (not `null`, not `""`).
+- [ ] **Reader:** missing, `null`, `""`, an array, and a datetime value all handled.
+- [ ] **Complete (non-recurring):** stops only regular entries, uses the completed-status preference, clears `staged`, records Done today under the **returned** path.
+- [ ] **Complete (recurring):** passes an explicit date, doesn't un-complete on a second click, isn't closed by the series, appears in Done today when TaskNotes snapped the date, and works with past-`scheduled` and completion-anchored seeds.
+- [ ] **Rollover:** fires with Obsidian left open across the hour, after sleep/wake, after a backwards clock change (no lost records), and on DST transition days (unit tests).
+- [ ] **Order:** survives restart, a rename (including a folder rename), a delete, and an external data.json change. Pause records survive a second device saving.
+- [ ] **OWNED_KEYS:** includes every new data.json key.
+- [ ] **Tabs:** active tab restored per leaf via view state; independent orders; the same task in both tabs renders correctly.
+- [ ] **No writes on read:** the idle dev vault shows no `dateModified` changes over 5 minutes with the pane open.
+- [ ] **Rename:** `id`, `VIEW_TYPE`, command ids unchanged; an existing pane leaf restores after the update; BRAT updates from 0.2.0 to 0.3.0.
+- [ ] **Lint:** `npm run lint` clean, including sentence case and command names against the new manifest name.
 
 ## Recovery Strategies
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Orphaned running entry (from a Pomodoro collision or a failed switch) | LOW | Stop it from the pane's "other timers" list, or with TaskNotes' "Stop active time tracking". Edit the end time in TaskNotes' time entry editor |
-| Overwritten or duplicated `timeEntries` from a direct write | MEDIUM/HIGH | Restore the note from Obsidian File Recovery or git. Remove the offending write path. Add a regression test that greps for `processFrontMatter` and `tasks.update({timeEntries`) |
-| Pane broken after a TaskNotes update | LOW (if the bridge is isolated) | Capability check shows the degraded state. Fix only `TaskNotesBridge` and the vendored `.d.ts` |
-| Leaked intervals or handlers | LOW | Move registrations to view-scoped `register*`. A reload clears the current session |
-| Wrong today's log numbers | LOW | Display-only, because the underlying `timeEntries` are untouched. Fix the clipping logic |
+| `staged: null` litter shipped | LOW | Reader already treats null as unstaged. Optional one-time command to delete null keys via `customFrontmatter` |
+| Write loop shipped | MEDIUM | Hotfix to remove the write from the refresh path. Users' `dateModified` values are noisy but not corrupt |
+| data.json clobbered across devices | LOW–MEDIUM | Order rebuilds (tasks join at the bottom); Done today rebuilds from `completedDate` as the fallback. Lost pause records are the real loss, which is why the merge matters |
+| Wrong recurring instance completed | MEDIUM | The user re-toggles that instance in TaskNotes' calendar or task menu. Record the targeted date in the Done-today record so the error is diagnosable |
+| View type or id changed by accident | HIGH | Revert the string in a patch release. Users re-open the pane; data in a new folder must be copied by hand |
 
 ## Pitfall-to-Phase Mapping
 
+v0.3 phases continue from v0.2's Phases 1–3. The names below are suggestions for the roadmapper.
+
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| 1. Private internals instead of Runtime API | P1 Bridge | `grep` shows no `taskService`/`cacheManager`/`emitter` outside the bridge; capability-gated degraded state renders when `api` is missing |
-| 2. Direct `timeEntries` writes / races | P1 + P3 | Facade exposes only `time.start/stop`; rapid-click and concurrent status-bar-stop test leaves consistent entries |
-| 3. Multiple active timers | P2 + P3 | Two-timer manual test; UI shows count; switch policy documented in requirements |
-| 4. Non-atomic switch | P3 | Triple-click and deleted-target tests; serial queue unit test |
-| 5. Pause persistence | P3 | Restart test; invalidation on complete, delete, and external start |
-| 6. Missed external changes | P1 + P2 (verify in P6) | YAML hand-edit test; sync simulation; double-event idempotency |
-| 7. Load order / TaskNotes reload | P1 (verify in P6) | Disable → enable → update cycle without restarting Obsidian |
-| 8. Tick-counter drift | P2 | Minimize/sleep test vs status bar |
-| 9. Rounding mismatches | P2 + P5 | Unit test: ms-precision totals; README note on minute flooring |
-| 10. Midnight/DST/timestamp parsing | P5 (needs deeper research and test design) | Fixture-based unit tests: cross-midnight, DST, Z/offset/no-offset, invalid |
-| 11. Vault-wide scans | P1/P2/P4/P5 (measure in P6) | DevTools profile on a 5k-note vault: no per-second scans |
-| 12. Pomodoro/automation collisions | P3 | Pomodoro + pane pause test; no orphan entries |
-| 13. View lifecycle leaks / deferred views | P2 (verify in P6) | Open/close 10× leak test; restored-pane startup test on Obsidian ≥ 1.7.2 |
+| 1 Silent drop / phantom write | Phase 4: staging data layer | Fake mimics F2+F5; dev-vault test with the field unregistered; raw frontmatter check |
+| 2 Delete semantics | Phase 4 | Raw file shows the key removed; feature test logged |
+| 3 Dates / timezone / DST | Phase 4 (module), used in Phase 6 | TZ-matrix unit tests with a frozen clock |
+| 5 No writes on read | Phase 4 rule, checked in all phases | Idle `dateModified` check; code review |
+| 9 Key validation / default value | Phase 4 (settings) | Settings tests; setup-notice copy |
+| 10 Minimal patch | Phase 4 | Test asserting the exact patch |
+| 7 data.json merge, OWNED_KEYS | Phase 5: two tabs and ordering | `onExternalSettingsChange` test; extras test |
+| 8 Rename / delete remap | Phase 5 (order), Phase 6 (record) | Vault event tests incl. folder rename |
+| 11 Per-tab card maps | Phase 5 | Same task in both tabs |
+| 12 Render / scan cost | Phase 5 | One list fetch per refresh (spy count) |
+| 15–17 Lint, view state, mobile | Phase 5 | `npm run lint`; mobile emulation |
+| 13 Pomodoro on staged | Phase 5 (display), Phase 6 (complete path) | Mixed Pomodoro UAT, as in v0.2 |
+| 4 Rollover while open | Phase 6: completion, Done today, rollover | Native overnight and sleep/wake UAT session |
+| 6 Recurring completion | Phase 6 (**needs deeper research**) | Seeded recurring fixtures; double-click test |
+| 14 Rename safety | Phase 7: rename and release 0.3.0 | Pinned-id test; BRAT update from 0.2.0 |
 
 ## Sources
 
-Primary sources were read directly from a TaskNotes clone at commit `451679289` (v4.13.8, 2026-10-12) and tag `5.0.0-beta.5` (2026-10-03).
-- `docs/javascript-api.md`, `docs/companion-plugins.md`: Runtime API contract and companion-plugin guidance (HIGH)
-- `docs/features/time-management.md`: multiple concurrent trackers, auto-stop, Pomodoro ownership (HIGH)
-- `src/api/runtime-api.ts`, `src/api/TaskNotesAPI.ts` (`startTime`/`stopTime`/`appendTimeEntry`/`getActiveTimeEntries`/`normalizeUpdatedEvent`/`on`): event derivation, no cross-task stop, read-modify-write append (HIGH)
-- `src/services/TaskService.ts:1551-1735`: per-path lock, persisted re-read, "already active" / "No active session" errors, `expectedStartTime` (HIGH)
-- `src/utils/TaskManager.ts`: 300 ms debounce, file-change `task-updated` without `originalTask`, `getAllTasks` vault iteration, `waitForFreshTaskData` (HIGH)
-- `src/utils/timeTrackingUtils.ts`, `src/utils/helpers.ts`: start-date-only "today" attribution, floor vs round per entry (HIGH)
-- `src/services/PomodoroService.ts`: owned time tracking, pause = stop/new entry (HIGH)
-- `src/main.ts`, `src/bootstrap/pluginBootstrap.ts`: `api` creation timing, `ready` vs layout-ready, `unloading` lifecycle (HIGH)
-- `docs/releases/4.4.0.md` (#1602 UTC canonicalization), `4.5.2.md` (#1813 tick stalls), `4.8.0.md` (#136/#1500 wall-clock timers; #1655 status bar live elapsed), `4.10.0.md` (Runtime API introduced), `4.12.0.md` (v5 beta), `4.12.4.md` (#2206), `4.13.0.md` (HTTP API auth), `4.13.7.md` (#2326 stop button / multi-tracker chooser) (HIGH)
-- GitHub issues: [#1670 auto-stop other timers (open)](https://github.com/callumalpass/tasknotes/issues/1670), [#1602 timezone mismatch](https://github.com/callumalpass/tasknotes/issues/1602), [issue search "time tracking"](https://github.com/callumalpass/tasknotes/issues?q=is%3Aissue+time+tracking) (#1019 rename, #1079 multiple timers, #1493/#1638 Pomodoro switching). Web-fetched; classify-confidence seam rates these LOW, so they are used only as corroboration of source-code findings
-- [Obsidian: Defer views guide](https://docs.obsidian.md/plugins/guides/defer-views): `instanceof` checks, `await revealLeaf`, `loadIfDeferred` with `requireApiVersion("1.7.2")` (MEDIUM; official docs via web fetch)
-- Obsidian plugin guidelines (established practice): view-scoped `registerInterval`/`registerEvent`, no `innerHTML`, don't detach leaves in `onunload`, don't hold view references, defer startup work to `onLayoutReady` (MEDIUM)
-- Chromium background-timer throttling: general platform knowledge, corroborated by TaskNotes' own Pomodoro fix in 4.8.0 (MEDIUM)
+- TaskNotes 4.13.8 bundle, `C:\Users\ja384\Home\obsidian-tasknotes-timer-pane\dev-vault\.obsidian\plugins\tasknotes\main.js`, functions `updateTask` (API and `TaskUpdateService`), `dfe`, `wz`, `ufe`, `Rqe`, `Fqe`, `toggleRecurringComplete`, `toggleRecurringTaskCompleteWithOccurrenceNotes`, `Ece`, `kM`, `XUe`/`Sce`, `ae`, `Ko`, `getSettingsSnapshot`. Primary source; HIGH for 4.13.8.
+- Upstream contract `callumalpass/tasknotes` `src/api/runtime-api.ts` (main), via WebFetch: `TaskNotesTaskPatch extends Partial<TaskInfo>`, `recurring.toggleCompleteInstance(path, date?, ctx?)`, `settings.snapshot` capability, event payload `context`/`before`/`after`, capability list. MEDIUM per seam (summarized fetch), consistent with the bundle.
+- `obsidian.d.ts` 1.14.4 in node_modules: `Plugin.onExternalSettingsChange` `@since 1.5.7`; `FileManager.processFrontMatter`. HIGH.
+- `eslint-plugin-obsidianmd` 0.4.2 rules in node_modules: `validate-manifest` (forbidden words "obsidian", "plugin"), `commands/no-plugin-name-in-command-name` (defaults to the manifest name), `no-static-styles-assignment`, `prefer-active-doc`, `platform`, `no-forbidden-elements`, `ui/sentence-case`, `settingsTab/no-manual-html-headings`, `no-unsupported-api`. HIGH.
+- This repo: `src/main.ts` (`OWNED_KEYS`, `extrasOf`, `persistAll`, vault rename/delete handlers), `src/state/CardOrderStore.ts` (one-shot `load`), `src/model/cardOrder.ts`, `src/tasknotes/TaskNotesBridge.ts` (event wiring), `src/state/TimerStore.ts` (200 ms debounce, 45 s resync), `.planning/RETROSPECTIVE.md` (skipped native UAT lesson), `.planning/research/STAGING-DECISIONS.md`.
+- TaskNotes docs search (user fields live under Settings → Task Properties): [user fields](https://callumalpass.github.io/tasknotes/features/user-fields), [task properties](https://callumalpass.github.io/tasknotes/settings/task-properties). LOW, corroborating only.
 
 ---
-*Pitfalls research for: Obsidian companion plugin controlling TaskNotes time tracking*
-*Researched: 2026-10-13*
+*Pitfalls research for: v0.3 Staging Tasks (TaskNotes Task Control)*
+*Researched: 2026-11-12*
