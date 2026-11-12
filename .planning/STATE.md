@@ -3,10 +3,10 @@ gsd_state_version: "1.0"
 milestone: v0.3
 milestone_name: Staging Tasks
 status: planning
-last_updated: "2026-11-12T19:30:03.333Z"
+last_updated: "2026-11-12T20:20:00.000Z"
 last_activity: 2026-11-12
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,14 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-12)
 
 **Core value:** With the pane open, I can always see what task is being timed and how long I've spent on it, and stop, pause, or switch tasks in one to two clicks, without leaving the pane.
-**Current focus:** Planning next milestone (v0.2 MVP shipped 2026-11-12)
+**Current focus:** v0.3 Staging Tasks, Phase 4: Staging Foundations (roadmap created; Phases 4-7)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-11-12 — Milestone v0.3 started
+Phase: 4 of 7 (Staging Foundations); v0.3 spans Phases 4-7 (4 phases)
+Plan: — (not yet planned)
+Status: Ready to plan
+Last activity: 2026-11-12 — v0.3 roadmap created (28/28 requirements mapped)
+
+Progress (v0.3): [░░░░░░░░░░] 0% (0/4 phases)
 
 ## Performance Metrics
 
@@ -70,6 +72,9 @@ Last activity: 2026-11-12 — Milestone v0.3 started
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+
+- [v0.3 Roadmap 2026-11-12]: Four coarse phases: 4 Staging Foundations (settings, staging day, contract, data.json merge), 5 Two-Tab Shell (pure refactor, Timers unchanged), 6 Staged Tab Core, 7 Complete/Roll Over/Release 0.3.0. Phases 4 and 5 are independent. Research SUMMARY's Phase 8 (mobile/rename/release) folded into Phase 7.
+- [v0.3 Requirements 2026-11-12]: User decisions that differ from the research recommendations: unstage writes `null` only (no customFrontmatter); the Stage picker hides already-staged tasks; unstaging a running/paused task stops it or clears its pause (Pomodoro-owned left untouched); the Staged header has Stage only; tab counts, the running cue, staged markers on Timers cards, and mobile ▲▼ on both tabs are in scope; the cross-device data.json merge (SYNC-05) is in scope; the recurring ✓ fix applies to both tabs (CTRL-13).
 
 - [Phase 03 acceptance 2026-10-16]: Desktop UAT 15/16 passed after deploying the current build; test 15 deferred. User confirmed the 7 judgment-tier prohibitions; VERIFICATION passed; SECURITY verified 18/18 closed.
 
@@ -119,6 +124,8 @@ None yet.
 
 - [Phase 1]: Check cold-start readiness timing by hand. `layout.ready` fires only once, and `isReady()` and `ready()` change at different points.
 - [Phase 3]: Deferred UAT follow-up: the muted can't-check Pomodoro line (unreadable ownership) has not been observed on desktop; logic is store-tested.
+- [Phase 4 research flag]: Dev-vault spike first. Confirm that a `null` unstage reads as not staged on raw frontmatter, the shape of `catalog.userFields()` (`defaultValue`?), whether a newly registered field shows on cached TaskInfo without a reload, and `toggleCompleteInstance` with an off-schedule day.
+- [Phase 7 research flag]: Run `/gsd-plan-phase --research-phase 7`. It covers recurring occurrence snapping, occurrence materialization, whether the toggle stops timers, and the date basis of `completedDate` near midnight.
 - [v0.2 close]: Phase 1 UAT partial and verification human_needed were acknowledged and deferred at milestone close (see Deferred Items); they carry into the next milestone as candidate work, not as blockers.
 
 ### Quick Tasks Completed
@@ -146,9 +153,9 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-11-12
-Stopped at: Milestone v0.2 MVP completed and archived; next is /gsd-new-milestone
+Stopped at: v0.3 roadmap created (Phases 4-7); next is planning Phase 4
 Resume file: None
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Discuss or plan Phase 4 with /gsd-discuss-phase 4 or /gsd-plan-phase 4 (Phase 5 can be planned in parallel)

@@ -89,12 +89,40 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
+| TABS-01 | Phase 5 | Pending |
+| TABS-02 | Phase 5 | Pending |
+| TABS-03 | Phase 6 | Pending |
+| TABS-04 | Phase 6 | Pending |
+| SETUP-01 | Phase 4 | Pending |
+| SETUP-02 | Phase 6 | Pending |
+| SETUP-03 | Phase 6 | Pending |
+| STAGE-01 | Phase 6 | Pending |
+| STAGE-02 | Phase 6 | Pending |
+| STAGE-03 | Phase 6 | Pending |
+| STAGE-04 | Phase 6 | Pending |
+| STAGE-05 | Phase 6 | Pending |
+| SCARD-01 | Phase 6 | Pending |
+| SCARD-02 | Phase 6 | Pending |
+| SCARD-03 | Phase 6 | Pending |
+| SCARD-04 | Phase 6 | Pending |
+| ORDER-01 | Phase 6 | Pending |
+| ORDER-02 | Phase 6 | Pending |
+| ORDER-03 | Phase 6 | Pending |
+| ORDER-04 | Phase 7 | Pending |
+| DONE-01 | Phase 7 | Pending |
+| CTRL-13 | Phase 7 | Pending |
+| DONE-02 | Phase 7 | Pending |
+| ROLL-01 | Phase 4 | Pending |
+| ROLL-02 | Phase 7 | Pending |
+| ROLL-03 | Phase 7 | Pending |
+| SYNC-05 | Phase 4 | Pending |
+| PANE-04 | Phase 7 | Pending |
 
 **Coverage:**
 - v0.3 requirements: 28 total
-- Mapped to phases: 0
-- Unmapped: 28 ⚠️
+- Mapped to phases: 28
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-11-12*
-*Last updated: 2026-11-12 after initial definition*
+*Last updated: 2026-11-12 after v0.3 roadmap creation (Phases 4-7)*
