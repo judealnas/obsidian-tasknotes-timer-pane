@@ -2,15 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v0.3
 milestone_name: Staging Tasks
+current_phase: 4
+current_phase_name: Staging Foundations
 status: planning
-last_updated: "2026-11-12T20:20:00.000Z"
+stopped_at: Phase 4 context gathered
+last_updated: "2026-11-12T22:35:20.478Z"
 last_activity: 2026-11-12
+last_activity_desc: v0.3 roadmap created (28/28 requirements mapped)
+state_head: 4271a706eb2f2d3113f92db9b92465f2eeecc7ea
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 3
   total_plans: 0
   completed_plans: 0
-  percent: 0
+  percent: 75
 ---
 
 # Project State
@@ -73,6 +78,7 @@ Progress (v0.3): [░░░░░░░░░░] 0% (0/4 phases)
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [Phase 4 discussion 2026-11-12]: Multi-device is out of scope, so SYNC-05 is dropped (single-device OWNED_KEYS/persistAll safety stays). The staged key is hard-coded `staged` (no setting, no key validation). Rollover hour is a 24-option dropdown with 12-hour labels and an explanatory description. The spike is scripted via Obsidian CLI eval on the dev vault's TaskNotes 4.13.8 only.
 - [v0.3 Roadmap 2026-11-12]: Four coarse phases: 4 Staging Foundations (settings, staging day, contract, data.json merge), 5 Two-Tab Shell (pure refactor, Timers unchanged), 6 Staged Tab Core, 7 Complete/Roll Over/Release 0.3.0. Phases 4 and 5 are independent. Research SUMMARY's Phase 8 (mobile/rename/release) folded into Phase 7.
 - [v0.3 Requirements 2026-11-12]: User decisions that differ from the research recommendations: unstage writes `null` only (no customFrontmatter); the Stage picker hides already-staged tasks; unstaging a running/paused task stops it or clears its pause (Pomodoro-owned left untouched); the Staged header has Stage only; tab counts, the running cue, staged markers on Timers cards, and mobile ▲▼ on both tabs are in scope; the cross-device data.json merge (SYNC-05) is in scope; the recurring ✓ fix applies to both tabs (CTRL-13).
 
@@ -152,9 +158,9 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-12
-Stopped at: v0.3 roadmap created (Phases 4-7); next is planning Phase 4
-Resume file: None
+Last session: 2026-11-12T22:35:20.447Z
+Stopped at: Phase 4 context gathered
+Resume file: .planning/phases/04-staging-foundations/04-CONTEXT.md
 
 ## Operator Next Steps
 
