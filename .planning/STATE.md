@@ -5,17 +5,17 @@ milestone_name: Staging Tasks
 current_phase: 04
 current_phase_name: Staging Foundations
 status: executing
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-11-12T23:47:58.445Z"
+stopped_at: Completed 04-04-PLAN.md
+last_updated: "2026-11-12T23:54:47.154Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 04 execution started
-state_head: 4ce9f7f8f312405f59f654eb3f1583146337eec1
+state_head: b14857b90dc11ff7ec2e24a67f03443e127e3635
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 5
-  completed_plans: 3
-  percent: 60
+  completed_plans: 4
+  percent: 75
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 ## Current Position
 
 Phase: 04 (Staging Foundations) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Note: 04-01, 04-02 and 04-03 complete (3/5). 04-04 is next. 04-01 end-of-phase UAT pending: confirm the scratch task's `staged:` line in source mode and remove the throwaway `spikedefault` user field from the dev vault.
 Last activity: 2026-11-12 — Phase 04 execution started
@@ -74,6 +74,7 @@ Progress (v0.3): [░░░░░░░░░░] 0% (0/4 phases)
 | Phase 04 P02 | 3 min | 2 tasks | 2 files |
 | Phase 04 P03 | 7 min | 2 tasks | 6 files |
 | Phase 04 P01 | 15 min | 3 tasks | 2 files |
+| Phase 04 P04 | 5min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -131,6 +132,8 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-01 spike: TaskNotesUserField = { id, displayName, key, type, defaultValue?: string }; defaultValue key exists with undefined when unset, so hasDefault tests the value
 - [Phase 04]: 04-01 spike: tasks.update {staged: null} keeps the key as YAML null (staged:), read back as null; fake TaskNotes must store null, not delete
 - [Phase 04]: 04-01 spike: newly registered user field shows on tasks.get without reload, so the Phase 6 setup notice need not say reload TaskNotes; Q4 off-schedule toggleCompleteInstance completes the scheduled instance and advances (Phase 7 input)
+- [Phase 04]: 04-04: TaskNotesUserField vendored exactly per the 04-01 pin { id; displayName; key; type; defaultValue?: string }; fieldStatus hasDefault tests the value, never key presence
+- [Phase 04]: 04-04: bridge.userFields is gated on catalog.read and method presence only, not in REQUIRED_CAPABILITIES
 
 ### Pending Todos
 
@@ -168,8 +171,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-12T23:47:58.411Z
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-11-12T23:54:47.108Z
+Stopped at: Completed 04-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
