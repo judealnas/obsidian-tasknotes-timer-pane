@@ -1,3 +1,10 @@
+---
+audit_acknowledged:
+  milestone: v0.2
+  at: 2026-11-12
+  gap_snapshot: "unknown::scenarios=0"
+---
+
 # Phase 1 UAT checklist: Live Timer Pane
 
 **Phase:** 01-live-timer-pane

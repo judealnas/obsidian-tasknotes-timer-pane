@@ -57,6 +57,10 @@ human_verification:
   - test: "Historical: package approval preceded the original install (01-01 truth 1)."
     expected: "User confirms the six [SUS] pins were approved before npm install ran."
     why_human: "Past command order cannot be reconstructed from current code."
+audit_acknowledged:
+  milestone: v0.2
+  at: 2026-11-12
+  status: human_needed
 ---
 
 # Phase 1: Live Timer Pane Verification Report

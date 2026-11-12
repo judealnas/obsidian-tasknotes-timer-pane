@@ -1,38 +1,34 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 1
-current_phase_name: Live Timer Pane
-status: planning
-stopped_at: Phase 03 complete, ready to plan Phase 1
-last_updated: "2026-10-27T20:15:25.871Z"
-last_activity: 2026-10-19
-last_activity_desc: Phase 03 complete, transitioned to Phase 1
-state_head: 8051ea7f5566a3ba676c058b68634570ffced19f
+status: Awaiting next milestone
+stopped_at: Milestone v0.2 complete, ready to start next milestone
+last_updated: "2026-11-12T19:12:07.355Z"
+last_activity: 2026-11-12
+last_activity_desc: Milestone v0.2 completed and archived
+state_head: 30595a4d3fa487f7d78720f5cd03fba131c3e7b4
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 12
   completed_plans: 12
-  percent: 67
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-16)
+See: .planning/PROJECT.md (updated 2026-11-12)
 
 **Core value:** With the pane open, I can always see what task is being timed and how long I've spent on it, and stop, pause, or switch tasks in one to two clicks, without leaving the pane.
-**Current focus:** Phase 1 — Live Timer Pane (finish verification; Phases 2-3 complete)
+**Current focus:** Planning next milestone (v0.2 MVP shipped 2026-11-12)
 
 ## Current Position
 
-Phase: 1 — Live Timer Pane
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-10-27 - Completed quick task 261027-mcs: Add drag-and-drop reordering of the timer cards in the pane
-
-Progress: [███████░░░] 67%
+Phase: Milestone v0.2 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-11-12 — Milestone v0.2 completed and archived
 
 ## Performance Metrics
 
@@ -124,7 +120,7 @@ None yet.
 
 - [Phase 1]: Check cold-start readiness timing by hand. `layout.ready` fires only once, and `isReady()` and `ready()` change at different points.
 - [Phase 3]: Deferred UAT follow-up: the muted can't-check Pomodoro line (unreadable ownership) has not been observed on desktop; logic is store-tested.
-- [Phase 1]: Still open: 01-UAT.md is partial (test 7 issue, tests 18-22 skipped) and 01-VERIFICATION.md is stale; re-run /gsd-execute-phase 1 then /gsd-verify-work 1.
+- [v0.2 close]: Phase 1 UAT partial and verification human_needed were acknowledged and deferred at milestone close (see Deferred Items); they carry into the next milestone as candidate work, not as blockers.
 
 ### Quick Tasks Completed
 
@@ -143,10 +139,17 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 | Category | Item | Status | Deferred At | Milestone |
 |----------|------|--------|-------------|-----------|
-| *(none)* | | | | |
+| uat_gaps | 01/01-UAT-CHECKLIST.md | unknown | 2026-11-12 | v0.2 |
+| uat_gaps | 01/01-UAT.md | partial | 2026-11-12 | v0.2 |
+| verification_gaps | 01/01-VERIFICATION.md | human_needed | 2026-11-12 | v0.2 |
+| deferred_items | 01/deferred-items.md: 01-01 Task 2 npm audit moment advisory (dev dependency only) | acknowledged | 2026-11-12 | v0.2 |
 
 ## Session Continuity
 
-Last session: 2026-10-16T18:40:00Z
-Stopped at: Phase 03 complete; Phase 1 needs re-verification (stale report, partial UAT)
+Last session: 2026-11-12
+Stopped at: Milestone v0.2 MVP completed and archived; next is /gsd-new-milestone
 Resume file: None
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone
