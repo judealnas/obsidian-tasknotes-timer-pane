@@ -235,3 +235,27 @@ test("a malformed card order loads empty; a load rejection keeps the plugin usab
 	expect(host.saved[host.saved.length - 1]).toMatchObject({ cardOrder: ["z"] });
 	log.mockRestore();
 });
+
+// ---- 04-03: rollover hour (SETUP-01, D-01, D-07) ----
+
+const depsOf = (tab: unknown) => (tab as { deps: { getSettings: () => TimerPaneSettings } }).deps;
+
+test("a rollover hour chosen in the settings tab reaches data.json beside every other key and loads back on the next onload", async () => {
+	host.data = { completionStatus: "x", pauseRecordsVersion: 1, pauseRecords: [PAUSED], cardOrder: ["a", "b"], extraKey: 1 };
+	const plugin = new TaskNotesTimerPanePlugin({} as App, {} as PluginManifest); plugin.onload();
+	await flush();
+	(host.tabs[0] as TimerPaneSettingTab).display(); await flush();
+	expect(host.settings[1]?.name).toBe("Rollover hour");
+	host.settings[1]!.dropdown.change("6"); await flush(); await flush();
+	const written = { extraKey: 1, completionStatus: "x", pauseRecordsVersion: 1, pauseRecords: [PAUSED], cardOrder: ["a", "b"], rolloverHour: 6 };
+	expect(host.saved[host.saved.length - 1]).toEqual(written);
+
+	host.data = written;
+	const restarted = new TaskNotesTimerPanePlugin({} as App, {} as PluginManifest); restarted.onload();
+	await flush();
+	const tab = host.tabs[1] as TimerPaneSettingTab;
+	expect(depsOf(tab).getSettings().rolloverHour).toBe(6);
+	tab.display(); await flush();
+	host.settings[0]!.dropdown.change("default"); await flush(); await flush();
+	expect(host.saved[host.saved.length - 1]).toEqual({ ...written, completionStatus: null });
+});
