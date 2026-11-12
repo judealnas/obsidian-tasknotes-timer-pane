@@ -5,17 +5,17 @@ milestone_name: Staging Tasks
 current_phase: 04
 current_phase_name: Staging Foundations
 status: executing
-stopped_at: Completed 04-03-PLAN.md (04-01 still in progress at its human checkpoint)
-last_updated: "2026-11-12T23:34:15.573Z"
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-11-12T23:47:58.445Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 04 execution started
-state_head: 8369353c070e7090469ccd264d77a72b615c6ecf
+state_head: 4ce9f7f8f312405f59f654eb3f1583146337eec1
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 5
-  completed_plans: 2
-  percent: 40
+  completed_plans: 3
+  percent: 60
 ---
 
 # Project State
@@ -30,9 +30,9 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 ## Current Position
 
 Phase: 04 (Staging Foundations) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
-Note: 04-02 and 04-03 complete. 04-01 is still in progress, paused at its human checkpoint (commit 7da5450, no SUMMARY yet).
+Note: 04-01, 04-02 and 04-03 complete (3/5). 04-04 is next. 04-01 end-of-phase UAT pending: confirm the scratch task's `staged:` line in source mode and remove the throwaway `spikedefault` user field from the dev vault.
 Last activity: 2026-11-12 — Phase 04 execution started
 
 Progress (v0.3): [░░░░░░░░░░] 0% (0/4 phases)
@@ -73,6 +73,7 @@ Progress (v0.3): [░░░░░░░░░░] 0% (0/4 phases)
 | Phase 03 P04 | 8 min | 2 tasks | 8 files |
 | Phase 04 P02 | 3 min | 2 tasks | 2 files |
 | Phase 04 P03 | 7 min | 2 tasks | 6 files |
+| Phase 04 P01 | 15 min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -127,6 +128,9 @@ Recent decisions affecting current work:
 - [Phase 04]: stagingDay: previous local day via local-noon Date, never ms subtraction; invalid rollover hour falls back to 4
 - [Phase 04]: TZ-matrix tests switch process.env.TZ at runtime with offset sentinels; no vitest.config needed; test files type process locally (tsconfig types: [])
 - [Phase 04]: 04-03: settings tab saves via savePatch spread over getSettings() (D-07); rolloverHour omitted from data.json when 4; dropdown saves only when String(Number(v))===v; D-06 uses the fallback copy (sentence-case lint)
+- [Phase 04]: 04-01 spike: TaskNotesUserField = { id, displayName, key, type, defaultValue?: string }; defaultValue key exists with undefined when unset, so hasDefault tests the value
+- [Phase 04]: 04-01 spike: tasks.update {staged: null} keeps the key as YAML null (staged:), read back as null; fake TaskNotes must store null, not delete
+- [Phase 04]: 04-01 spike: newly registered user field shows on tasks.get without reload, so the Phase 6 setup notice need not say reload TaskNotes; Q4 off-schedule toggleCompleteInstance completes the scheduled instance and advances (Phase 7 input)
 
 ### Pending Todos
 
@@ -136,7 +140,7 @@ None yet.
 
 - [Phase 1]: Check cold-start readiness timing by hand. `layout.ready` fires only once, and `isReady()` and `ready()` change at different points.
 - [Phase 3]: Deferred UAT follow-up: the muted can't-check Pomodoro line (unreadable ownership) has not been observed on desktop; logic is store-tested.
-- [Phase 4 research flag]: Dev-vault spike first. Confirm that a `null` unstage reads as not staged on raw frontmatter, the shape of `catalog.userFields()` (`defaultValue`?), whether a newly registered field shows on cached TaskInfo without a reload, and `toggleCompleteInstance` with an off-schedule day.
+- [Phase 4 research flag, resolved by 04-01, see 04-SPIKE-FINDINGS.md]: Dev-vault spike first. Confirm that a `null` unstage reads as not staged on raw frontmatter, the shape of `catalog.userFields()` (`defaultValue`?), whether a newly registered field shows on cached TaskInfo without a reload, and `toggleCompleteInstance` with an off-schedule day.
 - [Phase 7 research flag]: Run `/gsd-plan-phase --research-phase 7`. It covers recurring occurrence snapping, occurrence materialization, whether the toggle stops timers, and the date basis of `completedDate` near midnight.
 - [v0.2 close]: Phase 1 UAT partial and verification human_needed were acknowledged and deferred at milestone close (see Deferred Items); they carry into the next milestone as candidate work, not as blockers.
 
@@ -164,8 +168,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-12T23:34:15.538Z
-Stopped at: Completed 04-03-PLAN.md (04-01 still in progress at its human checkpoint)
+Last session: 2026-11-12T23:47:58.411Z
+Stopped at: Completed 04-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
