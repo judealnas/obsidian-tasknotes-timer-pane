@@ -1,0 +1,37 @@
+TAP version 13
+1..27
+ok 1 - tests/stagedField.test.ts > STAGED_FIELD_KEY (D-02) > is the fixed key staged # SKIP
+ok 2 - tests/stagedField.test.ts > fieldStatus (D-03) > null (a failed catalog read) is unknown # SKIP
+ok 3 - tests/stagedField.test.ts > fieldStatus (D-03) > undefined is unknown # SKIP
+ok 4 - tests/stagedField.test.ts > fieldStatus (D-03) > an object is unknown # SKIP
+ok 5 - tests/stagedField.test.ts > fieldStatus (D-03) > a string is unknown # SKIP
+ok 6 - tests/stagedField.test.ts > fieldStatus (D-03) > a number is unknown # SKIP
+ok 7 - tests/stagedField.test.ts > fieldStatus (D-03) > an empty catalog is missing # SKIP
+ok 8 - tests/stagedField.test.ts > fieldStatus (D-03) > another field only is missing # SKIP
+ok 9 - tests/stagedField.test.ts > fieldStatus (D-03) > case differs: Staged is missing # SKIP
+ok 10 - tests/stagedField.test.ts > fieldStatus (D-03) > leading space: ' staged' is missing # SKIP
+ok 11 - tests/stagedField.test.ts > fieldStatus (D-03) > staged as text is wrong-type text # SKIP
+ok 12 - tests/stagedField.test.ts > fieldStatus (D-03) > staged with no type is wrong-type unknown # SKIP
+ok 13 - tests/stagedField.test.ts > fieldStatus (D-03) > staged with a non-string type is wrong-type unknown # SKIP
+ok 14 - tests/stagedField.test.ts > fieldStatus (D-03) > malformed entries are skipped, not fatal # SKIP
+ok 15 - tests/stagedField.test.ts > fieldStatus (D-03) > first match wins: text before date is wrong-type # SKIP
+ok 16 - tests/stagedField.test.ts > fieldStatus (D-03) > first match wins: date before text is ok # SKIP
+ok 17 - tests/stagedField.test.ts > fieldStatus (D-03) > the 4.13.8 shape is ok # SKIP
+ok 18 - tests/stagedField.test.ts > fieldStatus (D-03) > a date default is hasDefault # SKIP
+ok 19 - tests/stagedField.test.ts > fieldStatus (D-03) > an empty default is no default # SKIP
+ok 20 - tests/stagedField.test.ts > fieldStatus (D-03) > a null default is no default # SKIP
+ok 21 - tests/stagedField.test.ts > fieldStatus (D-03) > a present-but-undefined default is no default (04-01 pin) # SKIP
+ok 22 - tests/stagedField.test.ts > fieldStatus (D-03) > wrong-type carries hasDefault # SKIP
+ok 23 - tests/stagedField.test.ts > fieldStatus (D-03) > never throws for any input in the table # SKIP
+ok 24 - tests/stagedField.test.ts > fieldStatus (D-03) > is stable for a given catalog # SKIP
+not ok 25 - tests/stagedField.test.ts > fake gateway userFields (Phase 6 seam) > setUserFields makes userFields() resolve a deep copy # time=6.82ms
+    ---
+    error:
+        name: "AssertionError"
+        message: "expected 'undefined' to be 'function' // Object.is equality"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/.claude/worktrees/phase-04-plan/tests/stagedField.test.ts:55:40"
+    actual: "undefined"
+    expected: "function"
+    ...
+ok 26 - tests/stagedField.test.ts > fake gateway userFields (Phase 6 seam) > defaults to an empty catalog # SKIP
+ok 27 - tests/stagedField.test.ts > fake gateway userFields (Phase 6 seam) > failUserFieldsWith makes userFields() reject; null restores success # SKIP

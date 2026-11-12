@@ -18,6 +18,7 @@ import type {
 	TaskNotesRuntimeLifecycleEventName,
 	TaskNotesRuntimeTaskEventName,
 	TaskNotesRuntimeTaskMenuShowOptions,
+	TaskNotesUserField,
 	TimeEntry,
 } from "../src/tasknotes/runtime-api.types";
 
@@ -151,5 +152,16 @@ describe("Phase 2 public contract (TaskNotes 4.13.8)", () => {
  });
  test("public time and Pomodoro event names", () => {
   expectTypeOf<TaskNotesRuntimeEventName>().toEqualTypeOf<TaskNotesRuntimeTaskEventName | "time.started" | "time.stopped" | "pomodoro.started" | "pomodoro.completed" | "pomodoro.interrupted">();
+ });
+});
+
+describe("Phase 4 staging contract (TaskNotes 4.13.8)", () => {
+ test("catalog.userFields is optional (4.13.0+) and takes no arguments", () => {
+  expectTypeOf<undefined>().toExtend<NonNullable<Api["catalog"]>["userFields"]>();
+  expectTypeOf<NonNullable<NonNullable<Api["catalog"]>["userFields"]>>().parameters.toEqualTypeOf<[]>();
+  expectTypeOf<NonNullable<NonNullable<Api["catalog"]>["userFields"]>>().returns.toEqualTypeOf<TaskNotesUserField[]>();
+ });
+ test("TaskNotesUserField is exactly the shape the 04-01 spike observed", () => {
+  expectTypeOf<TaskNotesUserField>().toEqualTypeOf<{ id: string; displayName: string; key: string; type: string; defaultValue?: string }>();
  });
 });
