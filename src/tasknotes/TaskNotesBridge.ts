@@ -250,9 +250,13 @@ export class TaskNotesBridge implements TaskNotesGateway {
   return statuses;
  }
 
- // RED skeleton (04-04 Task 1).
- userFields(): Promise<TaskNotesUserField[]> {
-  return Promise.resolve([]);
+ /** TaskNotes' registered user fields (4.13.0+). Feature-gated on catalog.read; not required for ready. */
+ async userFields(): Promise<TaskNotesUserField[]> {
+  const readApi = () => this.featureApi("catalog.read", "catalog.userFields", api => typeof api.catalog?.userFields === "function");
+  const api = readApi();
+  const fields = await Promise.resolve(api.catalog!.userFields!());
+  if (readApi() !== api) throw new Error("TaskNotes changed while loading user fields");
+  return fields;
  }
 
  async start(path: string, options: Record<string, never>, context: TaskNotesMutationContext): Promise<void> {
