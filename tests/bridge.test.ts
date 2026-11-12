@@ -1,6 +1,7 @@
 // D-12 bridge-availability tests. Per D-04 the missing and too-old states are faked
 // (apiVersion, capabilities, version); no old TaskNotes is ever installed.
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { fieldStatus } from "../src/model/stagedField";
 import { derivePaneState } from "../src/model/timeMath";
 import { TimerStore } from "../src/state/TimerStore";
 import {
@@ -587,4 +588,76 @@ describe("Start feature gates", () => {
   const pending = bridge.listTasks(); tn.emitLifecycle("unloading"); resolve([]);
   await expect(pending).rejects.toThrow(); expect(bridge.startAvailability().available).toBe(false);
  });
+});
+
+describe("staging field registration (D-03)", () => {
+	const STAGED_DATE = { id: "f1", displayName: "Staged", key: "staged", type: "date" };
+	test("a ready bridge on TaskNotes 4.13.8 reads catalog.userFields and fieldStatus reports ok", async () => {
+		const tn = createFakeTaskNotes({ version: "4.13.8", userFields: [STAGED_DATE] });
+		const { bridge } = setup(tn.plugin);
+		bridge.probe();
+		const fields = await bridge.userFields();
+		expect(fields).toHaveLength(1);
+		expect(fields).toEqual([STAGED_DATE]);
+		expect(fieldStatus(fields)).toEqual({ kind: "ok", hasDefault: false });
+	});
+	test("no staged entry is missing; staged as text is wrong-type", async () => {
+		const tn = createFakeTaskNotes();
+		const { bridge } = setup(tn.plugin);
+		bridge.probe();
+		expect(fieldStatus(await bridge.userFields())).toEqual({ kind: "missing" });
+		tn.setUserFields([{ ...STAGED_DATE, type: "text" }]);
+		expect(fieldStatus(await bridge.userFields())).toEqual({ kind: "wrong-type", type: "text", hasDefault: false });
+	});
+	test("returns a copy, so a caller cannot mutate the fake catalog", async () => {
+		const tn = createFakeTaskNotes({ userFields: [STAGED_DATE] });
+		const { bridge } = setup(tn.plugin);
+		bridge.probe();
+		const first = await bridge.userFields();
+		first[0]!.type = "text";
+		expect(fieldStatus(await bridge.userFields())).toEqual({ kind: "ok", hasDefault: false });
+	});
+	test("without catalog.userFields the bridge stays ready and userFields() rejects", async () => {
+		const tn = createFakeTaskNotes({ omitMethods: ["catalog.userFields"] });
+		const { bridge } = setup(tn.plugin);
+		bridge.probe();
+		expect(bridge.getState()).toEqual({ kind: "ready" });
+		await expect(bridge.userFields()).rejects.toThrow("TaskNotes does not provide catalog.userFields");
+	});
+	test("without catalog.read userFields() rejects", async () => {
+		const tn = createFakeTaskNotes({ capabilities: ["time.read", "time.write", "tasks.events", "lifecycle.events"], userFields: [STAGED_DATE] });
+		const { bridge } = setup(tn.plugin);
+		bridge.probe();
+		expect(bridge.getState()).toEqual({ kind: "ready" });
+		await expect(bridge.userFields()).rejects.toThrow("TaskNotes is missing catalog.read");
+	});
+	test("a failed catalog read rejects, and fieldStatus of the null a consumer passes is unknown", async () => {
+		const tn = createFakeTaskNotes({ userFields: [STAGED_DATE] });
+		const { bridge } = setup(tn.plugin);
+		bridge.probe();
+		tn.failReadWith("catalog broke");
+		await expect(bridge.userFields()).rejects.toThrow("catalog broke");
+		expect(fieldStatus(null)).toEqual({ kind: "unknown" });
+	});
+	test("preserves the catalog receiver and refuses user fields read across a TaskNotes reload", async () => {
+		const tn = createFakeTaskNotes({ userFields: [STAGED_DATE] });
+		const ctx = setup(tn.plugin);
+		ctx.bridge.probe();
+		const catalog = tn.api.catalog!;
+		let reload = false;
+		catalog.userFields = function () {
+			expect(this).toBe(catalog);
+			if (reload) ctx.setPlugin(createFakeTaskNotes().plugin);
+			return [STAGED_DATE];
+		};
+		await expect(ctx.bridge.userFields()).resolves.toEqual([STAGED_DATE]);
+		reload = true;
+		await expect(ctx.bridge.userFields()).rejects.toThrow();
+	});
+	test("rejects while TaskNotes is not connected", async () => {
+		const tn = createFakeTaskNotes({ ready: false });
+		const { bridge } = setup(tn.plugin);
+		bridge.probe();
+		await expect(bridge.userFields()).rejects.toThrow("TaskNotes is not connected");
+	});
 });

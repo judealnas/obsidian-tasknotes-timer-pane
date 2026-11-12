@@ -1,0 +1,67 @@
+TAP version 13
+1..57
+ok 1 - tests/bridge.test.ts > Complete is capability/callable gated and keeps the tasks receiver # SKIP
+ok 2 - tests/bridge.test.ts > Pomodoro and time events coalesce refreshes and release every listener on unload # SKIP
+ok 3 - tests/bridge.test.ts > ownership reads fail closed for missing capability, missing method, malformed data, and retired API # SKIP
+ok 4 - tests/bridge.test.ts > ownership status retains its namespace receiver and rejects an API replaced during the read # SKIP
+ok 5 - tests/bridge.test.ts > availability states (RESEARCH Pattern 1, DISP-05) > getPlugin returning null is missing # SKIP
+ok 6 - tests/bridge.test.ts > availability states (RESEARCH Pattern 1, DISP-05) > a TaskNotes 4.9.3 plugin with no api is { kind: 'incompatible', …(1) } # SKIP
+ok 7 - tests/bridge.test.ts > availability states (RESEARCH Pattern 1, DISP-05) > a TaskNotes 4.10.0 plugin with no api is { kind: 'loading' } # SKIP
+ok 8 - tests/bridge.test.ts > availability states (RESEARCH Pattern 1, DISP-05) > a TaskNotes 4.13.8 plugin with no api is { kind: 'loading' } # SKIP
+ok 9 - tests/bridge.test.ts > availability states (RESEARCH Pattern 1, DISP-05) > a TaskNotes 4.10.0-beta.1 plugin with no api is { kind: 'loading' } # SKIP
+ok 10 - tests/bridge.test.ts > availability states (RESEARCH Pattern 1, DISP-05) > a TaskNotes weird plugin with no api is { kind: 'loading' } # SKIP
+ok 11 - tests/bridge.test.ts > availability states (RESEARCH Pattern 1, DISP-05) > apiVersion 2 is incompatible and subscribes nothing # SKIP
+ok 12 - tests/bridge.test.ts > availability states (RESEARCH Pattern 1, DISP-05) > a missing required capability is incompatible and subscribes nothing # SKIP
+ok 13 - tests/bridge.test.ts > availability states (RESEARCH Pattern 1, DISP-05) > an attached api that is not ready is loading; a ready one is ready # SKIP
+ok 14 - tests/bridge.test.ts > availability states (RESEARCH Pattern 1, DISP-05) > a throwing hasCapability gives missing with one log call # SKIP
+ok 15 - tests/bridge.test.ts > isVersionOlder (DISP-05 encoding) > compares dot-separated numeric segments, ignores suffixes, never calls an unknown version old # SKIP
+ok 16 - tests/bridge.test.ts > lifecycle (SYNC-03) > layout.ready moves loading to ready and emits data # SKIP
+ok 17 - tests/bridge.test.ts > lifecycle (SYNC-03) > layout.ready while already ready still emits data (Pitfall 5) # SKIP
+ok 18 - tests/bridge.test.ts > lifecycle (SYNC-03) > task.updated emits data # SKIP
+ok 19 - tests/bridge.test.ts > lifecycle (SYNC-03) > task.deleted emits data # SKIP
+ok 20 - tests/bridge.test.ts > lifecycle (SYNC-03) > cache.changed emits data # SKIP
+ok 21 - tests/bridge.test.ts > lifecycle (SYNC-03) > cache.rebuilt emits data # SKIP
+ok 22 - tests/bridge.test.ts > lifecycle (SYNC-03) > settings.changed emits data # SKIP
+ok 23 - tests/bridge.test.ts > lifecycle (SYNC-03) > unloading sets missing, retires the api, and schedules exactly one early probe at 1000 ms # SKIP
+ok 24 - tests/bridge.test.ts > lifecycle (SYNC-03) > a new api object after unloading reaches ready through the early probe, with no duplicate handlers # SKIP
+ok 25 - tests/bridge.test.ts > lifecycle (SYNC-03) > TaskNotes disabled (getPlugin null) then re-enabled reconnects on the 5 s probe # SKIP
+ok 26 - tests/bridge.test.ts > lifecycle (SYNC-03) > dispose removes every handler and cancels the pending early probe # SKIP
+ok 27 - tests/bridge.test.ts > lifecycle (SYNC-03) > the loading watchdog logs exactly once across 40 s of probes, then resets after leaving loading # SKIP
+ok 28 - tests/bridge.test.ts > lifecycle (SYNC-03) > the watchdog re-arms after the bridge leaves loading # SKIP
+ok 29 - tests/bridge.test.ts > end-to-end reconnect through the real TimerStore > running, unloading -> missing, new api with an open entry, early probe -> running again # SKIP
+ok 30 - tests/bridge.test.ts > getTask (Phase 3 paused cards) > resolves the task, or null for a path TaskNotes has not cached # SKIP
+ok 31 - tests/bridge.test.ts > getTask (Phase 3 paused cards) > rejects when tasks.get is missing or TaskNotes is not connected # SKIP
+ok 32 - tests/bridge.test.ts > write facade (CTRL-01) > stop forwards the path and the mutation context to api.time.stop # SKIP
+ok 33 - tests/bridge.test.ts > write facade (CTRL-01) > stop rejects without calling TaskNotes when the bridge is not ready # SKIP
+ok 34 - tests/bridge.test.ts > write facade (CTRL-01) > normalizeError uses api.errors.normalize when errors.typed is present # SKIP
+ok 35 - tests/bridge.test.ts > write facade (CTRL-01) > normalizeError falls back to the plain message without errors.typed, when detached, or when normalize throws # SKIP
+ok 36 - tests/bridge.test.ts > task menu (ui.taskMenu, optional ui.task-menu capability) > ready with ui.task-menu: hands the task path and the same event to ui.taskMenu.show # SKIP
+ok 37 - tests/bridge.test.ts > task menu (ui.taskMenu, optional ui.task-menu capability) > without ui.task-menu: returns false, never calls show, and the bridge is still ready # SKIP
+ok 38 - tests/bridge.test.ts > task menu (ui.taskMenu, optional ui.task-menu capability) > capability advertised but no ui namespace (TaskNotes 4.10 shape): returns false without throwing # SKIP
+ok 39 - tests/bridge.test.ts > task menu (ui.taskMenu, optional ui.task-menu capability) > TaskNotes missing or not ready: returns false with no menu call # SKIP
+ok 40 - tests/bridge.test.ts > task menu (ui.taskMenu, optional ui.task-menu capability) > show rejecting: still true, and the failure is logged, not left unhandled # SKIP
+ok 41 - tests/bridge.test.ts > task menu (ui.taskMenu, optional ui.task-menu capability) > hasCapability throwing after ready: returns false, logs once, does not throw # SKIP
+ok 42 - tests/bridge.test.ts > Start feature gates > catalog reads work independently when tasks.read is unavailable # SKIP
+ok 43 - tests/bridge.test.ts > Start feature gates > missing tasks.read disables only Start # SKIP
+ok 44 - tests/bridge.test.ts > Start feature gates > missing catalog.read disables only Start # SKIP
+ok 45 - tests/bridge.test.ts > Start feature gates > missing list callable disables only Start # SKIP
+ok 46 - tests/bridge.test.ts > Start feature gates > missing statuses callable disables only Start # SKIP
+ok 47 - tests/bridge.test.ts > Start feature gates > missing start callable disables only Start # SKIP
+ok 48 - tests/bridge.test.ts > Start feature gates > preserves namespace receivers and refuses results from a replaced API # SKIP
+ok 49 - tests/bridge.test.ts > Start feature gates > unload during a task read cannot return stale rows # SKIP
+not ok 50 - tests/bridge.test.ts > staging field registration (D-03) > a ready bridge on TaskNotes 4.13.8 reads catalog.userFields and fieldStatus reports ok # time=11.60ms
+    ---
+    error:
+        name: "AssertionError"
+        message: "expected [] to have a length of 1 but got +0"
+    at: "C:/Users/ja384/Home/obsidian-tasknotes-timer-pane/.claude/worktrees/phase-04-plan/tests/bridge.test.ts:600:18"
+    actual: "0"
+    expected: "1"
+    ...
+ok 51 - tests/bridge.test.ts > staging field registration (D-03) > no staged entry is missing; staged as text is wrong-type # SKIP
+ok 52 - tests/bridge.test.ts > staging field registration (D-03) > returns a copy, so a caller cannot mutate the fake catalog # SKIP
+ok 53 - tests/bridge.test.ts > staging field registration (D-03) > without catalog.userFields the bridge stays ready and userFields() rejects # SKIP
+ok 54 - tests/bridge.test.ts > staging field registration (D-03) > without catalog.read userFields() rejects # SKIP
+ok 55 - tests/bridge.test.ts > staging field registration (D-03) > a failed catalog read rejects, and fieldStatus of the null a consumer passes is unknown # SKIP
+ok 56 - tests/bridge.test.ts > staging field registration (D-03) > preserves the catalog receiver and refuses user fields read across a TaskNotes reload # SKIP
+ok 57 - tests/bridge.test.ts > staging field registration (D-03) > rejects while TaskNotes is not connected # SKIP

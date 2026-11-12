@@ -11,6 +11,7 @@ import type {
 	TaskInfo,
 	TaskStatus,
 	TaskNotesMutationContext,
+	TaskNotesUserField,
 	TaskNotesRuntimeApiV1,
 	TaskNotesRuntimeLifecycleEventName,
 	TaskNotesRuntimeEventName,
@@ -247,6 +248,11 @@ export class TaskNotesBridge implements TaskNotesGateway {
   const statuses = await Promise.resolve(api.catalog!.statuses());
   if (readApi() !== api) throw new Error("TaskNotes changed while loading statuses");
   return statuses;
+ }
+
+ // RED skeleton (04-04 Task 1).
+ userFields(): Promise<TaskNotesUserField[]> {
+  return Promise.resolve([]);
  }
 
  async start(path: string, options: Record<string, never>, context: TaskNotesMutationContext): Promise<void> {

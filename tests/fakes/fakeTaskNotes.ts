@@ -13,6 +13,7 @@ import type {
 	TaskNotesRuntimeLifecyclePayload,
  TaskNotesRuntimeEventName,
  TaskStatus,
+ TaskNotesUserField,
  PomodoroState,
 	TimeEntry,
 } from "../../src/tasknotes/runtime-api.types";
@@ -42,8 +43,10 @@ export interface FakeTaskNotesOptions {
 	active?: ActiveTimeEntry[];
  tasks?: TaskInfo[];
  statuses?: TaskStatus[];
+ /** What catalog.userFields() returns (deep-copied per call). Default []. */
+ userFields?: TaskNotesUserField[];
  pomodoro?: PomodoroState;
- omitMethods?: Array<"tasks.list" | "tasks.get" | "tasks.complete" | "catalog.statuses" | "time.start" | "pomodoro.status">;
+ omitMethods?: Array<"tasks.list" | "tasks.get" | "tasks.complete" | "catalog.statuses" | "catalog.userFields" | "time.start" | "pomodoro.status">;
 	/** False builds an api with no `ui` namespace, like TaskNotes 4.10. Default true. */
 	ui?: boolean;
 }
@@ -69,6 +72,8 @@ export interface FakeTaskNotes {
 	setReady(ready: boolean): void;
  setTasks(tasks: TaskInfo[]): void;
  setStatuses(statuses: TaskStatus[]): void;
+ /** What later catalog.userFields() calls return. */
+ setUserFields(fields: TaskNotesUserField[]): void;
  setPomodoro(state: PomodoroState): void;
  failReadWith(error: string | null): void;
  failStartWith(error: string | null): void;
@@ -114,6 +119,7 @@ export function createFakeTaskNotes(options: FakeTaskNotesOptions = {}): FakeTas
 	let activeCalls = 0;
  let tasks = options.tasks ?? fixture.map(item => item.task);
  let statuses: TaskStatus[] = options.statuses ?? [{ value: "done", isCompleted: true }];
+ let userFields: TaskNotesUserField[] = options.userFields ?? [];
  let pomodoro: PomodoroState = options.pomodoro ?? { isRunning: false, timeRemaining: 0 };
  let readFailure: string | null = null;
  let startFailure: string | null = null;
@@ -228,7 +234,11 @@ export function createFakeTaskNotes(options: FakeTaskNotesOptions = {}): FakeTas
     return Promise.resolve(structuredClone(task));
    },
   },
-  catalog: { statuses: () => { if (readFailure !== null) throw new Error(readFailure); return structuredClone(statuses); } },
+  catalog: {
+   statuses: () => { if (readFailure !== null) throw new Error(readFailure); return structuredClone(statuses); },
+   // TaskNotes 4.13.8 returns synchronously.
+   userFields: () => { if (readFailure !== null) throw new Error(readFailure); return structuredClone(userFields); },
+  },
   pomodoro: { status: () => readFailure !== null ? Promise.reject(new Error(readFailure)) : Promise.resolve(structuredClone(pomodoro)) },
 		time,
 		events,
@@ -247,6 +257,7 @@ export function createFakeTaskNotes(options: FakeTaskNotesOptions = {}): FakeTas
   completeCalls,
   setTasks(next) { tasks = next; },
   setStatuses(next) { statuses = next; },
+  setUserFields(next) { userFields = next; },
   setPomodoro(next) { pomodoro = next; },
   failReadWith(error) { readFailure = error; },
   failStartWith(error) { startFailure = error; },

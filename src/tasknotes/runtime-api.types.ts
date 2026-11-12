@@ -98,6 +98,20 @@ export interface TaskStatus {
 	isCompleted: boolean;
 }
 
+/**
+ * One entry of `catalog.userFields()` (TaskNotes 4.13.0+), pinned to the shape the
+ * 04-01 dev-vault spike observed on 4.13.8 (04-SPIKE-FINDINGS.md, Pins). `type` is
+ * widened to string ("date", "text", ...). Without a default the `defaultValue` key
+ * is still present with value undefined, so decide "has a default" by the value.
+ */
+export interface TaskNotesUserField {
+	id: string;
+	displayName: string;
+	key: string;
+	type: string;
+	defaultValue?: string;
+}
+
 /** Trimmed from public PomodoroState/Session; ownership is the task entry timestamp. */
 export interface PomodoroSession {
  timeTrackingStartTime?: string;
@@ -133,6 +147,8 @@ export interface TaskNotesRuntimeApiV1 {
 	};
 	readonly catalog?: {
 		statuses(): TaskStatus[];
+		/** 4.13.0+: TaskNotes' registered user fields (shallow copies). Gate on catalog.read. */
+		userFields?(): TaskNotesUserField[];
 	};
 
 	readonly pomodoro?: { status(): Promise<PomodoroState>; };
