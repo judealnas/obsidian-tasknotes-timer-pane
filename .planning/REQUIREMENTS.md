@@ -16,7 +16,7 @@ Design sources: `.planning/research/STAGING-DECISIONS.md` (settled decisions; v0
 
 ### Setup
 
-- [ ] **SETUP-01**: User can set the rollover hour (default 4 AM, 0–23) in the existing settings tab; saving any one setting never resets another. The staged field key is fixed as `staged` (not configurable; Phase 4 discussion)
+- [x] **SETUP-01**: User can set the rollover hour (default 4 AM, 0–23) in the existing settings tab; saving any one setting never resets another. The staged field key is fixed as `staged` (not configurable; Phase 4 discussion)
 - [ ] **SETUP-02**: If the `staged` key isn't registered as a TaskNotes **date** user field (checked via `catalog.userFields()`), the Staged tab shows a setup notice explaining how to register it (type date, no default value) and Stage is disabled; no write is attempted
 - [ ] **SETUP-03**: If TaskNotes lacks the staging APIs (older than 4.13.0 or missing capability), the Staged tab explains why and the Timers tab keeps working as before
 
@@ -93,7 +93,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TABS-02 | Phase 5 | Pending |
 | TABS-03 | Phase 6 | Pending |
 | TABS-04 | Phase 6 | Pending |
-| SETUP-01 | Phase 4 | Pending |
+| SETUP-01 | Phase 4 | Complete |
 | SETUP-02 | Phase 6 | Pending |
 | SETUP-03 | Phase 6 | Pending |
 | STAGE-01 | Phase 6 | Pending |
