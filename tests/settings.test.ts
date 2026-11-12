@@ -82,7 +82,7 @@ const LABELS = [
 	"12 AM", "1 AM", "2 AM", "3 AM", "4 AM", "5 AM", "6 AM", "7 AM", "8 AM", "9 AM", "10 AM", "11 AM",
 	"12 PM", "1 PM", "2 PM", "3 PM", "4 PM", "5 PM", "6 PM", "7 PM", "8 PM", "9 PM", "10 PM", "11 PM",
 ];
-const ROLLOVER_DESCRIPTION = "The staging day starts at this hour. Earlier times count toward the previous day, so with 4 AM, 1:30 AM is still yesterday.";
+const ROLLOVER_DESCRIPTION = "The staging day starts at this hour. Earlier times count toward the previous day: with the default, 1:30 at night still counts as yesterday.";
 
 describe("rollover hour settings", () => {
 	test.each([0, 4, 23])("a saved rollover hour %i loads as given", hour => {

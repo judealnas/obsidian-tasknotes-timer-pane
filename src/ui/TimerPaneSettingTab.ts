@@ -50,13 +50,14 @@ export class TimerPaneSettingTab extends PluginSettingTab {
 		// Rendered whatever the TaskNotes status catalog did (D-04).
 		new Setting(this.containerEl)
 			.setName("Rollover hour")
-			.setDesc("The staging day starts at this hour. Earlier times count toward the previous day, so with 4 AM, 1:30 AM is still yesterday.")
+			.setDesc("The staging day starts at this hour. Earlier times count toward the previous day: with the default, 1:30 at night still counts as yesterday.")
 			.addDropdown(dropdown => {
 				for (const hour of ROLLOVER_HOURS) dropdown.addOption(String(hour), rolloverHourLabel(hour));
 				dropdown.setValue(String(this.deps.getSettings().rolloverHour));
 				dropdown.onChange(value => {
+					// Only an option value saves: the round trip rejects "", " 6" and "06", which Number() accepts.
 					const rolloverHour = Number(value);
-					if (isRolloverHour(rolloverHour) && generation === this.generation) {
+					if (isRolloverHour(rolloverHour) && String(rolloverHour) === value && generation === this.generation) {
 						void this.savePatch(dropdown, generation, { rolloverHour }, "Couldn't save the rollover hour. Try again.");
 					}
 				});
