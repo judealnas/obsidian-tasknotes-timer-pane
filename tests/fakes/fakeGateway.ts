@@ -3,7 +3,7 @@
 import { errorMessage } from "../../src/model/errors";
 import type { Ownership } from "../../src/model/pomodoroOwnership";
 import type { BridgeState, TaskNotesGateway } from "../../src/tasknotes/TaskNotesBridge";
-import type { ActiveTimeEntry, TaskInfo, TaskNotesMutationContext } from "../../src/tasknotes/runtime-api.types";
+import type { ActiveTimeEntry, TaskInfo, TaskNotesMutationContext, TaskNotesUserField } from "../../src/tasknotes/runtime-api.types";
 
 export interface GatewayStopCall {
 	taskPath: string;
@@ -47,6 +47,10 @@ export interface FakeGateway extends TaskNotesGateway {
 	readonly menuCalls: GatewayMenuCall[];
 	/** Whether `showTaskMenu()` reports TaskNotes' menu as available (default true). */
 	setTaskMenuAvailable(available: boolean): void;
+	/** What later `userFields()` calls resolve to (deep-copied on set and per call). Default []. */
+	setUserFields(fields: TaskNotesUserField[]): void;
+	/** Makes every later `userFields()` reject with `error`; null restores success. */
+	failUserFieldsWith(error: unknown): void;
 }
 
 export function createFakeGateway(initial: BridgeState = { kind: "ready" }): FakeGateway {
@@ -61,6 +65,8 @@ export function createFakeGateway(initial: BridgeState = { kind: "ready" }): Fak
 	const taskFixtures = new Map<string, TaskInfo | null>();
 	let ownership: Ownership = { readable: true, owner: null };
 	let taskMenuAvailable = true;
+	let userFields: TaskNotesUserField[] = [];
+	let userFieldsFailure: { error: unknown } | null = null;
 	const menuCalls: GatewayMenuCall[] = [];
 	const stateListeners = new Set<(state: BridgeState) => void>();
 	const dataListeners = new Set<() => void>();
@@ -75,6 +81,19 @@ export function createFakeGateway(initial: BridgeState = { kind: "ready" }): Fak
 		startAvailability: () => ({ available: state.kind === "ready", reason: "TaskNotes is not connected" }),
 		listTasks: () => Promise.resolve([]),
 		statuses: () => Promise.resolve([]),
+		userFields() {
+			if (userFieldsFailure) {
+				const { error } = userFieldsFailure;
+				return Promise.reject(error instanceof Error ? error : new Error(String(error)));
+			}
+			return Promise.resolve(structuredClone(userFields));
+		},
+		setUserFields(fields) {
+			userFields = structuredClone(fields);
+		},
+		failUserFieldsWith(error) {
+			userFieldsFailure = error === null ? null : { error };
+		},
 		completionAvailable: () => state.kind === "ready",
 		completeTask: () => Promise.resolve(),
 		start(taskPath, _options, context) {

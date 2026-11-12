@@ -55,6 +55,8 @@ export interface TaskNotesGateway {
 	/** One task through api.tasks.get; null when TaskNotes has no such cached task (including while its cache warms). */
 	getTask(path: string): Promise<TaskInfo | null>;
 	statuses(): Promise<TaskStatus[]>;
+	/** TaskNotes' user fields via catalog.read, feature-gated and not required for ready; consumers pass a rejection to fieldStatus as null. */
+	userFields(): Promise<TaskNotesUserField[]>;
 	completionAvailable(): boolean;
 	completeTask(path: string, status: string, context: TaskNotesMutationContext): Promise<void>;
 	start(path: string, options: Record<string, never>, context: TaskNotesMutationContext): Promise<void>;
