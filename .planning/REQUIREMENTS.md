@@ -50,7 +50,7 @@ Design sources: `.planning/research/STAGING-DECISIONS.md` (settled decisions; v0
 
 ### Rollover
 
-- [ ] **ROLL-01**: The staging day starts at the rollover hour; at 1:30 AM it is still the previous day (DST-safe calendar math)
+- [x] **ROLL-01**: The staging day starts at the rollover hour; at 1:30 AM it is still the previous day (DST-safe calendar math)
 - [ ] **ROLL-02**: Unfinished staged tasks roll forward to the next day with no writes, and their days-staged count increases
 - [ ] **ROLL-03**: Rollover takes effect promptly even if Obsidian was left open overnight or the machine slept
 
@@ -112,7 +112,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DONE-01 | Phase 7 | Pending |
 | CTRL-13 | Phase 7 | Pending |
 | DONE-02 | Phase 7 | Pending |
-| ROLL-01 | Phase 4 | Pending |
+| ROLL-01 | Phase 4 | Complete |
 | ROLL-02 | Phase 7 | Pending |
 | ROLL-03 | Phase 7 | Pending |
 | PANE-04 | Phase 7 | Pending |

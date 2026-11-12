@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 milestone: v0.3
 milestone_name: Staging Tasks
 current_phase: 04
-current_phase_name: staging-foundations
+current_phase_name: Staging Foundations
 status: executing
-stopped_at: Phase 4 context gathered
-last_updated: "2026-11-12T23:12:20.335Z"
+stopped_at: Completed 04-02-PLAN.md
+last_updated: "2026-11-12T23:27:13.413Z"
 last_activity: 2026-11-12
-last_activity_desc: v0.3 roadmap created (28/28 requirements mapped)
-state_head: acfca09ed49c4b72175da1995f571d521eeb654c
+last_activity_desc: Phase 04 execution started
+state_head: c4de0ce33d2bbd915ca6b04e61d59ec74afdfc67
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 5
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 20
 ---
 
 # Project State
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-12)
 
 **Core value:** With the pane open, I can always see what task is being timed and how long I've spent on it, and stop, pause, or switch tasks in one to two clicks, without leaving the pane.
-**Current focus:** v0.3 Staging Tasks, Phase 4: Staging Foundations (roadmap created; Phases 4-7)
+**Current focus:** Phase 04 — Staging Foundations
 
 ## Current Position
 
-Phase: 04 (staging-foundations) — READY TO EXECUTE
-Plan: — (not yet planned)
+Phase: 04 (Staging Foundations) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-11-12 — v0.3 roadmap created (28/28 requirements mapped)
+Last activity: 2026-11-12 — Phase 04 execution started
 
 Progress (v0.3): [░░░░░░░░░░] 0% (0/4 phases)
 
@@ -70,6 +70,7 @@ Progress (v0.3): [░░░░░░░░░░] 0% (0/4 phases)
 | Phase 03 P02 | 8 min | 2 tasks | 9 files |
 | Phase 03 P03 | 8 min | 2 tasks | 5 files |
 | Phase 03 P04 | 8 min | 2 tasks | 8 files |
+| Phase 04 P02 | 3 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -121,6 +122,8 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-03: Stop all clears paused records only when not halted on unreadable ownership; running records left to reconcile rule 3
 - [Phase 03]: 03-04: TimerStore hides only the exact readable Pomodoro-owned entry (visibleEntries) after reconcile; malformed or unreadable data hides nothing
 - [Phase 03]: 03-04: start() re-reads Pomodoro ownership inside queue.run before the already-running check; a paused Pomodoro owns no entry, so its task stays startable
+- [Phase 04]: stagingDay: previous local day via local-noon Date, never ms subtraction; invalid rollover hour falls back to 4
+- [Phase 04]: TZ-matrix tests switch process.env.TZ at runtime with offset sentinels; no vitest.config needed; test files type process locally (tsconfig types: [])
 
 ### Pending Todos
 
@@ -158,9 +161,9 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-12T22:35:20.447Z
-Stopped at: Phase 4 context gathered
-Resume file: .planning/phases/04-staging-foundations/04-CONTEXT.md
+Last session: 2026-11-12T23:27:13.379Z
+Stopped at: Completed 04-02-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 
