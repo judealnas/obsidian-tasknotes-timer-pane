@@ -1,0 +1,1 @@
+No external API integration: this quick task adds Windows-only dev tooling (a hidden-desktop Obsidian launcher plus a project `.mcp.json` entry that runs chrome-devtools-mcp unmodified, so Claude Code receives that server's full tool surface); the plugin's own code and its TaskNotes Runtime API usage are unchanged.
