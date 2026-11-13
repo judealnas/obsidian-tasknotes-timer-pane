@@ -52,7 +52,7 @@ Two rules hold in every phase: refresh and render never write, and every write g
   2. With the rollover hour at 4, the plugin treats 1:30 AM as the previous staging day and 4:00 AM as the new one. This holds on DST-change days and in non-UTC timezones (shown by frozen-clock tests across a timezone matrix).
   3. On a TaskNotes build that is older than 4.13.0 or lacks the staging capabilities, the staging contract reports "unavailable" while the existing timer features keep working. On a supported build, the field-registration check reports `missing`, `wrong-type` or `ok` for the `staged` key, based on `catalog.userFields()`. Pause and resume still behave exactly as in v0.2.
 
-**Plans**: 4/5 plans executed
+**Plans**: 5/5 plans executed
 Plans:
 **Wave 1**
 - [x] 04-01-PLAN.md — Dev-vault spike (wave 1, has a human step): guarded `obsidian eval` script answers D-10 Q1-Q4 on TaskNotes 4.13.8, findings pinned for 04-04/04-05
@@ -63,7 +63,7 @@ Plans:
 - [x] 04-04-PLAN.md — Field-registration check (wave 2): `STAGED_FIELD_KEY`, pure `fieldStatus`, gated `userFields()` and contract pins (SETUP-01)
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 04-05-PLAN.md — Staging write contract (wave 3): `stagingAvailability`/`recurringAvailability`, gated `updateTask`/`toggleCompleteInstance`, fakes and the 4.12 regression proof
+- [x] 04-05-PLAN.md — Staging write contract (wave 3): `stagingAvailability`/`recurringAvailability`, gated `updateTask`/`toggleCompleteInstance`, fakes and the 4.12 regression proof
 
 **Notes**:
 - **Research flag (dev-vault spike, do first):**
@@ -166,7 +166,7 @@ Phases execute in numeric order: 4 → 5 → 6 → 7 (Phases 4 and 5 are indepen
 | 1. Live Timer Pane | v0.2 | 5/5 | Complete | 2026-10-14 |
 | 2. Start, Switch & Complete | v0.2 | 3/3 | Complete | 2026-10-16 |
 | 3. Pause & Resume | v0.2 | 4/4 | Complete | 2026-10-16 |
-| 4. Staging Foundations | v0.3 | 4/5 | In Progress | - |
+| 4. Staging Foundations | v0.3 | 5/5 | In Progress | - |
 | 5. Two-Tab Shell | v0.3 | 0/? | Not started | - |
 | 6. Staged Tab Core | v0.3 | 0/? | Not started | - |
 | 7. Complete, Roll Over & Release 0.3.0 | v0.3 | 0/? | Not started | - |
