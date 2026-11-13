@@ -16,6 +16,7 @@
     "seed": "node scripts/seed-dev-vault.mjs",
     "uat:start": "pwsh -NoProfile -File scripts/uat/start-uat-obsidian.ps1",
     "uat:stop": "pwsh -NoProfile -File scripts/uat/stop-uat-obsidian.ps1",
+    "uat:smoke": "pwsh -NoProfile -File scripts/uat/smoke-uat-obsidian.ps1",
     "version": "node version-bump.mjs && git add manifest.json versions.json"
   },
   "devDependencies": {
