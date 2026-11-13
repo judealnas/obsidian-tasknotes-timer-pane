@@ -18,6 +18,7 @@ import type {
 	TaskNotesRuntimeLifecycleEventName,
 	TaskNotesRuntimeTaskEventName,
 	TaskNotesRuntimeTaskMenuShowOptions,
+	TaskNotesTaskPatch,
 	TaskNotesUserField,
 	TimeEntry,
 } from "../src/tasknotes/runtime-api.types";
@@ -163,5 +164,22 @@ describe("Phase 4 staging contract (TaskNotes 4.13.8)", () => {
  });
  test("TaskNotesUserField is exactly the shape the 04-01 spike observed", () => {
   expectTypeOf<TaskNotesUserField>().toEqualTypeOf<{ id: string; displayName: string; key: string; type: string; defaultValue?: string }>();
+ });
+ test("tasks.update is optional (4.13.x), takes path, patch and an optional context, and returns the merged TaskInfo", () => {
+  expectTypeOf<undefined>().toExtend<NonNullable<Api["tasks"]>["update"]>();
+  type Update = NonNullable<NonNullable<Api["tasks"]>["update"]>;
+  expectTypeOf<Update>().parameters.toEqualTypeOf<[path: string, updates: TaskNotesTaskPatch, context?: TaskNotesMutationContext]>();
+  expectTypeOf<Update>().returns.toEqualTypeOf<Promise<TaskInfo>>();
+ });
+ test("TaskNotesTaskPatch is Partial<TaskInfo> plus any key, so staged and its null unstage fit", () => {
+  expectTypeOf<TaskNotesTaskPatch>().toEqualTypeOf<Partial<TaskInfo> & Record<string, unknown>>();
+  expectTypeOf<{ staged: null }>().toExtend<TaskNotesTaskPatch>();
+  expectTypeOf<{ staged: "2026-11-12" }>().toExtend<TaskNotesTaskPatch>();
+ });
+ test("recurring is optional and toggleCompleteInstance takes path, an optional date and context", () => {
+  expectTypeOf<undefined>().toExtend<Api["recurring"]>();
+  type Toggle = NonNullable<Api["recurring"]>["toggleCompleteInstance"];
+  expectTypeOf<Toggle>().parameters.toEqualTypeOf<[path: string, date?: string, context?: TaskNotesMutationContext]>();
+  expectTypeOf<Toggle>().returns.toEqualTypeOf<Promise<TaskInfo>>();
  });
 });

@@ -8,6 +8,7 @@ import {
 	EARLY_PROBE_DELAY_MS,
 	LOADING_WARN_MS,
 	PROBE_INTERVAL_MS,
+	REQUIRED_CAPABILITIES,
 	TaskNotesBridge,
 	isVersionOlder,
 	type TaskNotesPluginLike,
@@ -805,5 +806,50 @@ describe("recurring completion contract", () => {
 		const { tn, bridge } = readyBridge();
 		tn.failToggleWith("toggle broke");
 		await expect(bridge.toggleCompleteInstance(PATH, "2026-11-11", CTX)).rejects.toThrow("toggle broke");
+	});
+});
+
+describe("Timers unaffected by staging (SC3)", () => {
+	test("REQUIRED_CAPABILITIES stays exactly the v0.2 set", () => {
+		expect([...REQUIRED_CAPABILITIES]).toEqual(["time.read", "time.write", "tasks.events", "lifecycle.events"]);
+	});
+	test("an older TaskNotes 4.12.3 without staging or recurring keeps every v0.2 timer path working", async () => {
+		const running = makeActiveEntry({ taskPath: "TaskNotes/Tasks/A.md", startTime: "2026-11-12T09:00:00.000Z", title: "A" });
+		const idle = { title: "B", status: "open", path: "TaskNotes/Tasks/B.md", archived: false };
+		const tn = createFakeTaskNotes({
+			version: "4.12.3",
+			active: [running],
+			tasks: [running.task, idle],
+			omitMethods: ["tasks.update", "catalog.userFields", "recurring.toggleCompleteInstance"],
+			recurring: false,
+			capabilities: DEFAULT_CAPABILITIES.filter(item => item !== "recurring.write"),
+		});
+		const { bridge } = setup(tn.plugin);
+		bridge.probe();
+		expect(bridge.getState()).toEqual({ kind: "ready" });
+		expect(tn.api.recurring).toBeUndefined();
+		const active = await bridge.active();
+		expect(active.map(item => item.taskPath)).toEqual(["TaskNotes/Tasks/A.md"]);
+		expect(active[0]!.entry.startTime).toBe("2026-11-12T09:00:00.000Z");
+		expect(bridge.startAvailability().available).toBe(true);
+		const ctx = { source: "tasknotes-timer-pane", correlationId: "c3", reason: "switch" };
+		await bridge.stop("TaskNotes/Tasks/A.md", ctx);
+		await bridge.start("TaskNotes/Tasks/B.md", {}, ctx);
+		expect(tn.stopCalls).toEqual([{ path: "TaskNotes/Tasks/A.md", context: ctx }]);
+		expect(tn.startCalls).toEqual([{ path: "TaskNotes/Tasks/B.md", options: {}, context: ctx }]);
+		expect((await bridge.active()).map(item => item.taskPath)).toEqual(["TaskNotes/Tasks/B.md"]);
+		expect(bridge.stagingAvailability().available).toBe(false);
+		expect(bridge.stagingAvailability().reason).toBe("TaskNotes 4.13.0 or newer is needed for staging");
+		expect(bridge.recurringAvailability().available).toBe(false);
+		expect(bridge.getState()).toEqual({ kind: "ready" });
+	});
+	test("a 4.13.8 TaskNotes missing every staging method still stays ready and times tasks", async () => {
+		const tn = createFakeTaskNotes({ omitMethods: ["tasks.update", "catalog.userFields", "recurring.toggleCompleteInstance"] });
+		const { bridge } = setup(tn.plugin);
+		bridge.probe();
+		expect(bridge.getState()).toEqual({ kind: "ready" });
+		expect(bridge.startAvailability().available).toBe(true);
+		expect(bridge.stagingAvailability()).toEqual({ available: false, reason: "TaskNotes does not provide tasks.update" });
+		expect(bridge.recurringAvailability()).toEqual({ available: false, reason: "TaskNotes does not provide recurring.toggleCompleteInstance" });
 	});
 });
