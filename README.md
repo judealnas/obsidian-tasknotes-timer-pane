@@ -66,6 +66,23 @@ Develop only in the repo's `dev-vault/` folder, never in your real vault. The bu
 8. `npm run check` is the definition of done: the build, `tsc -noEmit`, ESLint with eslint-plugin-obsidianmd at zero warnings, and Vitest must all pass.
 9. Never commit `dev-vault/`. It is git-ignored because it holds third-party plugins and TaskNotes' `data.json`. Seed notes are tracked in `dev-vault-seed/` instead.
 
+### Automated UAT (Windows dev only)
+
+`scripts/uat/` starts a second Obsidian on the dev vault so Claude Code can run UAT through the browser DevTools protocol. It runs on a hidden Windows desktop with its own user-data dir under `%LOCALAPPDATA%\tasknotes-timer-pane-uat\userdata`. It never appears on screen and never takes focus, and it runs alongside your own Obsidian.
+
+Before you start:
+
+- Set up the main checkout's `dev-vault/` per the steps above, and run `npm run deploy` so it has a current build.
+- Close `dev-vault` in your own Obsidian. The launcher refuses to start while your Obsidian has that vault open, because two instances on one vault would write conflicting changes.
+
+Commands:
+
+- `npm run uat:start` starts the instance, gets past the trust prompt and Restricted mode, and prints one `UAT Obsidian ready:` line with the TaskNotes version, API version and whether the pane loaded. Pass `-- -Vault <path> -Port <n>` to override the defaults.
+- `npm run uat:stop` stops only the UAT instance. Your own Obsidian is not touched.
+- `npm run uat:smoke` starts and stops the instance while sampling the foreground window, and fails if the UAT instance ever had focus or if your own Obsidian processes changed.
+
+The instance listens for DevTools connections on port 9333. That port is localhost-only but unauthenticated, so stop the instance when you're done. The `chrome-devtools` MCP server in `.mcp.json` connects to it; Claude Code needs one restart to load it. Like any Obsidian, the UAT instance saves its workspace layout into the vault's `.obsidian/` folder.
+
 ### Releasing
 
 1. `npm version patch` (or `minor` / `major`) bumps `package.json`, `manifest.json` and `versions.json`, commits, and tags the version without a `v` prefix.
