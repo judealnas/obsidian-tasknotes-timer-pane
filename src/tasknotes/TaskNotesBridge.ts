@@ -332,11 +332,25 @@ export class TaskNotesBridge implements TaskNotesGateway {
 	}
 
 	recurringAvailability(): { available: boolean; reason: string } {
-		return { available: false, reason: "not implemented" };
+		try {
+			const api = this.connectedApi();
+			if (this.olderThanStagingFloor()) return { available: false, reason: "TaskNotes " + STAGING_MIN_TASKNOTES_VERSION + " or newer is needed for recurring completion" };
+			for (const [capability, method, callable] of [
+				["recurring.write", "recurring.toggleCompleteInstance", typeof api.recurring?.toggleCompleteInstance === "function"],
+			] as const) {
+				if (!api.hasCapability(capability)) return { available: false, reason: "TaskNotes is missing " + capability };
+				if (!callable) return { available: false, reason: "TaskNotes does not provide " + method };
+			}
+			return { available: true, reason: "Recurring completion is available" };
+		} catch { return { available: false, reason: "TaskNotes is not connected" }; }
 	}
 
-	async toggleCompleteInstance(_path: string, _date: string, _context: TaskNotesMutationContext): Promise<void> {
-		await Promise.resolve();
+	async toggleCompleteInstance(path: string, date: string, context: TaskNotesMutationContext): Promise<void> {
+		// An omitted date targets the scheduled date and a datetime can shift a day (research F11, F13).
+		if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Recurring completion needs a YYYY-MM-DD day");
+		const api = this.featureApi("recurring.write", "recurring.toggleCompleteInstance", api => typeof api.recurring?.toggleCompleteInstance === "function");
+		// Called as a method so TaskNotes keeps its receiver; the echoed TaskInfo is dropped (Pitfall 1).
+		await api.recurring!.toggleCompleteInstance(path, date, context);
 	}
 
 	/** True only for a parseable manifest version below 4.13.0; an unknown version is not "older". */

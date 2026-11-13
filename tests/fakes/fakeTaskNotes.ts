@@ -247,7 +247,7 @@ export function createFakeTaskNotes(options: FakeTaskNotesOptions = {}): FakeTas
 		toggleCompleteInstance(path, date, context) {
 			toggleCalls.push({ path, ...(date !== undefined ? { date } : {}), ...(context ? { context } : {}) });
 			if (toggleFailure !== null) return Promise.reject(new Error(toggleFailure));
-			const task = tasks.find(task => task.path === path) as (TaskInfo & { complete_instances?: string[] }) | undefined;
+			const task: (TaskInfo & { complete_instances?: string[] }) | undefined = tasks.find(task => task.path === path);
 			if (!task) return Promise.reject(new Error("Task not found: " + path));
 			// Toggles the exact date given. No occurrence snapping: the 04-01 Q4 finding leaves that to Phase 7 research.
 			const day = date ?? "";
