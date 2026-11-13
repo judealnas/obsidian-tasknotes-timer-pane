@@ -2,45 +2,45 @@
 gsd_state_version: "1.0"
 milestone: v0.3
 milestone_name: Staging Tasks
-current_phase: 04
-current_phase_name: Staging Foundations
-status: verifying
-stopped_at: Completed 04-05-PLAN.md
-last_updated: "2026-11-13T00:03:41.266Z"
-last_activity: 2026-11-12
-last_activity_desc: Phase 04 execution started
-state_head: 17125f837f63af4dee52212576aa24a0ff27e18e
+current_phase: 5
+current_phase_name: Two-Tab Shell
+status: planning
+stopped_at: Phase 4 complete, ready to plan Phase 5
+last_updated: "2026-11-13T17:33:46.739Z"
+last_activity: 2026-11-13
+last_activity_desc: Phase 4 complete, transitioned to Phase 5
+state_head: 33daa67a6667eb2aab532e5e47c1ca53bf5172f4
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 5
   completed_plans: 5
-  percent: 75
+  percent: 57
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-12)
+See: .planning/PROJECT.md (updated 2026-11-13)
 
 **Core value:** With the pane open, I can always see what task is being timed and how long I've spent on it, and stop, pause, or switch tasks in one to two clicks, without leaving the pane.
-**Current focus:** Phase 04 — Staging Foundations
+**Current focus:** Phase 5 — Two-Tab Shell
 
 ## Current Position
 
-Phase: 04 (Staging Foundations) — EXECUTING
-Plan: 5 of 5
-Status: Phase complete — ready for verification
-Note: 04-01, 04-02 and 04-03 complete (3/5). 04-04 is next. 04-01 end-of-phase UAT pending: confirm the scratch task's `staged:` line in source mode and remove the throwaway `spikedefault` user field from the dev vault.
-Last activity: 2026-11-12 — Phase 04 execution started
+Phase: 5 — Two-Tab Shell
+Plan: Not started
+Status: Ready to plan
+Note: Phase 4 complete: UAT 6/6, VERIFICATION passed, SECURITY 19/19 closed. 04-01 spike cleanup done (`staged:` null line confirmed, `spikedefault` removed).
+Last activity: 2026-11-13 — Phase 4 complete, transitioned to Phase 5
 
-Progress (v0.3): [░░░░░░░░░░] 0% (0/4 phases)
+Progress (v0.3): [██▌░░░░░░░] 25% (1/4 phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
+- Total plans completed: 12
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -50,6 +50,7 @@ Progress (v0.3): [░░░░░░░░░░] 0% (0/4 phases)
 |-------|-------|-------|----------|
 | 2 | 3 | - | - |
 | 03 | 4 | - | - |
+| 4 | 5 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -146,7 +147,8 @@ None yet.
 
 - [Phase 1]: Check cold-start readiness timing by hand. `layout.ready` fires only once, and `isReady()` and `ready()` change at different points.
 - [Phase 3]: Deferred UAT follow-up: the muted can't-check Pomodoro line (unreadable ownership) has not been observed on desktop; logic is store-tested.
-- [Phase 4 research flag, resolved by 04-01, see 04-SPIKE-FINDINGS.md]: Dev-vault spike first. Confirm that a `null` unstage reads as not staged on raw frontmatter, the shape of `catalog.userFields()` (`defaultValue`?), whether a newly registered field shows on cached TaskInfo without a reload, and `toggleCompleteInstance` with an off-schedule day.
+- [Phase 4 UAT 2026-11-13]: Pausing an already-completed task drops its card (pauseLedger reconcile rule 4 ignores whether completion preceded the pause). Pre-existing since v0.2; deferred to ROADMAP backlog 999.1 (`.planning/debug/pause-removes-card.md`).
+- [Phase 4 UAT 2026-11-13]: Dev vault now runs TaskNotes 4.18.2, not the 4.13.8 the Phase 4 contract pins were read from. Also, a build inside a `.claude/worktrees/*` checkout deploys to that worktree's own `dev-vault/`, not the registered dev vault; copy `main.js`/`manifest.json`/`styles.css` over before desktop UAT.
 - [Phase 7 research flag]: Run `/gsd-plan-phase --research-phase 7`. It covers recurring occurrence snapping, occurrence materialization, whether the toggle stops timers, and the date basis of `completedDate` near midnight.
 - [v0.2 close]: Phase 1 UAT partial and verification human_needed were acknowledged and deferred at milestone close (see Deferred Items); they carry into the next milestone as candidate work, not as blockers.
 
@@ -174,10 +176,11 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-13T00:03:41.228Z
-Stopped at: Completed 04-05-PLAN.md
+Last session: 2026-11-13
+Stopped at: Phase 4 complete, ready to plan Phase 5
 Resume file: None
 
 ## Operator Next Steps
 
-- Discuss or plan Phase 4 with /gsd-discuss-phase 4 or /gsd-plan-phase 4 (Phase 5 can be planned in parallel)
+- Discuss or plan Phase 5 with /gsd-discuss-phase 5 or /gsd-plan-phase 5
+- Merge gsd/phase-04-plan when ready

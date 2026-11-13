@@ -35,7 +35,7 @@ Two rules hold in every phase: refresh and render never write, and every write g
 
 **Milestone Goal:** Let me pick the tasks I'll tackle today, put them in order, and start, stop, pause, or complete each from that list, with the all-timers view one tab away.
 
-- [ ] **Phase 4: Staging Foundations** - Rollover-hour setting, a DST-safe staging day, and a feature-gated TaskNotes staging contract for the fixed `staged` key
+- [x] **Phase 4: Staging Foundations** - Rollover-hour setting, a DST-safe staging day, and a feature-gated TaskNotes staging contract for the fixed `staged` key (completed 2026-11-13)
 - [ ] **Phase 5: Two-Tab Shell** - Pane split into Staged and Timers tabs, with Timers unchanged from v0.2 and the last-active tab remembered
 - [ ] **Phase 6: Staged Tab Core** - Stage from the picker, unstage, order, and start/pause/stop each staged task from its card, with setup notices, tab counts and staged markers
 - [ ] **Phase 7: Complete, Roll Over & Release 0.3.0** - ✓ completion (recurring-safe on both tabs), Done today, daily rollover, mobile ▲▼ reordering, rename, and BRAT release
@@ -52,7 +52,7 @@ Two rules hold in every phase: refresh and render never write, and every write g
   2. With the rollover hour at 4, the plugin treats 1:30 AM as the previous staging day and 4:00 AM as the new one. This holds on DST-change days and in non-UTC timezones (shown by frozen-clock tests across a timezone matrix).
   3. On a TaskNotes build that is older than 4.13.0 or lacks the staging capabilities, the staging contract reports "unavailable" while the existing timer features keep working. On a supported build, the field-registration check reports `missing`, `wrong-type` or `ok` for the `staged` key, based on `catalog.userFields()`. Pause and resume still behave exactly as in v0.2.
 
-**Plans**: 5/5 plans executed
+**Plans**: 5/5 plans complete
 Plans:
 **Wave 1**
 - [x] 04-01-PLAN.md — Dev-vault spike (wave 1, has a human step): guarded `obsidian eval` script answers D-10 Q1-Q4 on TaskNotes 4.13.8, findings pinned for 04-04/04-05
@@ -166,7 +166,7 @@ Phases execute in numeric order: 4 → 5 → 6 → 7 (Phases 4 and 5 are indepen
 | 1. Live Timer Pane | v0.2 | 5/5 | Complete | 2026-10-14 |
 | 2. Start, Switch & Complete | v0.2 | 3/3 | Complete | 2026-10-16 |
 | 3. Pause & Resume | v0.2 | 4/4 | Complete | 2026-10-16 |
-| 4. Staging Foundations | v0.3 | 5/5 | In Progress | - |
+| 4. Staging Foundations | v0.3 | 5/5 | Complete    | 2026-11-13 |
 | 5. Two-Tab Shell | v0.3 | 0/? | Not started | - |
 | 6. Staged Tab Core | v0.3 | 0/? | Not started | - |
 | 7. Complete, Roll Over & Release 0.3.0 | v0.3 | 0/? | Not started | - |

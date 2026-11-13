@@ -37,6 +37,9 @@ Design source: `.planning/research/STAGING-DECISIONS.md` (grilling log; Q7/Q23/Q
 - ✓ Stop all regular timers while protecting the exact active Pomodoro-owned entry — v0.2 (Phase 2); user confirmed the mixed regular/Pomodoro case
 - ✓ Complete timed tasks using a live, persisted completed-status preference — v0.2 (Phase 2); automated checks and user desktop acceptance
 - ✓ Pause and resume per card and from the header, persisted across restarts, with Pomodoro-owned timers hidden from the pane — v0.2 (Phase 3); 361 automated tests and user desktop acceptance (the unreadable-ownership note is a deferred follow-up)
+- ✓ Rollover hour setting (default 4 AM, 24 fixed 12-hour labels) that persists, and saving one setting never drops another (SETUP-01) — v0.3 (Phase 4); 539 automated tests and user desktop UAT 6/6
+- ✓ DST-safe staging day: before the rollover hour it is still the previous day (ROLL-01) — v0.3 (Phase 4); five-timezone test matrix
+- ✓ Bridge can tell whether TaskNotes supports staging and recurring completion (4.13.0 floor) without affecting Timers on 4.10–4.12 — v0.3 (Phase 4); no Staged UI yet
 
 ### Active
 
@@ -100,7 +103,9 @@ Known debt at close: Phase 1 verification is human_needed with skipped native ch
 | Sidebar view + ribbon icon + command | Matches Pomodoro pane placement; easy to open | ✓ Good (v0.2) |
 | Merge task staging (taskctrl idea) into this plugin as v0.3, renamed "TaskNotes Task Control", id unchanged | Keeps install, saved data, release history and planning | — Pending |
 | Two tabs (Staged, Timers) with independent per-tab order | User wants the all-timers view kept intact; ordering is momentary and per-view | — Pending |
-| Staging stored as a `staged: YYYY-MM-DD` user field; order in plugin data | `tasks.update` only writes registered user fields; date enables roll-forward with no writes | — Pending |
+| Staging stored as a `staged: YYYY-MM-DD` user field; order in plugin data | `tasks.update` only writes registered user fields; date enables roll-forward with no writes | Phase 4 spike confirmed on TaskNotes 4.13.8: a `null` unstage keeps `staged:` and reads as not staged; a new user field is visible without reload. UI still pending (Phase 6) |
+| Staged key hard-coded `staged`; rollover hour is a dropdown saved only when not the default | Fewer settings to misconfigure; users who never change it keep a byte-identical data.json | Phase 4 accepted |
+| Staging and recurring completion share one TaskNotes 4.13.0 floor, feature-gated outside `REQUIRED_CAPABILITIES` | Timers must keep working on TaskNotes 4.10–4.12 | Phase 4 accepted (4.12.3 regression tested) |
 | Pomodoro stays hidden in v0.3 (no 🍅 display or start) | Simplest; preserves the v0.2 orphan-entry protection | — Pending |
 | Don't base on zczs520 fork | Unknown provenance | ✓ Good (v0.2): not needed |
 
@@ -122,4 +127,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-12 after starting v0.3 Staging Tasks milestone*
+*Last updated: 2026-11-13 after Phase 4*
