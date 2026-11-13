@@ -1,6 +1,11 @@
 # Launches an isolated Obsidian instance for automated UAT (Windows dev only).
 #
-#   npm run uat:start [-- -Vault <path> -Port <n>]
+#   npm run uat:start [-- -Vault <path> -Port <n> -SkipBuild]
+#
+# Builds the checkout that contains this script (main checkout or a worktree) with npm run build,
+# installs its main.js, manifest.json and styles.css into <Vault>\.obsidian\plugins\tasknotes-timer-pane\
+# (never data.json), then launches. -SkipBuild launches whatever build is already installed.
+# Reload after a rebuild = run npm run uat:start again (it stops the previous instance first).
 #
 # - separate --user-data-dir  => runs alongside the user's own Obsidian
 # - hidden Win32 desktop      => never appears on screen, can never take focus
@@ -12,11 +17,15 @@
 #   - Refuses a -UserData equal to %APPDATA%\obsidian or inside the repo (T-i5w-05).
 #   - Stops only a previous UAT instance, matched by its user-data dir (stop-uat-obsidian.ps1, T-i5w-02).
 #   - Refuses if something else already answers on the CDP port (T-i5w-03).
+#   - Installs only into a vault whose folder is named dev-vault, checked before any build, stop, copy
+#     or launch (T-iua-01). Copies only main.js, manifest.json, styles.css (T-iua-02).
+#   - A failed build exits 1 before the previous instance is stopped; nothing is installed or launched (T-iua-04).
 param(
   [string]$Vault,
   [string]$UserData = "$env:LOCALAPPDATA\tasknotes-timer-pane-uat\userdata",
   [int]$Port = 9333,
-  [string]$DesktopName = "obsidian-uat"
+  [string]$DesktopName = "obsidian-uat",
+  [switch]$SkipBuild
 )
 $ErrorActionPreference = "Stop"
 
@@ -32,6 +41,8 @@ try {
   if ($LASTEXITCODE -ne 0) { $commonDir = $null }
 } catch { $commonDir = $null }
 if ($commonDir) { $repoRoots += Get-NormalPath (Split-Path -Parent $commonDir.Trim()) }
+# The checkout under test: the repo root containing this script (may be a worktree). Never the vault's checkout.
+$checkoutRoot = $repoRoots[0]
 
 # Default vault: the MAIN checkout's dev-vault (worktrees have none).
 if ([string]::IsNullOrWhiteSpace($Vault)) {
@@ -45,6 +56,11 @@ $Vault = Get-NormalPath $Vault
 if (-not (Test-Path -LiteralPath $Vault -PathType Container) -or
     -not (Test-Path -LiteralPath (Join-Path $Vault ".obsidian") -PathType Container)) {
   throw "Vault not found or not set up: $Vault. Create it first (npm run seed, then the steps in README Development)."
+}
+
+# Dev-vault-only install guard (T-iua-01): runs before anything with a side effect.
+if (-not $SkipBuild -and -not ((Split-Path -Leaf $Vault) -ieq "dev-vault")) {
+  throw "Refusing to install the plugin into '$Vault': the vault folder must be named dev-vault (use -SkipBuild to launch an existing install without copying)"
 }
 
 $exe = "$env:LOCALAPPDATA\Programs\Obsidian\Obsidian.exe"
@@ -82,9 +98,63 @@ if (Test-Path -LiteralPath $mainJson) {
   }
 }
 
+# Build the checkout under test before stopping anything, so a failed build changes nothing (T-iua-04).
+# Build output goes to stderr; stdout is reserved for the ready line.
+if (-not $SkipBuild) {
+  Push-Location -LiteralPath $checkoutRoot
+  try {
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+      & npm run build 2>&1 | ForEach-Object { [Console]::Error.WriteLine("$_") }
+      $buildExit = $LASTEXITCODE
+    } finally { $ErrorActionPreference = $prevEap }
+  } finally { Pop-Location }
+  if ($buildExit -ne 0) {
+    [Console]::Error.WriteLine("npm run build failed in $checkoutRoot; nothing was installed or launched")
+    exit 1
+  }
+  if (-not (Test-Path -LiteralPath (Join-Path $checkoutRoot "main.js") -PathType Leaf)) {
+    throw "npm run build succeeded but $checkoutRoot\main.js is missing"
+  }
+}
+
 # Stop any previous UAT instance (matched by its user-data dir only).
 & "$PSScriptRoot\stop-uat-obsidian.ps1" -UserData $UserData
 if ($LASTEXITCODE -ne 0) { throw "Could not stop the previous UAT instance" }
+
+# Install the build: exactly main.js, manifest.json, styles.css; never data.json (T-iua-02).
+$pluginFiles = @("main.js", "manifest.json", "styles.css")
+$pluginDir = Join-Path $Vault ".obsidian\plugins\tasknotes-timer-pane"
+if (-not $SkipBuild) {
+  foreach ($name in $pluginFiles) {
+    if (-not (Test-Path -LiteralPath (Join-Path $checkoutRoot $name) -PathType Leaf)) {
+      throw "Build file missing in ${checkoutRoot}: $name"
+    }
+  }
+  New-Item -ItemType Directory -Force -Path $pluginDir | Out-Null
+  foreach ($name in $pluginFiles) {
+    Copy-Item -LiteralPath (Join-Path $checkoutRoot $name) -Destination (Join-Path $pluginDir $name) -Force
+  }
+  $srcHash = (Get-FileHash -LiteralPath (Join-Path $checkoutRoot "main.js") -Algorithm SHA256).Hash
+  $dstHash = (Get-FileHash -LiteralPath (Join-Path $pluginDir "main.js") -Algorithm SHA256).Hash
+  if ($srcHash -ne $dstHash) { throw "Installed main.js does not match $checkoutRoot\main.js after copy" }
+}
+
+# Build provenance for the ready line (T-iua-03).
+if ($SkipBuild) {
+  $buildInfo = "skipped"
+} else {
+  $head = (& git -C $checkoutRoot rev-parse --short HEAD 2>$null)
+  if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($head)) { $head = "unknown" } else { $head = "$head".Trim() }
+  $dirty = (& git -C $checkoutRoot status --porcelain --untracked-files=no 2>$null)
+  $buildInfo = "$checkoutRoot@$head"
+  if ($dirty) { $buildInfo += "+dirty" }
+}
+$installedMain = Join-Path $pluginDir "main.js"
+$mainHash = if (Test-Path -LiteralPath $installedMain -PathType Leaf) {
+  (Get-FileHash -LiteralPath $installedMain -Algorithm SHA256).Hash.ToLowerInvariant().Substring(0, 12)
+} else { "none" }
 
 # Port guard: readiness must never bind to some other Chromium/Obsidian.
 $portBusy = $false
@@ -159,7 +229,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 $status = ($raw -join "`n") | ConvertFrom-Json
 $pane = if ($status.paneLoaded) { "loaded" } else { "missing" }
-"UAT Obsidian ready: vault=$Vault port=$Port pid=$procId tasknotes=$($status.tasknotesVersion) api=$($status.apiVersion) timeWrite=$($status.timeWrite) pane=$pane"
+"UAT Obsidian ready: vault=$Vault port=$Port pid=$procId tasknotes=$($status.tasknotesVersion) api=$($status.apiVersion) timeWrite=$($status.timeWrite) pane=$pane build=$buildInfo mainjs=$mainHash"
 if ($status.apiVersion -ne 1 -or -not $status.paneLoaded) {
   [Console]::Error.WriteLine("UAT instance is not usable (need api=1 and pane=loaded); left running for inspection. Run npm run uat:stop")
   exit 1
