@@ -73,6 +73,18 @@ export interface TaskNotesGateway {
 	 * {staged: null}. Resolves void: re-read the task instead of trusting TaskNotes' echo.
 	 */
 	updateTask(path: string, patch: TaskNotesTaskPatch, context: TaskNotesMutationContext): Promise<void>;
+	/**
+	 * Whether this TaskNotes can complete recurring instances (4.13.0+,
+	 * recurring.write/toggleCompleteInstance). Feature-gated, not required for ready. Never throws.
+	 */
+	recurringAvailability(): { available: boolean; reason: string };
+	/**
+	 * TaskNotes' recurring.toggleCompleteInstance for an explicit bare YYYY-MM-DD day,
+	 * forwarding the context. It is a toggle (calling it twice can un-complete), so the
+	 * caller checks complete_instances first; Phase 7 decides the semantics from the
+	 * 04-01 Q4 finding. Resolves void: re-read the task instead of trusting the echo.
+	 */
+	toggleCompleteInstance(path: string, date: string, context: TaskNotesMutationContext): Promise<void>;
 	start(path: string, options: Record<string, never>, context: TaskNotesMutationContext): Promise<void>;
 	/** Stops the task's open entry through TaskNotes' own api.time.stop; resolves the task as TaskNotes saved it. */
 	stop(taskPath: string, context: TaskNotesMutationContext): Promise<TaskInfo>;
@@ -317,6 +329,14 @@ export class TaskNotesBridge implements TaskNotesGateway {
 		const api = this.featureApi("tasks.write", "tasks.update", api => typeof api.tasks?.update === "function");
 		// Called as a method so TaskNotes keeps its receiver; the echoed TaskInfo is dropped (Pitfall 1).
 		await api.tasks!.update!(path, patch, context);
+	}
+
+	recurringAvailability(): { available: boolean; reason: string } {
+		return { available: false, reason: "not implemented" };
+	}
+
+	async toggleCompleteInstance(_path: string, _date: string, _context: TaskNotesMutationContext): Promise<void> {
+		await Promise.resolve();
 	}
 
 	/** True only for a parseable manifest version below 4.13.0; an unknown version is not "older". */

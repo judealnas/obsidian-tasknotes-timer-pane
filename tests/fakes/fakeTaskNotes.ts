@@ -26,6 +26,7 @@ export const DEFAULT_CAPABILITIES: readonly string[] = [
 	"tasks.read",
 	"catalog.read",
  "tasks.write",
+ "recurring.write",
  "pomodoro.read",
  "pomodoro.events",
 	"time.read",
@@ -47,7 +48,9 @@ export interface FakeTaskNotesOptions {
  /** What catalog.userFields() returns (deep-copied per call). Default []. */
  userFields?: TaskNotesUserField[];
  pomodoro?: PomodoroState;
- omitMethods?: Array<"tasks.list" | "tasks.get" | "tasks.complete" | "tasks.update" | "catalog.statuses" | "catalog.userFields" | "time.start" | "pomodoro.status">;
+ omitMethods?: Array<"tasks.list" | "tasks.get" | "tasks.complete" | "tasks.update" | "catalog.statuses" | "catalog.userFields" | "time.start" | "pomodoro.status" | "recurring.toggleCompleteInstance">;
+	/** False builds an api with no `recurring` namespace, like TaskNotes before 4.13. Default true. */
+	recurring?: boolean;
 	/** False builds an api with no `ui` namespace, like TaskNotes 4.10. Default true. */
 	ui?: boolean;
 }
@@ -60,6 +63,12 @@ export interface StopCall {
 export interface UpdateCall {
 	path: string;
 	patch: TaskNotesTaskPatch;
+	context?: TaskNotesMutationContext;
+}
+
+export interface ToggleCall {
+	path: string;
+	date?: string;
 	context?: TaskNotesMutationContext;
 }
 
@@ -95,6 +104,10 @@ export interface FakeTaskNotes {
  readonly updateCalls: UpdateCall[];
  /** Makes every later `tasks.update` reject with `new Error(message)`; null restores success. */
  failUpdateWith(error: string | null): void;
+ /** Every `recurring.toggleCompleteInstance` call so far, in order. */
+ readonly toggleCalls: ToggleCall[];
+ /** Makes every later `recurring.toggleCompleteInstance` reject with `new Error(message)`; null restores success. */
+ failToggleWith(error: string | null): void;
 	setActive(entries: ActiveTimeEntry[]): void;
 	emitLifecycle(name: TaskNotesRuntimeLifecycleEventName): void;
 	emitTaskEvent(name: TaskNotesRuntimeEventName): void;
@@ -143,6 +156,8 @@ export function createFakeTaskNotes(options: FakeTaskNotesOptions = {}): FakeTas
  const completeCalls: FakeTaskNotes["completeCalls"] = [];
  let updateFailure: string | null = null;
  const updateCalls: UpdateCall[] = [];
+ let toggleFailure: string | null = null;
+ const toggleCalls: ToggleCall[] = [];
 	let stopFailure: string | null = null;
 	const stopCalls: StopCall[] = [];
 	const startCalls: Array<{ path: string; options: Record<string, never>; context?: TaskNotesMutationContext }> = [];
@@ -228,6 +243,20 @@ export function createFakeTaskNotes(options: FakeTaskNotesOptions = {}): FakeTas
 		},
 	};
 
+	const recurring: NonNullable<TaskNotesRuntimeApiV1["recurring"]> = {
+		toggleCompleteInstance(path, date, context) {
+			toggleCalls.push({ path, ...(date !== undefined ? { date } : {}), ...(context ? { context } : {}) });
+			if (toggleFailure !== null) return Promise.reject(new Error(toggleFailure));
+			const task = tasks.find(task => task.path === path) as (TaskInfo & { complete_instances?: string[] }) | undefined;
+			if (!task) return Promise.reject(new Error("Task not found: " + path));
+			// Toggles the exact date given. No occurrence snapping: the 04-01 Q4 finding leaves that to Phase 7 research.
+			const day = date ?? "";
+			const instances = task.complete_instances ?? [];
+			task.complete_instances = instances.includes(day) ? instances.filter(item => item !== day) : [...instances, day];
+			return Promise.resolve(structuredClone(task));
+		},
+	};
+
 	const api: TaskNotesRuntimeApiV1 = {
 		// The option lets tests fake a future apiVersion; the contract type pins the literal 1.
 		apiVersion: apiVersion as 1,
@@ -282,11 +311,12 @@ export function createFakeTaskNotes(options: FakeTaskNotesOptions = {}): FakeTas
 		lifecycle,
 		errors,
 		...(options.ui === false ? {} : { ui }),
+		...(options.recurring === false ? {} : { recurring }),
 	};
 
  for (const method of options.omitMethods ?? []) {
   const [namespace, key] = method.split(".");
-  const target = namespace === "tasks" ? api.tasks : namespace === "catalog" ? api.catalog : namespace === "time" ? api.time : api.pomodoro;
+  const target = namespace === "tasks" ? api.tasks : namespace === "catalog" ? api.catalog : namespace === "time" ? api.time : namespace === "recurring" ? api.recurring : api.pomodoro;
   if (target && key) Reflect.deleteProperty(target, key);
  }
 
@@ -294,6 +324,8 @@ export function createFakeTaskNotes(options: FakeTaskNotesOptions = {}): FakeTas
   completeCalls,
   updateCalls,
   failUpdateWith(error) { updateFailure = error; },
+  toggleCalls,
+  failToggleWith(error) { toggleFailure = error; },
   setTasks(next) { tasks = next; },
   setStatuses(next) { statuses = next; },
   setUserFields(next) { userFields = next; },

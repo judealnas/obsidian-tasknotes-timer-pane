@@ -746,3 +746,64 @@ describe("staging write contract (SC3)", () => {
 		await expect(bridge.updateTask(PATH, { staged: "2026-11-12" }, CTX)).rejects.toThrow("write broke");
 	});
 });
+
+describe("recurring completion contract", () => {
+	const PATH = "TaskNotes/Tasks/Weekly.md";
+	const CTX = { source: "tasknotes-timer-pane", correlationId: "c2", reason: "complete-instance" };
+	const TASK = { title: "Weekly", status: "open", path: PATH, archived: false };
+	const readyBridge = (options: Parameters<typeof createFakeTaskNotes>[0] = {}) => {
+		const tn = createFakeTaskNotes({ version: "4.13.8", tasks: [structuredClone(TASK)], ...options });
+		const ctx = setup(tn.plugin);
+		ctx.bridge.probe();
+		return { tn, ...ctx };
+	};
+
+	test("a supported TaskNotes reports recurring completion available and receives the explicit day", async () => {
+		const { tn, bridge } = readyBridge();
+		expect(bridge.recurringAvailability().available).toBe(true);
+		expect(bridge.recurringAvailability()).toEqual({ available: true, reason: "Recurring completion is available" });
+		await expect(bridge.toggleCompleteInstance(PATH, "2026-11-11", CTX)).resolves.toBeUndefined();
+		expect(tn.toggleCalls).toEqual([{ path: PATH, date: "2026-11-11", context: CTX }]);
+		const task = (await tn.api.tasks!.get!(PATH)) as unknown as { complete_instances?: string[] };
+		expect(task.complete_instances).toEqual(["2026-11-11"]);
+	});
+	test.each(["2026-11-11T00:00:00Z", "11/11/2026", "", "2026-1-1"])("the date %j is refused before TaskNotes is called", async date => {
+		const { tn, bridge } = readyBridge();
+		await expect(bridge.toggleCompleteInstance(PATH, date, CTX)).rejects.toThrow("Recurring completion needs a YYYY-MM-DD day");
+		expect(tn.toggleCalls).toHaveLength(0);
+	});
+	test("TaskNotes 4.12.3 stays ready, but recurring completion is unavailable", () => {
+		const { bridge } = readyBridge({ version: "4.12.3" });
+		expect(bridge.getState()).toEqual({ kind: "ready" });
+		expect(bridge.recurringAvailability()).toEqual({ available: false, reason: "TaskNotes 4.13.0 or newer is needed for recurring completion" });
+	});
+	test("without recurring.write recurring completion is unavailable and the call rejects", async () => {
+		const { bridge } = readyBridge({ capabilities: DEFAULT_CAPABILITIES.filter(item => item !== "recurring.write") });
+		expect(bridge.getState()).toEqual({ kind: "ready" });
+		expect(bridge.recurringAvailability()).toEqual({ available: false, reason: "TaskNotes is missing recurring.write" });
+		await expect(bridge.toggleCompleteInstance(PATH, "2026-11-11", CTX)).rejects.toThrow("TaskNotes is missing recurring.write");
+	});
+	test("without recurring.toggleCompleteInstance recurring completion is unavailable", () => {
+		const { bridge } = readyBridge({ omitMethods: ["recurring.toggleCompleteInstance"] });
+		expect(bridge.getState()).toEqual({ kind: "ready" });
+		expect(bridge.recurringAvailability()).toEqual({ available: false, reason: "TaskNotes does not provide recurring.toggleCompleteInstance" });
+	});
+	test("with no recurring namespace the bridge stays ready and recurring completion is unavailable", async () => {
+		const { bridge } = readyBridge({ recurring: false });
+		expect(bridge.getState()).toEqual({ kind: "ready" });
+		expect(bridge.recurringAvailability().available).toBe(false);
+		await expect(bridge.toggleCompleteInstance(PATH, "2026-11-11", CTX)).rejects.toThrow("TaskNotes does not provide recurring.toggleCompleteInstance");
+	});
+	test("while not connected recurring completion is unavailable and nothing throws", () => {
+		const { bridge } = readyBridge({ ready: false });
+		expect(bridge.recurringAvailability()).toEqual({ available: false, reason: "TaskNotes is not connected" });
+		const missing = setup(null);
+		missing.bridge.probe();
+		expect(missing.bridge.recurringAvailability()).toEqual({ available: false, reason: "TaskNotes is not connected" });
+	});
+	test("a TaskNotes toggle failure rejects", async () => {
+		const { tn, bridge } = readyBridge();
+		tn.failToggleWith("toggle broke");
+		await expect(bridge.toggleCompleteInstance(PATH, "2026-11-11", CTX)).rejects.toThrow("toggle broke");
+	});
+});

@@ -61,6 +61,16 @@ export interface FakeGateway extends TaskNotesGateway {
 	readonly updateCalls: GatewayUpdateCall[];
 	/** Whether `stagingAvailability()` reports available while ready (default true). */
 	setStagingAvailable(available: boolean): void;
+	/** Every `toggleCompleteInstance()` call so far, in order. */
+	readonly toggleCalls: GatewayToggleCall[];
+	/** Whether `recurringAvailability()` reports available while ready (default true). */
+	setRecurringAvailable(available: boolean): void;
+}
+
+export interface GatewayToggleCall {
+	taskPath: string;
+	date: string;
+	context: TaskNotesMutationContext;
 }
 
 export function createFakeGateway(initial: BridgeState = { kind: "ready" }): FakeGateway {
@@ -80,6 +90,8 @@ export function createFakeGateway(initial: BridgeState = { kind: "ready" }): Fak
 	const menuCalls: GatewayMenuCall[] = [];
 	const updateCalls: GatewayUpdateCall[] = [];
 	let stagingAvailable = true;
+	const toggleCalls: GatewayToggleCall[] = [];
+	let recurringAvailable = true;
 	const stateListeners = new Set<(state: BridgeState) => void>();
 	const dataListeners = new Set<() => void>();
 
@@ -118,6 +130,20 @@ export function createFakeGateway(initial: BridgeState = { kind: "ready" }): Fak
 		updateCalls,
 		updateTask(taskPath, patch, context) {
 			updateCalls.push({ taskPath, patch: structuredClone(patch), context });
+			return Promise.resolve();
+		},
+		recurringAvailability() {
+			if (state.kind !== "ready") return { available: false, reason: "TaskNotes is not connected" };
+			return recurringAvailable
+				? { available: true, reason: "Recurring completion is available" }
+				: { available: false, reason: "TaskNotes 4.13.0 or newer is needed for recurring completion" };
+		},
+		setRecurringAvailable(available) {
+			recurringAvailable = available;
+		},
+		toggleCalls,
+		toggleCompleteInstance(taskPath, date, context) {
+			toggleCalls.push({ taskPath, date, context });
 			return Promise.resolve();
 		},
 		completionAvailable: () => state.kind === "ready",

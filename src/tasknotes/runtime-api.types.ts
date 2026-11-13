@@ -159,6 +159,14 @@ export interface TaskNotesRuntimeApiV1 {
 		userFields?(): TaskNotesUserField[];
 	};
 
+	/**
+	 * 4.13.0+. Gate on recurring.write. A toggle; an omitted date targets the scheduled
+	 * date; the date string goes through new Date(), so pass a bare YYYY-MM-DD.
+	 */
+	readonly recurring?: {
+		toggleCompleteInstance(path: string, date?: string, context?: TaskNotesMutationContext): Promise<TaskInfo>;
+	};
+
 	readonly pomodoro?: { status(): Promise<PomodoroState>; };
 
 	readonly events: {
