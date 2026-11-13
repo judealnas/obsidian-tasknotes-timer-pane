@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 04-staging-foundations
 source: 04-01-SUMMARY.md, 04-02-SUMMARY.md, 04-03-SUMMARY.md, 04-04-SUMMARY.md, 04-05-SUMMARY.md
 started: 2026-11-13T00:00:00Z
@@ -58,5 +58,18 @@ blocked: 0
   severity: major
   test: 6
   evidence: "dev-vault data.json pauseRecords stays [] after pausing (pauseRecordsVersion 1); cardOrder loses the paused task"
-  artifacts: []  # Filled by diagnosis
-  missing: []    # Filled by diagnosis
+  root_cause: "Not a Phase 4 regression (pause path unchanged since v0.2). The paused task 'Write quarterly report' was already status: done (completed-type) in the dev vault, left so by v0.2 UAT. Pause succeeded, then the immediate post-pause refresh ran pauseLedger reconcile rule 4 (Phase 3 D-12 'completed elsewhere'), which deletes a paused record for any completed-type status regardless of whether completion happened before or after the pause; applyReconcile([]) persisted pauseRecords: [] and the card vanished like Stop. The picker lists completed tasks (sorted last), so a done task can be timed and paused."
+  artifacts:
+    - path: "src/model/pauseLedger.ts"
+      issue: "reconcile rule 4 deletes paused records of tasks completed before the pause, not only those completed after"
+    - path: "src/state/TimerStore.ts"
+      issue: "refreshOnce feeds completed-status set to reconcile on the refresh right after pause"
+    - path: "src/model/taskPicker.ts"
+      issue: "filterAndSortTasks keeps completed tasks selectable"
+    - path: "dev-vault/TaskNotes/Tasks/Write quarterly report.md"
+      issue: "status: done left by v0.2 UAT (seed copy is open)"
+  missing:
+    - "Rule 4 should drop only records whose task became completed after pausedAt (or Pause/picker should refuse already-completed tasks)"
+    - "Regression test: pausing an already-completed task"
+  debug_session: ".planning/debug/pause-removes-card.md"
+  note: "Dev vault runs TaskNotes 4.18.2 (updated 2026-11-13), not 4.13.8" 
