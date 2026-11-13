@@ -170,3 +170,13 @@ Phases execute in numeric order: 4 → 5 → 6 → 7 (Phases 4 and 5 are indepen
 | 5. Two-Tab Shell | v0.3 | 0/? | Not started | - |
 | 6. Staged Tab Core | v0.3 | 0/? | Not started | - |
 | 7. Complete, Roll Over & Release 0.3.0 | v0.3 | 0/? | Not started | - |
+
+## Backlog
+
+### Phase 999.1: Follow-up — Phase 04 deferred UAT follow-up: Test 6 (BACKLOG)
+
+**Goal:** Resolve the UAT checkpoint deferred during Phase 04 verification
+**Source phase:** 04
+**Deferred at:** 2026-11-13 during /gsd-verify-work 4 session completion
+**Follow-ups:**
+- [ ] Test 6: Pausing a task that is already completed drops its card: pauseLedger reconcile rule 4 (Phase 3 D-12 'completed elsewhere') deletes paused records for any completed-type status, even if completed before the pause. Make rule 4 drop only records completed after pausedAt (or block pause / hide completed tasks in the picker), plus a regression test. Pre-existing since v0.2. Debug: .planning/debug/pause-removes-card.md (deferred 2026-11-13)
