@@ -221,6 +221,15 @@ Use these entry points:
 Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
 <!-- GSD:workflow-end -->
 
+## Automated UAT sandbox
+
+- Before `/gsd-verify-work` on a phase with UI checkpoints, and before executing a UI phase whose waves gsd-dom-verifier will check, run `npm run uat:start` from the checkout that contains the code under test (worktree or main; that checkout needs `npm ci` first). gsd-dom-verifier has no Bash and cannot start it.
+- Re-run `npm run uat:start` after every rebuild or merge you want verified; it rebuilds, reinstalls and restarts. Check the ready line's `build=` and `mainjs=` to confirm which code is loaded.
+- Run `npm run uat:stop` when done so dev-vault is free for the user.
+- Precondition: the user's own Obsidian must not have dev-vault open. If the launcher refuses, ask the user to close it; do not work around the guard.
+- Never launch Obsidian any other way for UAT (it steals focus). Interact only through the `mcp__chrome-devtools__*` tools or `node scripts/uat/cdp.mjs` (port 9333).
+- Verify disk- and state-checkable items yourself through the sandbox before asking the user; ask the user only about subjective look-and-feel.
+
 <!-- GSD:profile-start -->
 
 ## Developer Profile

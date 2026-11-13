@@ -72,14 +72,20 @@ Develop only in the repo's `dev-vault/` folder, never in your real vault. The bu
 
 Before you start:
 
-- Set up the main checkout's `dev-vault/` per the steps above, and run `npm run deploy` so it has a current build.
+- Set up the main checkout's `dev-vault/` per the steps above, with TaskNotes and TaskNotes Timer Pane enabled once. You don't need to deploy a build first: `uat:start` builds the checkout you run it from and installs that build itself.
+- Run `npm ci` in the checkout you want to test (the main checkout or a worktree) so it can build.
 - Close `dev-vault` in your own Obsidian. The launcher refuses to start while your Obsidian has that vault open, because two instances on one vault would write conflicting changes.
 
 Commands:
 
-- `npm run uat:start` starts the instance, gets past the trust prompt and Restricted mode, and prints one `UAT Obsidian ready:` line with the TaskNotes version, API version and whether the pane loaded. Pass `-- -Vault <path> -Port <n>` to override the defaults.
+- `npm run uat:start` runs `npm run build` in the checkout that contains the script (the main checkout or a worktree), copies `main.js`, `manifest.json` and `styles.css` into the main checkout's `dev-vault/.obsidian/plugins/tasknotes-timer-pane/`, and leaves `data.json` alone. Then it starts the instance, gets past the trust prompt and Restricted mode, and prints one `UAT Obsidian ready:` line with the TaskNotes version, API version, whether the pane loaded, `build=<checkout>@<commit>` (with `+dirty` when tracked files have uncommitted changes) and `mainjs=<hash>` of the installed `main.js`. If the build fails, nothing is installed or launched. Pass `-- -Vault <path> -Port <n>` to override the defaults.
+- `npm run uat:start -- -SkipBuild` launches whatever build is already installed, with no build and no copy.
 - `npm run uat:stop` stops only the UAT instance. Your own Obsidian is not touched.
-- `npm run uat:smoke` starts and stops the instance while sampling the foreground window, and fails if the UAT instance ever had focus or if your own Obsidian processes changed.
+- `npm run uat:smoke` starts and stops the instance while sampling the foreground window, and fails if the UAT instance ever had focus, if your own Obsidian processes changed, or if the installed `main.js` doesn't match the checkout's build.
+
+The launcher only installs into a vault folder named `dev-vault`. It refuses any other `-Vault` unless you pass `-SkipBuild`, and it checks this before anything is built or copied.
+
+To load a new build, run `npm run uat:start` again. It stops the previous instance first, so Hot Reload isn't needed. This replaces the dev vault's plugin build with the checkout's minified production build; run `npm run deploy` in the main checkout afterwards to go back to your own dev build.
 
 The instance listens for DevTools connections on port 9333. That port is localhost-only but unauthenticated, so stop the instance when you're done. The `chrome-devtools` MCP server in `.mcp.json` connects to it; Claude Code needs one restart to load it. Like any Obsidian, the UAT instance saves its workspace layout into the vault's `.obsidian/` folder.
 
