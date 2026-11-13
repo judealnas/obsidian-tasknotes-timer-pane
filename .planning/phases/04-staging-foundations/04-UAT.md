@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: complete
 phase: 04-staging-foundations
 source: 04-01-SUMMARY.md, 04-02-SUMMARY.md, 04-03-SUMMARY.md, 04-04-SUMMARY.md, 04-05-SUMMARY.md
 started: 2026-11-13T00:00:00Z
-updated: 2026-11-13T17:20:04.342Z
+updated: 2026-11-13T17:27:37.475Z
 ---
 
 ## Current Test
@@ -36,40 +36,24 @@ result: pass
 
 ### 6. Timers behave as before (regression)
 expected: In the pane, start a timer on a task, pause it, resume it, then stop it. Each action works in one click, the elapsed time ticks, and the TaskNotes status bar stays in sync — same as v0.2, no new errors or notices.
-result: issue
-reported: "Pausing a timer removes the card, making resuming impossible. It seems to have the same behavior as clicking stop or complete."
-severity: major
+result: pass
+note: "First run failed (pause removed the card) because the task was already status: done; root cause is pre-existing Phase 3 reconcile rule 4, not Phase 4 (see Deferred Follow-Ups, .planning/debug/pause-removes-card.md). Task reset to open; retest passed 2026-11-13."
 
 ## Summary
 
 total: 6
-passed: 5
-issues: 1
+passed: 6
+issues: 0
 pending: 0
 skipped: 0
 blocked: 0
 
 ## Gaps
 
-- gap_id: G-04-6
-  truth: "Pausing a timer keeps its card in the pane as paused so it can be resumed, same as v0.2"
-  status: failed
-  reason: "User reported: Pausing a timer removes the card, making resuming impossible. It seems to have the same behavior as clicking stop or complete."
-  severity: major
-  test: 6
-  evidence: "dev-vault data.json pauseRecords stays [] after pausing (pauseRecordsVersion 1); cardOrder loses the paused task"
-  root_cause: "Not a Phase 4 regression (pause path unchanged since v0.2). The paused task 'Write quarterly report' was already status: done (completed-type) in the dev vault, left so by v0.2 UAT. Pause succeeded, then the immediate post-pause refresh ran pauseLedger reconcile rule 4 (Phase 3 D-12 'completed elsewhere'), which deletes a paused record for any completed-type status regardless of whether completion happened before or after the pause; applyReconcile([]) persisted pauseRecords: [] and the card vanished like Stop. The picker lists completed tasks (sorted last), so a done task can be timed and paused."
-  artifacts:
-    - path: "src/model/pauseLedger.ts"
-      issue: "reconcile rule 4 deletes paused records of tasks completed before the pause, not only those completed after"
-    - path: "src/state/TimerStore.ts"
-      issue: "refreshOnce feeds completed-status set to reconcile on the refresh right after pause"
-    - path: "src/model/taskPicker.ts"
-      issue: "filterAndSortTasks keeps completed tasks selectable"
-    - path: "dev-vault/TaskNotes/Tasks/Write quarterly report.md"
-      issue: "status: done left by v0.2 UAT (seed copy is open)"
-  missing:
-    - "Rule 4 should drop only records whose task became completed after pausedAt (or Pause/picker should refuse already-completed tasks)"
-    - "Regression test: pausing an already-completed task"
-  debug_session: ".planning/debug/pause-removes-card.md"
-  note: "Dev vault runs TaskNotes 4.18.2 (updated 2026-11-13), not 4.13.8" 
+[none — G-04-6 reclassified as pre-existing and deferred per user decision 2026-11-13]
+
+## Deferred Follow-Ups
+
+- test: 6
+  idea: "Pausing a task that is already completed drops its card: pauseLedger reconcile rule 4 (Phase 3 D-12 'completed elsewhere') deletes paused records for any completed-type status, even if completed before the pause. Make rule 4 drop only records completed after pausedAt (or block pause / hide completed tasks in the picker), plus a regression test. Pre-existing since v0.2. Debug: .planning/debug/pause-removes-card.md"
+  deferred_at: 2026-11-13
