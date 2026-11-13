@@ -6,10 +6,10 @@ current_phase: 5
 current_phase_name: Two-Tab Shell
 status: planning
 stopped_at: Phase 4 complete, ready to plan Phase 5
-last_updated: "2026-11-13T18:17:25.432Z"
+last_updated: "2026-11-13T18:43:17.936Z"
 last_activity: 2026-11-13
 last_activity_desc: Phase 4 complete, transitioned to Phase 5
-state_head: f0ff2bec4302755c19ec6ee562ad14d526a44613
+state_head: 0f4a0763d228a65ddaa9072848f4d96f29a26425
 progress:
   total_phases: 4
   completed_phases: 4
@@ -33,7 +33,7 @@ Phase: 5 — Two-Tab Shell
 Plan: Not started
 Status: Ready to plan
 Note: Phase 4 complete: UAT 6/6, VERIFICATION passed, SECURITY 19/19 closed. 04-01 spike cleanup done (`staged:` null line confirmed, `spikedefault` removed).
-Last activity: 2026-11-13 - Completed quick task 261113-i5w: Invisible isolated Obsidian UAT instance (hidden desktop + CDP MCP)
+Last activity: 2026-11-13 - Completed quick task 261113-iua: UAT sandbox runs the code under test and GSD verify steps start it
 
 Progress (v0.3): [██▌░░░░░░░] 25% (1/4 phases)
 
@@ -163,6 +163,7 @@ None yet.
 | 261019-h6t | Prep plugin for BRAT distribution | 2026-10-19 | 5fc684e | [261019-h6t-prep-plugin-for-brat-distribution](./quick/261019-h6t-prep-plugin-for-brat-distribution/) |
 | 261027-mcs | Add drag-and-drop reordering of the timer cards in the pane | 2026-10-27 | 8051ea7 | [261027-mcs-add-drag-and-drop-reordering-of-the-time](./quick/261027-mcs-add-drag-and-drop-reordering-of-the-time/) |
 | 261113-i5w | Invisible isolated Obsidian UAT instance (hidden desktop + CDP MCP) | 2026-11-13 | f0ff2be | [261113-i5w-invisible-isolated-obsidian-uat-instance](./quick/261113-i5w-invisible-isolated-obsidian-uat-instance/) |
+| 261113-iua | UAT sandbox runs the code under test and GSD verify steps start it | 2026-11-13 | 0f4a076 | [261113-iua-uat-sandbox-runs-the-code-under-test-and](./quick/261113-iua-uat-sandbox-runs-the-code-under-test-and/) |
 
 ## Deferred Items
 
